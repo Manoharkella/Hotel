@@ -77,7 +77,7 @@ export default function FindHotel() {
       addToast('Please fill destination and dates', 'error');
       return;
     }
-    const matched = hotels.filter(h => h.location.toLowerCase().includes(form.destination.toLowerCase()));
+    const matched = hotels.filter(h => h.location?.toLowerCase().includes(form.destination.toLowerCase()));
     setMatchedHotels(matched);
     setSubmitted(true);
     addToast(`Found ${matched.length} hotels in ${form.destination}. Please select one from the map.`, 'info');
