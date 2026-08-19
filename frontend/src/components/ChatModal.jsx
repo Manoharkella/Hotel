@@ -26,7 +26,9 @@ export default function ChatModal({ leadId, hotelId, sender, onClose }) {
     fetchHistory();
 
     // Setup WebSocket
-    const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080';
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const defaultWsUrl = import.meta.env.PROD ? `${wsProtocol}//${window.location.host}` : 'ws://localhost:8080';
+    const wsUrl = import.meta.env.VITE_WS_URL || defaultWsUrl;
     const ws = new WebSocket(`${wsUrl}/api/ws/chat/${leadId}/${hotelId}`);
     ws.onmessage = (event) => {
       const newMsg = JSON.parse(event.data);
