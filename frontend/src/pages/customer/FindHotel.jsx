@@ -253,7 +253,7 @@ export default function FindHotel() {
   const defaultCenter = CITY_COORDINATES[(destination || '').toLowerCase().trim()] || [17.72, 83.31];
 
   return (
-    <div className="fade-in" style={{ maxWidth: 1440, margin: '0 auto', padding: '14px 20px 40px' }}>
+    <div className="fade-in find-hotel-page-container">
       
       {/* 1. TOP MODERN SEARCH & FILTER CAPSULE */}
       <div className="search-capsule-container">
@@ -283,33 +283,33 @@ export default function FindHotel() {
             )}
           </div>
 
-          {/* Side-by-Side Compact Filters */}
-          <div className="search-filters-compact-grid">
-            {/* Dates Selector */}
-            <div className="capsule-group capsule-dates">
-              <Calendar size={15} color="var(--primary)" style={{ flexShrink: 0 }} />
-              <input 
-                type="date" 
-                className="capsule-date-input" 
-                value={checkIn}
-                min={today}
-                onChange={e => setCheckIn(e.target.value)}
-                title="Check-In Date"
-              />
-              <span style={{ color: 'var(--border)', fontWeight: 300, margin: '0 2px' }}>—</span>
-              <input 
-                type="date" 
-                className="capsule-date-input" 
-                value={checkOut}
-                min={checkIn || today}
-                onChange={e => setCheckOut(e.target.value)}
-                title="Check-Out Date"
-              />
-            </div>
+          {/* Dates Selector */}
+          <div className="capsule-group capsule-dates">
+            <Calendar size={15} color="var(--primary)" style={{ flexShrink: 0 }} />
+            <input 
+              type="date" 
+              className="capsule-date-input" 
+              value={checkIn}
+              min={today}
+              onChange={e => setCheckIn(e.target.value)}
+              title="Check-In Date"
+            />
+            <span style={{ color: 'var(--border)', fontWeight: 300, margin: '0 4px' }}>—</span>
+            <input 
+              type="date" 
+              className="capsule-date-input" 
+              value={checkOut}
+              min={checkIn || today}
+              onChange={e => setCheckOut(e.target.value)}
+              title="Check-Out Date"
+            />
+          </div>
 
+          {/* 3 Side-by-Side Compact Selects */}
+          <div className="search-filters-compact-grid">
             {/* Guests */}
             <div className="capsule-group">
-              <Users size={15} color="var(--primary)" style={{ flexShrink: 0 }} />
+              <Users size={14} color="var(--primary)" style={{ flexShrink: 0 }} />
               <select 
                 className="capsule-select"
                 value={guests}
@@ -323,13 +323,13 @@ export default function FindHotel() {
 
             {/* Room Type */}
             <div className="capsule-group">
-              <Bed size={15} color="var(--primary)" style={{ flexShrink: 0 }} />
+              <Bed size={14} color="var(--primary)" style={{ flexShrink: 0 }} />
               <select 
                 className="capsule-select"
                 value={roomTypeFilter}
                 onChange={e => setRoomTypeFilter(e.target.value)}
               >
-                <option value="all">All Rooms</option>
+                <option value="all">Rooms: All</option>
                 <option value="Deluxe">Deluxe</option>
                 <option value="Executive">Executive</option>
                 <option value="Suite">Suite</option>
@@ -339,16 +339,16 @@ export default function FindHotel() {
 
             {/* Budget Tier */}
             <div className="capsule-group">
-              <SlidersHorizontal size={15} color="var(--primary)" style={{ flexShrink: 0 }} />
+              <SlidersHorizontal size={14} color="var(--primary)" style={{ flexShrink: 0 }} />
               <select 
                 className="capsule-select"
                 value={priceTier}
                 onChange={e => setPriceTier(e.target.value)}
               >
-                <option value="all">Any Budget</option>
-                <option value="under4k">&lt; ₹4,000</option>
-                <option value="4k-8k">₹4k - ₹8k</option>
-                <option value="over8k">₹8,000+ (Luxury)</option>
+                <option value="all">Budget: All</option>
+                <option value="under4k">&lt; ₹4k</option>
+                <option value="4k-8k">₹4k - 8k</option>
+                <option value="over8k">₹8k+ Luxury</option>
               </select>
             </div>
           </div>
@@ -357,7 +357,7 @@ export default function FindHotel() {
       </div>
 
       {/* Quick City Filters */}
-      <div className="city-chips-scroller" style={{ margin: '4px 0 12px' }}>
+      <div className="city-chips-scroller" style={{ margin: '4px 0 10px' }}>
         {['All India', 'Mumbai', 'Hyderabad', 'Vizag', 'Bengaluru', 'Goa', 'Chennai', 'Delhi', 'Jaipur'].map(city => {
           const isSelected = (!destination && city === 'All India') || destination.toLowerCase() === city.toLowerCase();
           return (
@@ -389,14 +389,14 @@ export default function FindHotel() {
           className={`mobile-tab-btn ${mobileTab === 'list' ? 'active' : ''}`}
           onClick={() => setMobileTab('list')}
         >
-          📋 Hotel List ({displayedHotels.length})
+          📋 List ({displayedHotels.length})
         </button>
         <button 
           type="button"
           className={`mobile-tab-btn ${mobileTab === 'map' ? 'active' : ''}`}
           onClick={() => setMobileTab('map')}
         >
-          🗺️ Interactive Map ({displayedHotels.length})
+          🗺️ Map ({displayedHotels.length})
         </button>
       </div>
 
