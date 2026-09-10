@@ -2,22 +2,44 @@ import { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
+import NotificationDropdown from '../../components/NotificationDropdown';
+
+const Icon = ({ d, size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d={d} />
+  </svg>
+);
+
+const icons = {
+  dashboard: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0v-6a1 1 0 011-1h2a1 1 0 011 1v6m-6 0h6',
+  calendar: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
+  leads: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
+  bookings: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4',
+  wallet: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z',
+  scanner: 'M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z',
+  property: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+  logout: 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1',
+  menu: 'M4 6h16M4 12h16M4 18h16',
+  close: 'M6 18L18 6M6 6l12 12'
+};
 
 export default function HotelLayout() {
   const { user, logout } = useAuth();
   const { hotels, getWalletBalance } = useApp();
   const location = useLocation();
   const navigate = useNavigate();
-  const hotelId = (user?.hotelId || user?.id) ? (user.hotelId || user.id).toString() : '1';
-  const hotelData = hotels.find(h => h.id === hotelId);
-  const credits = getWalletBalance(hotelId);
-  const { notifications, markNotificationsRead } = useApp();
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDark, setIsDark] = useState(document.documentElement.getAttribute('data-theme') === 'dark');
-  const [showNotifications, setShowNotifications] = useState(false);
 
-  const userNotifications = notifications.filter(n => n.userId === user?.hotelId);
-  const unreadCount = userNotifications.filter(n => !n.read).length;
+  const hotelId = user?.hotelId || user?.id;
+  const hotelData = hotels.find(h => h.id === hotelId?.toString());
+  const credits = getWalletBalance(hotelId?.toString() || '1');
+
+  // Close sidebar on route change
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
 
   const toggleTheme = () => {
     const newTheme = !isDark;
@@ -25,122 +47,185 @@ export default function HotelLayout() {
     document.documentElement.setAttribute('data-theme', newTheme ? 'dark' : 'light');
   };
 
-  const handleLogout = () => { logout(); navigate('/auth'); };
+  const handleLogout = () => { logout(); navigate('/hotel_login'); };
 
   const navItems = [
-    { path: '/hotel', icon: '📊', label: 'Dashboard' },
-    { path: '/hotel/leads', icon: '📩', label: 'Leads Inbox' },
-    { path: '/hotel/bookings', icon: '📋', label: 'Bookings' },
-    { path: '/hotel/wallet', icon: '💳', label: 'Credit Wallet' },
-    { path: '/hotel/scanner', icon: '📷', label: 'QR Scanner' },
-    { path: '/hotel/property', icon: '🏨', label: 'My Property' },
+    { path: '/hotel', icon: icons.dashboard, label: 'Dashboard' },
+    { path: '/hotel/calendar', icon: icons.calendar, label: 'Room Calendar' },
+    { path: '/hotel/leads', icon: icons.leads, label: 'Leads Inbox' },
+    { path: '/hotel/bookings', icon: icons.bookings, label: 'Bookings' },
+    { path: '/hotel/wallet', icon: icons.wallet, label: 'Credit Wallet' },
+    { path: '/hotel/scanner', icon: icons.scanner, label: 'QR Scanner' },
+    { path: '/hotel/property', icon: icons.property, label: 'My Property' },
   ];
 
   return (
     <div className="layout fade-in">
-      {/* Luxury Dark Sidebar */}
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <Link to="/hotel" className="sidebar-logo" style={{ textDecoration: 'none' }}>
-            Hotel<span>Lead</span>
-          </Link>
-          <div style={{ fontSize: '0.75rem', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.1em', marginTop: 8 }}>
-            Partner Portal
+      {/* Mobile Drawer Overlay Backdrop */}
+      {sidebarOpen && (
+        <div 
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 99,
+            transition: 'opacity 0.3s'
+          }}
+        />
+      )}
+
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`} style={{
+        zIndex: 100,
+        transition: 'transform 0.3s ease'
+      }}>
+        {/* Brand Header */}
+        <div className="sidebar-header" style={{ padding: '20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <Link to="/hotel" style={{ textDecoration: 'none' }}>
+              <span style={{ fontFamily: 'var(--font-serif)', fontSize: '1.4rem', fontWeight: 700, color: 'white', letterSpacing: '-0.01em' }}>
+                Host<span style={{ color: '#10B981' }}>IQ</span>
+              </span>
+            </Link>
+            <div style={{ fontSize: '0.65rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.12em', marginTop: 2, fontWeight: 600 }}>
+              Hotel Partner
+            </div>
           </div>
+
+          {/* Close button on mobile */}
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="mobile-close-btn"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              padding: 4,
+              display: 'none'
+            }}
+          >
+            <Icon d={icons.close} size={22} />
+          </button>
         </div>
 
+        {/* Nav */}
         <nav className="sidebar-nav">
-          {navItems.map(item => (
-            <Link 
-              key={item.path} 
-              to={item.path} 
-              className={`sidebar-link ${location.pathname === item.path ? 'active' : ''}`}
-            >
-              <span style={{ fontSize: '1.2rem', opacity: location.pathname === item.path ? 1 : 0.7 }}>{item.icon}</span>
-              {item.label}
-            </Link>
-          ))}
+          {navItems.map(item => {
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={`sidebar-link ${isActive ? 'active' : ''}`}
+                style={{ display: 'flex', alignItems: 'center', gap: 12 }}
+              >
+                <span style={{ opacity: isActive ? 1 : 0.5, display: 'flex' }}>
+                  <Icon d={item.icon} size={18} />
+                </span>
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
         </nav>
 
+        {/* Footer */}
         <div className="sidebar-footer">
-          <div style={{ background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '8px', marginBottom: 16 }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Credit Balance</div>
-            <div style={{ fontSize: '1.25rem', fontFamily: 'var(--font-sans)', fontWeight: 600, color: 'white', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ color: 'var(--accent)' }}>●</span> {credits} 
-            </div>
-            {credits < 20 && (
-              <div style={{ fontSize: '0.75rem', color: 'var(--danger)', marginTop: 8 }}>Low balance</div>
-            )}
+          {/* Credits */}
+          <div style={{
+            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: 10, padding: '10px 12px', marginBottom: 12,
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          }}>
+            <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Credits</span>
+            <span style={{ fontSize: '0.82rem', color: '#10B981', fontWeight: 700 }}>{credits}</span>
           </div>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-            <div style={{ width: 36, height: 36, background: 'var(--accent)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 600 }}>
+
+          {/* User */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 8,
+              background: 'rgba(16,185,129,0.15)', color: '#34d399',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '0.8rem', fontWeight: 600,
+            }}>
               {(hotelData?.name || user?.name || 'H')[0]}
             </div>
             <div>
-              <div style={{ fontSize: '0.85rem', fontWeight: 500, color: 'white' }}>{hotelData?.name || user?.name}</div>
-              <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)' }}>Manager</div>
+              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>
+                {hotelData?.name || user?.name || 'Hotel'}
+              </div>
+              <div style={{ fontSize: '0.68rem', color: '#64748b' }}>Partner</div>
             </div>
           </div>
-          <button className="btn btn-outline-light btn-block btn-sm" onClick={handleLogout}>Logout</button>
+
+          <button
+            onClick={handleLogout}
+            style={{
+              width: '100%', padding: '8px', borderRadius: 8,
+              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'transparent', color: '#94a3b8',
+              fontSize: '0.78rem', fontWeight: 500, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#fca5a5'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#94a3b8'; }}
+          >
+            <Icon d={icons.logout} size={15} />
+            Sign Out
+          </button>
         </div>
       </aside>
 
-      {/* Main Content Area */}
       <main className="main-content">
-        <header className="topbar">
-          <h2 style={{ fontSize: '1.25rem', margin: 0, fontFamily: 'var(--font-sans)', fontWeight: 600 }}>
-            {navItems.find(i => i.path === location.pathname)?.label || 'Dashboard'}
-          </h2>
-          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-            <div style={{ position: 'relative' }}>
-              <button 
-                onClick={() => {
-                  setShowNotifications(!showNotifications);
-                  if(!showNotifications && unreadCount > 0) markNotificationsRead(user?.hotelId);
-                }}
-                style={{ background: 'transparent', border: '1px solid var(--border)', width: 36, height: 36, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text)', position: 'relative' }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                {unreadCount > 0 && (
-                  <span style={{ position: 'absolute', top: -4, right: -4, background: 'var(--danger)', color: 'white', fontSize: '0.65rem', padding: '2px 6px', borderRadius: 10, fontWeight: 'bold' }}>
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-              {showNotifications && (
-                <div style={{ position: 'absolute', top: 48, right: 0, width: 320, background: 'var(--bg-card)', border: '1px solid var(--border-light)', boxShadow: 'var(--shadow-xl)', borderRadius: 'var(--radius)', zIndex: 1000, overflow: 'hidden' }}>
-                  <div style={{ padding: '16px', borderBottom: '1px solid var(--border-light)', fontWeight: 600, fontSize: '0.9rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    Notifications
-                  </div>
-                  <div style={{ maxHeight: 320, overflowY: 'auto' }}>
-                    {userNotifications.length === 0 ? (
-                      <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.9rem' }}>No notifications yet.</div>
-                    ) : (
-                      userNotifications.map(n => (
-                        <div key={n.id} style={{ padding: '16px', borderBottom: '1px solid var(--border-light)', fontSize: '0.85rem', background: n.read ? 'transparent' : 'var(--info-bg)' }}>
-                          <div style={{ color: 'var(--text)', marginBottom: 8, lineHeight: 1.4 }}>{n.message}</div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{new Date(n.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            <button 
-              onClick={toggleTheme} 
-              style={{ background: 'transparent', border: '1px solid var(--border)', width: 36, height: 36, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text)' }}
+        <header className="topbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="mobile-hamburger-btn"
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                padding: '6px 8px',
+                cursor: 'pointer',
+                color: 'var(--text)',
+                display: 'none',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              title="Toggle navigation"
             >
-              {isDark ? '☀️' : '🌙'}
+              <Icon d={icons.menu} size={20} />
             </button>
-            <button className="btn btn-accent btn-sm" onClick={() => navigate('/hotel/wallet')}>
-              Buy Credits
+            <h2 style={{ fontSize: '1.15rem', margin: 0, fontWeight: 600, color: 'var(--text)' }}>
+              {navItems.find(i => i.path === location.pathname)?.label || 'Dashboard'}
+            </h2>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <NotificationDropdown
+              role="hotel"
+              userId={hotelId}
+              isDark={isDark}
+            />
+            <button
+              onClick={toggleTheme}
+              style={{
+                background: 'transparent', border: '1px solid var(--border)',
+                width: 34, height: 34, borderRadius: 8, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: 'var(--text-secondary)', fontSize: '0.85rem',
+              }}
+              title="Toggle theme"
+            >
+              {isDark ? '☀' : '☾'}
             </button>
           </div>
         </header>
-        
+
         <div className="page-content">
           <Outlet />
         </div>

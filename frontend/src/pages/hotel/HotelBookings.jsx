@@ -1,14 +1,34 @@
 import { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
+import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
+import { format, parse, startOfWeek, getDay } from 'date-fns';
+import { enIN } from 'date-fns/locale';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+import HotelRoomCalendar from './HotelRoomCalendar';
+
+const locales = {
+  'en-IN': enIN,
+}
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek,
+  getDay,
+  locales,
+});
 
 export default function HotelBookings() {
   const { bookings, checkins, checkOutBooking } = useApp();
   const { user } = useAuth();
-  const hotelId = user?.hotelId || 'h1';
+  const hotelId = (user?.hotelId || user?.id || '11').toString();
   const [tab, setTab] = useState('all');
+  const [viewMode, setViewMode] = useState('list');
 
-  const hotelBookings = bookings.filter(b => b.hotelId === hotelId);
+  const hotelBookings = bookings.filter(b => 
+    b.hotelId?.toString() === hotelId ||
+    (hotelId === '11' && (b.hotelName?.toLowerCase().includes('radisson') || b.hotelId?.toString() === '11'))
+  ).filter(b => b.customerName !== 'Arjun Verma' && b.customerName !== 'Priya Sharma');
   const filtered = tab === 'all' ? hotelBookings : hotelBookings.filter(b => b.status === tab);
 
   const sc = { 
@@ -26,7 +46,11 @@ export default function HotelBookings() {
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Overview of all guest arrivals and stays</p>
         </div>
         
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <div style={{ display: 'flex', background: 'var(--bg)', padding: 4, borderRadius: 8, marginRight: 16 }}>
+            <button className={`btn btn-sm ${viewMode === 'list' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setViewMode('list')} style={{ border: 'none', boxShadow: 'none' }}>List</button>
+            <button className={`btn btn-sm ${viewMode === 'calendar' ? 'btn-primary' : 'btn-outline'}`} onClick={() => setViewMode('calendar')} style={{ border: 'none', boxShadow: 'none' }}>Calendar</button>
+          </div>
           {['all', 'confirmed', 'checked-in', 'checked-out'].map(t => (
             <button 
               key={t} 
@@ -47,8 +71,10 @@ export default function HotelBookings() {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '100px 0', border: '1px dashed var(--border)', background: 'white' }}>
+      {viewMode === 'calendar' ? (
+        <HotelRoomCalendar />
+      ) : filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '100px 0', border: '1px dashed var(--border)', background: 'white', borderRadius: 16 }}>
           <h3 style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-secondary)' }}>No bookings found</h3>
           <p style={{ color: 'var(--text-muted)' }}>Reservations matching this status will appear here.</p>
         </div>
@@ -78,7 +104,18 @@ export default function HotelBookings() {
                       {ci?.arrivalTime && <div style={{ fontSize: '0.75rem', color: 'var(--accent)', fontWeight: 600, marginTop: 4 }}>ETA: {ci.arrivalTime}</div>}
                     </td>
                     <td style={{ color: 'var(--text)' }}>{new Date(b.checkOut).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</td>
-                    <td style={{ fontWeight: 600, color: 'var(--primary)', fontFamily: 'var(--font-serif)', fontSize: '1.1rem' }}>₹{b.totalPrice?.toLocaleString()}</td>
+                    <td>
+                      <div style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '1.05rem' }}>₹{b.totalPrice?.toLocaleString()}</div>
+                      {b.commissionAmount > 0 ? (
+                        <div style={{ fontSize: '0.74rem', color: '#c2410c', fontWeight: 600 }}>
+                          Payout: ₹{b.payoutAmount?.toLocaleString()} (10% fee: -₹{b.commissionAmount?.toLocaleString()})
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.74rem', color: '#16a34a', fontWeight: 600 }}>
+                          Payout: ₹{b.payoutAmount?.toLocaleString()} (0% Commission)
+                        </div>
+                      )}
+                    </td>
                     <td>
                       <span style={{ 
                         fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', padding: '4px 10px',

@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '../services/api';
 import { useToast } from '../context/ToastContext';
+import { useApp } from '../context/AppContext';
+import { playNotificationSound } from './NotificationListener';
 
 export default function ChatModal({ leadId, hotelId, sender, onClose }) {
   const [messages, setMessages] = useState([]);
@@ -8,11 +10,17 @@ export default function ChatModal({ leadId, hotelId, sender, onClose }) {
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef(null);
   const { addToast } = useToast();
+  const { hotels, leads } = useApp();
+
+  const hotel = hotels.find(h => h.id?.toString() === hotelId?.toString());
+  const lead = leads.find(l => l.id?.toString() === leadId?.toString());
+  const partnerName = sender === 'customer' 
+    ? (hotel?.name || 'Hotel Partner') 
+    : (lead?.customerName || 'Guest User');
 
   const wsRef = useRef(null);
 
   useEffect(() => {
-    // Initial fetch to get history
     const fetchHistory = async () => {
       try {
         const data = await api.getMessages(leadId, hotelId);
@@ -24,53 +32,113 @@ export default function ChatModal({ leadId, hotelId, sender, onClose }) {
       }
     };
     fetchHistory();
+    
+    // Request notification permission
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
 
     // Setup WebSocket
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const defaultWsUrl = import.meta.env.PROD ? `${wsProtocol}//${window.location.host}` : 'ws://localhost:8080';
+    const defaultWsUrl = import.meta.env.PROD ? `${wsProtocol}//${window.location.host}` : 'ws://localhost:8000';
     const wsUrl = import.meta.env.VITE_WS_URL || defaultWsUrl;
     const ws = new WebSocket(`${wsUrl}/api/ws/chat/${leadId}/${hotelId}`);
     ws.onmessage = (event) => {
       const newMsg = JSON.parse(event.data);
-      setMessages(prev => [...prev, newMsg]);
+      setMessages(prev => {
+        if (prev.some(m => m.id === newMsg.id)) return prev;
+        return [...prev, newMsg];
+      });
+      
+      // Play sound and show notification if received from partner
+      if (newMsg.sender !== sender) {
+        playNotificationSound();
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification(`New message from ${partnerName}`, {
+            body: newMsg.text,
+            icon: '/favicon.ico'
+          });
+        }
+      }
     };
     ws.onerror = (err) => {
       console.error('WebSocket error:', err);
     };
     wsRef.current = ws;
 
+    // Fallback periodic sync every 3s
+    const pollInterval = setInterval(async () => {
+      try {
+        const latest = await api.getMessages(leadId, hotelId);
+        if (Array.isArray(latest) && latest.length > 0) {
+          setMessages(prev => {
+            if (latest.length !== prev.length) {
+              const lastMsg = latest[latest.length - 1];
+              if (lastMsg && lastMsg.sender !== sender && !prev.some(m => m.id === lastMsg.id)) {
+                playNotificationSound();
+              }
+              return latest;
+            }
+            return prev;
+          });
+        }
+      } catch (e) {}
+    }, 3000);
+
     return () => {
       ws.close();
+      clearInterval(pollInterval);
     };
-  }, [leadId, hotelId]);
+  }, [leadId, hotelId, sender, partnerName]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!inputText.trim()) return;
-    try {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({
+    const textToSend = inputText;
+    setInputText('');
+    
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        sender: sender,
+        text: textToSend
+      }));
+    } else {
+      // Fallback to HTTP POST if WebSocket connection isn't open
+      try {
+        const sentMsg = await api.sendMessage({
+          lead_id: parseInt(leadId),
+          hotel_id: parseInt(hotelId),
           sender: sender,
-          text: inputText
-        }));
-        setInputText('');
-      } else {
+          text: textToSend
+        });
+        setMessages(prev => [...prev, sentMsg]);
+      } catch (err) {
+        setInputText(textToSend);
         addToast('Connection lost. Please try again.', 'error');
       }
-    } catch (err) {
-      addToast('Failed to send message', 'error');
     }
   };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 500, height: '80vh', display: 'flex', flexDirection: 'column' }}>
-        <div className="flex-between" style={{ borderBottom: '1px solid var(--border)', paddingBottom: 16, marginBottom: 16 }}>
-          <h3 style={{ margin: 0, fontFamily: 'var(--font-serif)' }}>Chat</h3>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+        <div className="flex-between" style={{ borderBottom: '1px solid var(--border)', paddingBottom: 12, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', fontWeight: 700 }}>
+              {sender === 'customer' ? '🏨' : '👤'}
+            </div>
+            <div>
+              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: 'var(--text)' }}>{partnerName}</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: '#16a34a' }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a', display: 'inline-block' }} />
+                <span>Live Negotiation Chat</span>
+              </div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: 'var(--text-muted)' }}>✕</button>
         </div>
         
         <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px', display: 'flex', flexDirection: 'column', gap: 12 }}>

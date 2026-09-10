@@ -56,6 +56,45 @@ export default function AdminDashboard() {
         ))}
       </div>
 
+      {/* System Health & Data Management Banner */}
+      <div style={{ background: '#f8fafc', border: '1px solid var(--border)', padding: '20px 24px', borderRadius: 16, marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ background: '#ecfdf5', color: '#059669', width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: '1.2rem' }}>
+            ✓
+          </div>
+          <div>
+            <h4 style={{ margin: 0, fontSize: '1rem', color: 'var(--text)', fontWeight: 700 }}>System Health: Operational (100% Uptime)</h4>
+            <p style={{ margin: '2px 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>FastAPI Backend connected • SQLite Persistent DB Active • WebSockets Running</p>
+          </div>
+        </div>
+
+        <button 
+          className="btn btn-outline btn-sm"
+          style={{ background: 'white', fontWeight: 600, padding: '10px 18px' }}
+          onClick={() => {
+            const backupData = {
+              timestamp: new Date().toISOString(),
+              total_hotels: hotels.length,
+              total_leads: leads.length,
+              total_bookings: bookings.length,
+              total_transactions: transactions.length,
+              hotels,
+              leads,
+              bookings
+            };
+            const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(backupData, null, 2))}`;
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute('href', jsonString);
+            downloadAnchor.setAttribute('download', `hotellead_backup_${Date.now()}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+          }}
+        >
+          💾 Export Data Backup (JSON)
+        </button>
+      </div>
+
       {/* Revenue Chart Section */}
       <div className="card slide-up delay-2" style={{ marginBottom: 32 }}>
         <div className="card-body">

@@ -17,10 +17,14 @@ export default function CreditWallet() {
     if (hotelId) loadWallet(hotelId);
   }, [hotelId, loadWallet]);
 
-  const handlePurchase = (pkg) => {
-    purchaseCredits(hotelId, pkg);
-    addToast(`${pkg.credits} credits purchased! New balance: ${balance + pkg.credits}`, 'success');
-    setShowCheckout(null);
+  const handlePurchase = async (pkg) => {
+    const success = await purchaseCredits(hotelId, pkg.credits, pkg.name);
+    if (success) {
+      addToast(`${pkg.credits} credits purchased!`, 'success');
+      setShowCheckout(null);
+    } else {
+      addToast('Failed to purchase credits', 'error');
+    }
   };
 
   return (
@@ -90,18 +94,20 @@ export default function CreditWallet() {
             ) : (
               hotelTx.map(tx => (
                 <tr key={tx.id}>
-                  <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{new Date(tx.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                  <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{tx.date || tx.createdAt ? new Date(tx.date || tx.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recent'}</td>
                   <td>
                     <span style={{ 
                       fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em',
-                      color: tx.type === 'purchase' ? 'var(--success)' : 'var(--warning)'
+                      color: tx.amount > 0 ? 'var(--success)' : tx.amount < 0 ? 'var(--warning)' : 'var(--primary)'
                     }}>
-                      {tx.type === 'purchase' ? '+ Purchase' : '− Spent'}
+                      {tx.amount > 0 ? '+ Purchase' : tx.amount < 0 ? '− Spent' : '✓ Booking'}
                     </span>
                   </td>
-                  <td style={{ fontSize: '0.85rem', color: 'var(--text)' }}>{tx.package || (tx.relatedLeadId ? `Lead unlock (${tx.relatedLeadId})` : 'Visibility boost')}</td>
-                  <td style={{ fontWeight: 600, color: tx.amount > 0 ? 'var(--success)' : 'var(--danger)' }}>{tx.amount > 0 ? '+' : ''}{tx.amount}</td>
-                  <td style={{ fontWeight: 600, fontFamily: 'var(--font-serif)', fontSize: '1.1rem' }}>{tx.balanceAfter}</td>
+                  <td style={{ fontSize: '0.85rem', color: 'var(--text)' }}>{tx.package || tx.description || 'Transaction'}</td>
+                  <td style={{ fontWeight: 600, color: tx.amount > 0 ? 'var(--success)' : tx.amount < 0 ? 'var(--danger)' : 'var(--text-secondary)' }}>
+                    {tx.amount !== 0 ? `${tx.amount > 0 ? '+' : ''}${tx.amount}` : '—'}
+                  </td>
+                  <td style={{ fontWeight: 600, fontSize: '0.95rem' }}>{balance}</td>
                 </tr>
               ))
             )}

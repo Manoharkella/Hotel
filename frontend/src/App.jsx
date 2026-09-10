@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AppProvider } from './context/AppContext';
 import { ToastProvider } from './context/ToastContext';
+import { LanguageProvider } from './context/LanguageContext';
+import NotificationListener from './components/NotificationListener';
 
 import AuthPage from './pages/AuthPage';
 
@@ -14,6 +16,8 @@ import MyTrips from './pages/customer/MyTrips';
 import OnlineCheckIn from './pages/customer/OnlineCheckIn';
 import QRPass from './pages/customer/QRPass';
 import CustomerProfile from './pages/customer/CustomerProfile';
+import Wishlist from './pages/customer/Wishlist';
+import RewardsStore from './pages/customer/RewardsStore';
 
 // Hotel Manager
 import HotelLayout from './pages/hotel/HotelLayout';
@@ -21,12 +25,15 @@ import HotelDashboard from './pages/hotel/HotelDashboard';
 import LeadsInbox from './pages/hotel/LeadsInbox';
 import CreditWallet from './pages/hotel/CreditWallet';
 import HotelBookings from './pages/hotel/HotelBookings';
+import HotelRoomCalendar from './pages/hotel/HotelRoomCalendar';
+import AdminCalendar from './pages/admin/AdminCalendar';
 import QRScanner from './pages/hotel/QRScanner';
 import HotelProperty from './pages/hotel/HotelProperty';
 
 // Admin
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminHotelMap from './pages/admin/AdminHotelMap';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminHotels from './pages/admin/AdminHotels';
 import AdminLeads from './pages/admin/AdminLeads';
@@ -36,8 +43,9 @@ import AdminSettings from './pages/admin/AdminSettings';
 
 function ProtectedRoute({ children, allowedRole }) {
   const { user } = useAuth();
-  if (!user) return <Navigate to="/auth" replace />;
-  if (allowedRole && user.role !== allowedRole) return <Navigate to="/auth" replace />;
+  const loginPath = allowedRole === 'hotel' ? '/hotel_login' : allowedRole === 'admin' ? '/admin_login' : '/customer_login';
+  if (!user) return <Navigate to={loginPath} replace />;
+  if (allowedRole && user.role !== allowedRole) return <Navigate to={loginPath} replace />;
   return children;
 }
 
@@ -46,7 +54,14 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/auth" element={<AuthPage />} />
+      {/* Dedicated Login Routes for each user role */}
+      <Route path="/customer_login" element={<AuthPage initialRole="customer" />} />
+      <Route path="/customer-login" element={<Navigate to="/customer_login" replace />} />
+      <Route path="/hotel_login" element={<AuthPage initialRole="hotel" />} />
+      <Route path="/hotel-login" element={<Navigate to="/hotel_login" replace />} />
+      <Route path="/admin_login" element={<AuthPage initialRole="admin" />} />
+      <Route path="/admin-login" element={<Navigate to="/admin_login" replace />} />
+      <Route path="/auth" element={<Navigate to="/customer_login" replace />} />
 
       {/* Customer Routes */}
       <Route path="/customer" element={<ProtectedRoute allowedRole="customer"><CustomerLayout /></ProtectedRoute>}>
@@ -54,6 +69,8 @@ function AppRoutes() {
         <Route path="find" element={<FindHotel />} />
         <Route path="hotel/:id" element={<HotelDetail />} />
         <Route path="trips" element={<MyTrips />} />
+        <Route path="wishlist" element={<Wishlist />} />
+        <Route path="rewards" element={<RewardsStore />} />
         <Route path="checkin/:id" element={<OnlineCheckIn />} />
         <Route path="qr/:id" element={<QRPass />} />
         <Route path="profile" element={<CustomerProfile />} />
@@ -62,6 +79,7 @@ function AppRoutes() {
       {/* Hotel Manager Routes */}
       <Route path="/hotel" element={<ProtectedRoute allowedRole="hotel"><HotelLayout /></ProtectedRoute>}>
         <Route index element={<HotelDashboard />} />
+        <Route path="calendar" element={<HotelRoomCalendar />} />
         <Route path="leads" element={<LeadsInbox />} />
         <Route path="wallet" element={<CreditWallet />} />
         <Route path="bookings" element={<HotelBookings />} />
@@ -72,6 +90,8 @@ function AppRoutes() {
       {/* Admin Routes */}
       <Route path="/admin" element={<ProtectedRoute allowedRole="admin"><AdminLayout /></ProtectedRoute>}>
         <Route index element={<AdminDashboard />} />
+        <Route path="calendar" element={<AdminCalendar />} />
+        <Route path="map" element={<AdminHotelMap />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="hotels" element={<AdminHotels />} />
         <Route path="leads" element={<AdminLeads />} />
@@ -80,12 +100,30 @@ function AppRoutes() {
         <Route path="settings" element={<AdminSettings />} />
       </Route>
 
-      {/* Default redirect */}
+      {/* Alias for /lead */}
+      <Route path="/lead" element={
+        user ? (
+          <Navigate to={user.role === 'hotel' ? '/hotel/leads' : user.role === 'admin' ? '/admin/leads' : '/customer'} replace />
+        ) : (
+          <Navigate to="/customer_login" replace />
+        )
+      } />
+
+      {/* Root route */}
+      <Route path="/" element={
+        user ? (
+          <Navigate to={user.role === 'customer' ? '/customer' : user.role === 'hotel' ? '/hotel' : '/admin'} replace />
+        ) : (
+          <Navigate to="/customer_login" replace />
+        )
+      } />
+
+      {/* Default redirect for unknown paths */}
       <Route path="*" element={
         user ? (
           <Navigate to={user.role === 'customer' ? '/customer' : user.role === 'hotel' ? '/hotel' : '/admin'} replace />
         ) : (
-          <Navigate to="/auth" replace />
+          <Navigate to="/customer_login" replace />
         )
       } />
     </Routes>
@@ -96,11 +134,14 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <LanguageProvider>
         <AppProvider>
           <ToastProvider>
+            <NotificationListener />
             <AppRoutes />
           </ToastProvider>
         </AppProvider>
+        </LanguageProvider>
       </AuthProvider>
     </BrowserRouter>
   );

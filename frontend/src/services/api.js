@@ -1,4 +1,7 @@
-export const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:8080/api');
+const rawUrl = (import.meta.env.VITE_API_URL || '').trim();
+export const API_BASE_URL = rawUrl 
+  ? (rawUrl.endsWith('/api') ? rawUrl : (rawUrl.endsWith('/') ? `${rawUrl}api` : `${rawUrl}/api`))
+  : (import.meta.env.PROD ? '/api' : 'http://localhost:8000/api');
 
 export const api = {
   // --- Hotel Registration & Auth ---
@@ -30,6 +33,19 @@ export const api = {
 
   loginHotel: async (email, password) => {
     const response = await fetch(`${API_BASE_URL}/hotels/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to login');
+    }
+    return response.json();
+  },
+
+  loginAdmin: async (email, password) => {
+    const response = await fetch(`${API_BASE_URL}/admin/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
@@ -104,6 +120,16 @@ export const api = {
   getAllLeads: async () => {
     const response = await fetch(`${API_BASE_URL}/leads/all`);
     if (!response.ok) throw new Error('Failed to fetch leads');
+    return response.json();
+  },
+
+  updateLeadDates: async (leadId, checkIn, checkOut) => {
+    const response = await fetch(`${API_BASE_URL}/leads/${leadId}/dates`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ check_in: checkIn, check_out: checkOut })
+    });
+    if (!response.ok) throw new Error('Failed to update lead dates');
     return response.json();
   },
 
@@ -216,6 +242,20 @@ export const api = {
     return response.json();
   },
 
+  getRecentMessages: async ({ hotelId, customerId, since } = {}) => {
+    try {
+      const params = new URLSearchParams();
+      if (hotelId) params.append('hotel_id', hotelId);
+      if (customerId) params.append('customer_id', customerId);
+      if (since) params.append('since', since);
+      const response = await fetch(`${API_BASE_URL}/messages/recent?${params.toString()}`);
+      if (!response.ok) return [];
+      return response.json();
+    } catch {
+      return [];
+    }
+  },
+
   // --- Reviews ---
   createReview: async (reviewData) => {
     const response = await fetch(`${API_BASE_URL}/reviews`, {
@@ -233,6 +273,79 @@ export const api = {
   getHotelReviews: async (hotelId) => {
     const response = await fetch(`${API_BASE_URL}/reviews/hotel/${hotelId}`);
     if (!response.ok) throw new Error('Failed to fetch reviews');
+    return response.json();
+  },
+
+  getAllReviews: async () => {
+    const response = await fetch(`${API_BASE_URL}/reviews/all`);
+    if (!response.ok) throw new Error('Failed to fetch all reviews');
+    return response.json();
+  },
+
+  purchaseCredits: async (hotelId, amount, packageName) => {
+    const response = await fetch(`${API_BASE_URL}/wallets/purchase`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hotel_id: parseInt(hotelId), amount, package: packageName })
+    });
+    if (!response.ok) throw new Error('Failed to purchase credits');
+    return response.json();
+  },
+
+  checkOutBooking: async (bookingId) => {
+    const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/checkout`, {
+      method: 'PUT'
+    });
+    if (!response.ok) throw new Error('Failed to process check-out');
+    return response.json();
+  },
+
+  cancelBooking: async (bookingId) => {
+    const response = await fetch(`${API_BASE_URL}/bookings/${bookingId}/cancel`, {
+      method: 'PUT'
+    });
+    if (!response.ok) throw new Error('Failed to cancel booking');
+    return response.json();
+  },
+
+  updateHotel: async (hotelId, data) => {
+    const response = await fetch(`${API_BASE_URL}/hotels/${hotelId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error('Failed to update hotel details');
+    return response.json();
+  },
+
+  updateRoom: async (roomId, data) => {
+    const response = await fetch(`${API_BASE_URL}/rooms/${roomId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!response.ok) throw new Error('Failed to update room details');
+    return response.json();
+  },
+
+  createRoom: async (hotelId, roomData) => {
+    const response = await fetch(`${API_BASE_URL}/hotels/${hotelId}/rooms`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(roomData)
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to create room');
+    }
+    return response.json();
+  },
+
+  deleteRoom: async (roomId) => {
+    const response = await fetch(`${API_BASE_URL}/rooms/${roomId}`, {
+      method: 'DELETE'
+    });
+    if (!response.ok) throw new Error('Failed to delete room');
     return response.json();
   }
 };

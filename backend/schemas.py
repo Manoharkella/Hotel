@@ -13,12 +13,22 @@ class UserResponse(BaseModel):
     email: str
     role: str
     status: str
+    phone: Optional[str] = ""
+    loyalty_points: Optional[int] = 0
     class Config: from_attributes = True
 
 class RoomCreate(BaseModel):
     room_type: str
-    quantity: int
+    quantity: int = 5
     price_per_night: int
+    description: Optional[str] = None
+    max_guests: Optional[int] = 2
+    bed_type: Optional[str] = "King Bed"
+    room_size: Optional[str] = "350 sq.ft"
+    amenities: Optional[List[str]] = []
+    breakfast_included: Optional[str] = "Included"
+    cancellation_policy: Optional[str] = "Free cancellation"
+    images: Optional[List[str]] = []
 
 class HotelRegister(BaseModel):
     name: str
@@ -34,8 +44,16 @@ class HotelRegister(BaseModel):
 class RoomResponse(BaseModel):
     id: int
     room_type: str
-    quantity: int
+    quantity: int = 5
     price_per_night: int
+    description: Optional[str] = None
+    max_guests: Optional[int] = 2
+    bed_type: Optional[str] = "King Bed"
+    room_size: Optional[str] = "350 sq.ft"
+    amenities: Optional[List[str]] = []
+    breakfast_included: Optional[str] = "Included"
+    cancellation_policy: Optional[str] = "Free cancellation"
+    images: Optional[List[str]] = []
     class Config: from_attributes = True
 
 class HotelResponse(BaseModel):
@@ -67,6 +85,9 @@ class LeadResponse(LeadCreate):
     id: int
     status: str
     matched_hotel_ids: List[int]
+    customer_name: Optional[str] = "Guest User"
+    customer_phone: Optional[str] = ""
+    created_at: Optional[str] = ""
     class Config: from_attributes = True
 
 class QuoteCreate(BaseModel):
@@ -92,12 +113,19 @@ class BookingCreate(BaseModel):
     customer_id: int
     hotel_id: int
     total_price: int
+    room_id: Optional[int] = None
+    check_in: Optional[str] = None
+    check_out: Optional[str] = None
+    guests: Optional[int] = 1
+    payment_status: Optional[str] = "PAID"
 
 class BookingResponse(BookingCreate):
     id: int
     status: str
     qr_code: str
     created_at: str
+    commission_amount: Optional[int] = 0
+    payout_amount: Optional[int] = 0
     class Config: from_attributes = True
 
 class BookingScan(BaseModel):

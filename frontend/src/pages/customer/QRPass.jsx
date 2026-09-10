@@ -83,8 +83,34 @@ export default function QRPass() {
             </div>
           </div>
 
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: 32, paddingTop: 24, textAlign: 'center' }}>
-            <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', margin: 0 }}>Present this code at the reception desk for instant contactless check-in.</p>
+          {/* Invoice & Tax Breakdown */}
+          <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 16, marginTop: 24, fontSize: '0.85rem' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: 8 }}>
+              📄 Tax Invoice Summary
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, color: 'rgba(255,255,255,0.8)' }}>
+              <span>Base Rate:</span>
+              <span>₹{Math.round(booking.totalPrice * 0.82).toLocaleString()}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, color: 'rgba(255,255,255,0.8)' }}>
+              <span>GST / Taxes (18%):</span>
+              <span>₹{Math.round(booking.totalPrice * 0.18).toLocaleString()}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 8, fontWeight: 700, fontSize: '1rem', color: 'white' }}>
+              <span>Total Paid:</span>
+              <span>₹{booking.totalPrice.toLocaleString()} (${(booking.totalPrice / 83).toFixed(1)} USD)</span>
+            </div>
+          </div>
+
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: 24, paddingTop: 20, textAlign: 'center' }}>
+            <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', marginBottom: 16 }}>Present this code at reception desk for instant check-in.</p>
+            <button 
+              className="btn btn-accent btn-sm" 
+              onClick={() => window.print()} 
+              style={{ padding: '10px 24px', fontWeight: 600, width: '100%' }}
+            >
+              📄 Print / Save PDF Tax Invoice Voucher
+            </button>
           </div>
         </div>
       </div>
