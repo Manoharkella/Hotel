@@ -129,8 +129,8 @@ export default function FindHotel() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Mobile View Tab: 'list' or 'map'
-  const [mobileTab, setMobileTab] = useState('list');
+  // Mobile View Tab: 'map' by default on mobile
+  const [mobileTab, setMobileTab] = useState('map');
 
   // Search Filters
   const initialDestination = searchParams.get('location') || searchParams.get('destination') || '';
