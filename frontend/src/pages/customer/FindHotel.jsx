@@ -365,6 +365,50 @@ export default function FindHotel() {
 
       </div>
 
+      {/* Quick City Filters */}
+      <div className="city-chips-scroller" style={{ margin: '4px 0 12px' }}>
+        {['All India', 'Mumbai', 'Hyderabad', 'Vizag', 'Bengaluru', 'Goa', 'Chennai', 'Delhi', 'Jaipur'].map(city => {
+          const isSelected = (!destination && city === 'All India') || destination.toLowerCase() === city.toLowerCase();
+          return (
+            <button
+              key={city}
+              type="button"
+              className={`city-chip ${isSelected ? 'active' : ''}`}
+              onClick={() => {
+                if (city === 'All India') {
+                  setDestination('');
+                  setSearchParams({});
+                } else {
+                  setDestination(city);
+                  setSearchParams({ location: city });
+                }
+                setSelectedMapHotel(null);
+              }}
+            >
+              📍 {city}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Mobile Top View Switcher (List vs Map) */}
+      <div className="mobile-view-tabs-header">
+        <button 
+          type="button"
+          className={`mobile-tab-btn ${mobileTab === 'list' ? 'active' : ''}`}
+          onClick={() => setMobileTab('list')}
+        >
+          📋 Hotel List ({displayedHotels.length})
+        </button>
+        <button 
+          type="button"
+          className={`mobile-tab-btn ${mobileTab === 'map' ? 'active' : ''}`}
+          onClick={() => setMobileTab('map')}
+        >
+          🗺️ Interactive Map ({displayedHotels.length})
+        </button>
+      </div>
+
       {/* 2. SPLIT-SCREEN EXPLORER (MAP + HOTEL FEED) */}
       <div className="find-hotel-explorer-grid">
         
@@ -472,6 +516,50 @@ export default function FindHotel() {
             <span>📍</span>
             <span>{displayedHotels.length} {displayedHotels.length === 1 ? 'Hotel' : 'Hotels'} on Map</span>
           </div>
+
+          {/* Floating Bottom Card Preview on Mobile Map */}
+          {selectedMapHotel && (
+            <div className="map-bottom-hotel-card-preview fade-up">
+              <button 
+                type="button"
+                className="close-preview-pill"
+                onClick={() => setSelectedMapHotel(null)}
+              >
+                ✕
+              </button>
+              <div 
+                style={{ display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer' }}
+                onClick={() => navigate(`/customer/hotel/${selectedMapHotel.id}?checkIn=${checkIn}&checkOut=${checkOut}&guests=${guests}`)}
+              >
+                <img 
+                  src={selectedMapHotel.photos?.[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=300'} 
+                  alt={selectedMapHotel.name}
+                  style={{ width: 78, height: 78, borderRadius: 12, objectFit: 'cover', flexShrink: 0 }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <strong style={{ fontSize: '0.92rem', color: 'var(--text)', wordBreak: 'break-word', lineHeight: 1.3 }}>
+                      {selectedMapHotel.name}
+                    </strong>
+                  </div>
+                  <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', display: 'block', margin: '2px 0 4px', wordBreak: 'break-word' }}>
+                    📍 {selectedMapHotel.location}
+                  </span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <span style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--primary)' }}>
+                        ₹{(selectedMapHotel.roomTypes?.[0]?.price || 3000).toLocaleString()}
+                      </span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}> / night</span>
+                    </div>
+                    <span style={{ background: 'var(--primary)', color: 'white', padding: '6px 12px', borderRadius: 8, fontSize: '0.78rem', fontWeight: 700 }}>
+                      View Rooms →
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
         </div>
 
