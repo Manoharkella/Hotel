@@ -720,23 +720,45 @@ tr:hover td { background: rgba(0,0,0,0.015); }
 
   /* Search & Filters */
   .search-capsule-container {
-    border-radius: 18px !important;
-    padding: 12px !important;
+    border-radius: 16px !important;
+    padding: 8px 10px !important;
+    margin-bottom: 8px !important;
   }
   .search-capsule-row {
     flex-direction: column !important;
     align-items: stretch !important;
-    gap: 8px !important;
+    gap: 6px !important;
   }
-  .search-input-pill, .capsule-group {
+  .search-input-pill {
     width: 100% !important;
-    border-radius: 12px !important;
+    border-radius: 10px !important;
+    height: 38px !important;
+    padding: 0 12px !important;
     min-width: unset !important;
+  }
+  .search-filters-compact-grid {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+  .capsule-group {
+    width: 100% !important;
+    border-radius: 10px !important;
+    height: 36px !important;
+    padding: 0 8px !important;
+    min-width: unset !important;
+    font-size: 0.78rem !important;
+    gap: 4px !important;
+  }
+  .capsule-date-input,
+  .capsule-select {
+    font-size: 0.76rem !important;
   }
   .city-chips-scroller {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch;
-    padding: 6px 0 !important;
+    padding: 4px 0 !important;
   }
 
   /* Card & Tables */
@@ -827,6 +849,12 @@ tr:hover td { background: rgba(0,0,0,0.015); }
   font-weight: 600;
   color: var(--text);
   width: 100%;
+}
+
+.search-filters-compact-grid {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .capsule-group {

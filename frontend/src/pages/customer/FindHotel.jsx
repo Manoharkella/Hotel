@@ -258,9 +258,9 @@ export default function FindHotel() {
       {/* 1. TOP MODERN SEARCH & FILTER CAPSULE */}
       <div className="search-capsule-container">
         <div className="search-capsule-row">
-                   {/* Destination Search Pill */}
+          {/* Destination Search Pill */}
           <div className="search-input-pill">
-            <MapPin size={21} color="var(--accent)" style={{ flexShrink: 0 }} />
+            <MapPin size={18} color="var(--accent)" style={{ flexShrink: 0 }} />
             <input 
               type="text"
               className="search-input-field"
@@ -283,86 +283,77 @@ export default function FindHotel() {
             )}
           </div>
 
-          {/* Dates Selector */}
-          <div className="capsule-group">
-            <Calendar size={18} color="var(--primary)" style={{ flexShrink: 0 }} />
-            <input 
-              type="date" 
-              className="capsule-date-input" 
-              value={checkIn}
-              min={today}
-              onChange={e => setCheckIn(e.target.value)}
-              title="Check-In Date"
-            />
-            <span style={{ color: 'var(--border)', fontWeight: 300 }}>—</span>
-            <input 
-              type="date" 
-              className="capsule-date-input" 
-              value={checkOut}
-              min={checkIn || today}
-              onChange={e => setCheckOut(e.target.value)}
-              title="Check-Out Date"
-            />
-          </div>
+          {/* Side-by-Side Compact Filters */}
+          <div className="search-filters-compact-grid">
+            {/* Dates Selector */}
+            <div className="capsule-group capsule-dates">
+              <Calendar size={15} color="var(--primary)" style={{ flexShrink: 0 }} />
+              <input 
+                type="date" 
+                className="capsule-date-input" 
+                value={checkIn}
+                min={today}
+                onChange={e => setCheckIn(e.target.value)}
+                title="Check-In Date"
+              />
+              <span style={{ color: 'var(--border)', fontWeight: 300, margin: '0 2px' }}>—</span>
+              <input 
+                type="date" 
+                className="capsule-date-input" 
+                value={checkOut}
+                min={checkIn || today}
+                onChange={e => setCheckOut(e.target.value)}
+                title="Check-Out Date"
+              />
+            </div>
 
-          {/* Guests */}
-          <div className="capsule-group">
-            <Users size={18} color="var(--primary)" style={{ flexShrink: 0 }} />
-            <select 
-              className="capsule-select"
-              value={guests}
-              onChange={e => setGuests(Number(e.target.value))}
-            >
-              {[1, 2, 3, 4, 5, 6].map(n => (
-                <option key={n} value={n}>{n} {n === 1 ? 'Guest' : 'Guests'}</option>
-              ))}
-            </select>
-          </div>
+            {/* Guests */}
+            <div className="capsule-group">
+              <Users size={15} color="var(--primary)" style={{ flexShrink: 0 }} />
+              <select 
+                className="capsule-select"
+                value={guests}
+                onChange={e => setGuests(Number(e.target.value))}
+              >
+                {[1, 2, 3, 4, 5, 6].map(n => (
+                  <option key={n} value={n}>{n} {n === 1 ? 'Guest' : 'Guests'}</option>
+                ))}
+              </select>
+            </div>
 
-          {/* Room Type */}
-          <div className="capsule-group">
-            <Bed size={18} color="var(--primary)" style={{ flexShrink: 0 }} />
-            <select 
-              className="capsule-select"
-              value={roomTypeFilter}
-              onChange={e => setRoomTypeFilter(e.target.value)}
-            >
-              <option value="all">All Rooms</option>
-              <option value="Deluxe">Deluxe</option>
-              <option value="Executive">Executive</option>
-              <option value="Suite">Suite</option>
-              <option value="Standard">Standard</option>
-            </select>
-          </div>
+            {/* Room Type */}
+            <div className="capsule-group">
+              <Bed size={15} color="var(--primary)" style={{ flexShrink: 0 }} />
+              <select 
+                className="capsule-select"
+                value={roomTypeFilter}
+                onChange={e => setRoomTypeFilter(e.target.value)}
+              >
+                <option value="all">All Rooms</option>
+                <option value="Deluxe">Deluxe</option>
+                <option value="Executive">Executive</option>
+                <option value="Suite">Suite</option>
+                <option value="Standard">Standard</option>
+              </select>
+            </div>
 
-          {/* Budget Tier */}
-          <div className="capsule-group">
-            <SlidersHorizontal size={18} color="var(--primary)" style={{ flexShrink: 0 }} />
-            <select 
-              className="capsule-select"
-              value={priceTier}
-              onChange={e => setPriceTier(e.target.value)}
-            >
-              <option value="all">Any Budget</option>
-              <option value="under4k">Under ₹4,000</option>
-              <option value="4k-8k">₹4,000 - ₹8,000</option>
-              <option value="over8k">Luxury ₹8,000+</option>
-            </select>
+            {/* Budget Tier */}
+            <div className="capsule-group">
+              <SlidersHorizontal size={15} color="var(--primary)" style={{ flexShrink: 0 }} />
+              <select 
+                className="capsule-select"
+                value={priceTier}
+                onChange={e => setPriceTier(e.target.value)}
+              >
+                <option value="all">Any Budget</option>
+                <option value="under4k">&lt; ₹4,000</option>
+                <option value="4k-8k">₹4k - ₹8k</option>
+                <option value="over8k">₹8,000+ (Luxury)</option>
+              </select>
+            </div>
           </div>
-
-          {/* Reverse Bidding Action CTA */}
-          <button 
-            type="button" 
-            className="bid-action-btn"
-            onClick={() => setShowBidModal(true)}
-            title="Post a stay request and let hotels give you discounted bids"
-          >
-            <Sparkles size={17} color="#D4AF37" />
-            <span>⚡ Let Hotels Bid</span>
-          </button>
 
         </div>
-
       </div>
 
       {/* Quick City Filters */}
