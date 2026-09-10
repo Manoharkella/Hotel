@@ -87,13 +87,13 @@ function matchesDestination(hotel, query) {
   return false;
 }
 
-function MapUpdater({ selectedHotel, hotels, destination }) {
+function MapUpdater({ selectedHotel, hotels, destination, mobileTab }) {
   const map = useMap();
   
   useEffect(() => {
     if (!map) return;
     try {
-      setTimeout(() => map.invalidateSize(), 200);
+      setTimeout(() => map.invalidateSize(), 250);
 
       if (selectedHotel && typeof selectedHotel.latitude === 'number' && typeof selectedHotel.longitude === 'number') {
         map.flyTo([selectedHotel.latitude, selectedHotel.longitude], 15, { animate: true, duration: 0.9 });
@@ -117,7 +117,7 @@ function MapUpdater({ selectedHotel, hotels, destination }) {
     } catch (err) {
       console.warn('Map update error:', err);
     }
-  }, [selectedHotel, hotels, destination, map]);
+  }, [selectedHotel, hotels, destination, map, mobileTab]);
 
   return null;
 }
@@ -128,6 +128,9 @@ export default function FindHotel() {
   const { addToast } = useToast();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Mobile View Tab: 'list' or 'map'
+  const [mobileTab, setMobileTab] = useState('list');
 
   // Search Filters
   const initialDestination = searchParams.get('location') || searchParams.get('destination') || '';
@@ -363,27 +366,10 @@ export default function FindHotel() {
       </div>
 
       {/* 2. SPLIT-SCREEN EXPLORER (MAP + HOTEL FEED) */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: '1fr 430px', 
-        gap: 16, 
-        height: 'calc(100vh - 175px)', 
-        minHeight: 560, 
-        maxHeight: 820,
-        borderRadius: 20,
-        overflow: 'hidden'
-      }}>
+      <div className="find-hotel-explorer-grid">
         
-        {/* Left: Leaflet Interactive Map */}
-        <div style={{ 
-          background: '#e2e8f0', 
-          borderRadius: 20, 
-          position: 'relative', 
-          overflow: 'hidden', 
-          border: '1px solid var(--border)', 
-          boxShadow: 'var(--shadow-md)', 
-          height: '100%' 
-        }}>
+        {/* Left / Tab 1: Leaflet Interactive Map */}
+        <div className={`find-hotel-map-pane ${mobileTab === 'map' ? 'mobile-active' : 'mobile-hidden'}`}>
           <MapContainer 
             center={defaultCenter} 
             zoom={12} 
@@ -394,7 +380,7 @@ export default function FindHotel() {
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-            <MapUpdater selectedHotel={selectedMapHotel} hotels={displayedHotels} destination={destination} />
+            <MapUpdater selectedHotel={selectedMapHotel} hotels={displayedHotels} destination={destination} mobileTab={mobileTab} />
             
             {displayedHotels.map(h => {
               const lat = typeof h.latitude === 'number' ? h.latitude : 17.72;
@@ -489,17 +475,8 @@ export default function FindHotel() {
 
         </div>
 
-        {/* Right: Hotel List or Selected Hotel Details */}
-        <div style={{ 
-          background: 'white', 
-          borderRadius: 20, 
-          border: '1px solid var(--border)', 
-          height: '100%', 
-          display: 'flex', 
-          flexDirection: 'column', 
-          overflow: 'hidden', 
-          boxShadow: 'var(--shadow-md)' 
-        }}>
+        {/* Right / Tab 2: Hotel List or Selected Hotel Details */}
+        <div className={`find-hotel-list-pane ${mobileTab === 'list' ? 'mobile-active' : 'mobile-hidden'}`}>
           
           {selectedMapHotel ? (
             /* Selected Hotel Preview */
@@ -573,12 +550,12 @@ export default function FindHotel() {
               <div style={{ padding: 18, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                    <h3 style={{ margin: 0, fontSize: '1.25rem', fontFamily: 'var(--font-serif)', color: 'var(--text)' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.25rem', fontFamily: 'var(--font-serif)', color: 'var(--text)', wordBreak: 'break-word', lineHeight: 1.3 }}>
                       {selectedMapHotel.name}
                     </h3>
                   </div>
                   
-                  <p style={{ color: 'var(--text-secondary)', margin: '0 0 10px', fontSize: '0.82rem' }}>
+                  <p style={{ color: 'var(--text-secondary)', margin: '0 0 10px', fontSize: '0.82rem', wordBreak: 'break-word', lineHeight: 1.4 }}>
                     📍 {selectedMapHotel.location} — {selectedMapHotel.address}
                   </p>
                   
@@ -767,8 +744,8 @@ export default function FindHotel() {
                       </div>
 
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <strong style={{ fontSize: '0.9rem', color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
+                          <strong style={{ fontSize: '0.94rem', color: 'var(--text)', lineHeight: 1.35, wordBreak: 'break-word', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                             {h.name}
                           </strong>
                           
@@ -805,11 +782,11 @@ export default function FindHotel() {
                           </button>
                         </div>
 
-                        <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', margin: '2px 0 6px' }}>
+                        <span style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', display: 'block', wordBreak: 'break-word', margin: '2px 0 6px', lineHeight: 1.3 }}>
                           📍 {h.location} • {h.address}
                         </span>
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
                           <div>
                             <span style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--primary)' }}>
                               ₹{(h.roomTypes?.[0]?.price || 3000).toLocaleString()}
@@ -841,6 +818,27 @@ export default function FindHotel() {
 
         </div>
 
+      </div>
+
+      {/* Floating Mobile Map / List Toggle Button */}
+      <div className="find-hotel-mobile-toggle-wrapper">
+        <button 
+          type="button" 
+          className="find-hotel-mobile-toggle-btn"
+          onClick={() => setMobileTab(mobileTab === 'list' ? 'map' : 'list')}
+        >
+          {mobileTab === 'list' ? (
+            <>
+              <span style={{ fontSize: '1.1rem' }}>🗺️</span>
+              <span>View Map ({displayedHotels.length})</span>
+            </>
+          ) : (
+            <>
+              <span style={{ fontSize: '1.1rem' }}>📋</span>
+              <span>View List ({displayedHotels.length})</span>
+            </>
+          )}
+        </button>
       </div>
 
       {/* 3. REVERSE BIDDING MODAL ("LET HOTELS BID") */}

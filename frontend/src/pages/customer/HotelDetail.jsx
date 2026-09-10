@@ -164,7 +164,7 @@ export default function HotelDetail() {
       </div>
 
       <div className="container">
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: 48 }}>
+        <div className="hotel-detail-grid">
           
           {/* Main Content */}
           <div>
@@ -172,8 +172,8 @@ export default function HotelDetail() {
               <div className="flex-between" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
                 <div>
                   <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: 8 }}>{hotel.category} Collection</span>
-                  <h1 style={{ fontSize: '2.8rem', marginBottom: 12, lineHeight: 1.1 }}>{hotel.name}</h1>
-                  <p style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6, fontSize: '1.1rem' }}>📍 {hotel.location} — {hotel.address}</p>
+                  <h1 className="hotel-detail-title" style={{ marginBottom: 12, lineHeight: 1.15, wordBreak: 'break-word' }}>{hotel.name}</h1>
+                  <p style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6, fontSize: '1.05rem', wordBreak: 'break-word' }}>📍 {hotel.location} — {hotel.address}</p>
                 </div>
 
                 <button 
