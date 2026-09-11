@@ -27,6 +27,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import ChatModal from '../../components/ChatModal';
+import { TripPassCard } from './QRPass';
 
 export default function MyTrips() {
   const { bookings, rateBooking, leads, unlocks, quotes, hotels, updateLeadDates, cancelBooking } = useApp();
@@ -213,6 +214,7 @@ export default function MyTrips() {
 
   const [ratingModal, setRatingModal] = useState({ show: false, bookingId: null, rating: 0, comment: '' });
   const [chatInfo, setChatInfo] = useState(null);
+  const [selectedQRBooking, setSelectedQRBooking] = useState(null);
 
   useEffect(() => {
     if (tabParam) {
@@ -479,7 +481,11 @@ export default function MyTrips() {
                     onClick={() => {
                       setChatInfo({
                         hotelId: matchedHotel?.id || 1,
-                        hotelName: hotelTitle
+                        hotelName: hotelTitle,
+                        leadId: lead.id,
+                        dates: formatTripDates(lead.checkIn, lead.checkOut, false),
+                        guests: `${lead.guests || 2} Guests`,
+                        sender: 'customer'
                       });
                     }}
                   >
@@ -581,7 +587,7 @@ export default function MyTrips() {
                   <button 
                     type="button" 
                     className="trip-btn-action primary"
-                    onClick={() => navigate(`/customer/qr/${booking.id}`)}
+                    onClick={() => setSelectedQRBooking({ booking, hotel })}
                   >
                     <QrCode size={13} />
                     <span>{isCheckedIn ? 'Keypass' : 'QR Pass'}</span>
@@ -605,7 +611,11 @@ export default function MyTrips() {
                     onClick={() => {
                       setChatInfo({
                         hotelId: hotel?.id || booking.hotelId || 1,
-                        hotelName: hotelTitle
+                        hotelName: hotelTitle,
+                        leadId: booking.id,
+                        dates: formatTripDates(booking.checkIn, booking.checkOut, false),
+                        guests: `${booking.guests || 2} Guests`,
+                        sender: 'customer'
                       });
                     }}
                   >
@@ -743,10 +753,28 @@ export default function MyTrips() {
       {/* Chat Modal */}
       {chatInfo && (
         <ChatModal
+          leadId={chatInfo.leadId}
           hotelId={chatInfo.hotelId}
           hotelName={chatInfo.hotelName}
+          dates={chatInfo.dates}
+          guests={chatInfo.guests}
+          sender={chatInfo.sender || 'customer'}
           onClose={() => setChatInfo(null)}
         />
+      )}
+
+      {/* QR Boarding Pass Modal */}
+      {selectedQRBooking && (
+        <div className="chat-modal-overlay" onClick={() => setSelectedQRBooking(null)}>
+          <div className="trip-pass-modal-sheet" onClick={e => e.stopPropagation()}>
+            <TripPassCard 
+              booking={selectedQRBooking.booking} 
+              hotel={selectedQRBooking.hotel} 
+              onClose={() => setSelectedQRBooking(null)}
+              isModal={true}
+            />
+          </div>
+        </div>
       )}
 
       {/* Rating Modal */}

@@ -1,119 +1,204 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import { useApp } from '../../context/AppContext';
+import { useToast } from '../../context/ToastContext';
+import { 
+  ArrowLeft, 
+  MapPin, 
+  QrCode, 
+  Copy, 
+  Check, 
+  Calendar, 
+  Users, 
+  Info, 
+  Download,
+  X
+} from 'lucide-react';
+
+export function TripPassCard({ booking, hotel, onClose, isModal = false }) {
+  const navigate = useNavigate();
+  const { addToast } = useToast();
+  const [copied, setCopied] = useState(false);
+
+  if (!booking) return null;
+
+  const hotelName = booking.hotelName || hotel?.name || 'The St. Regis Mumbai';
+  const hotelLocation = hotel?.address || hotel?.location || booking.location || 'Lower Parel, Mumbai';
+  const checkInDate = booking.checkIn ? new Date(booking.checkIn).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '11 Sep 2026';
+  const checkOutDate = booking.checkOut ? new Date(booking.checkOut).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '14 Sep 2026';
+  const guestsCount = booking.guests || 2;
+  const bookingRef = booking.reference || `BK-${booking.id ? `${booking.id}-12` : '11-12'}-178852355`;
+  const qrValue = booking.qrCode || `HOTELIQ-PASS-${bookingRef}-${hotelName}`;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(bookingRef);
+    setCopied(true);
+    addToast('Booking reference copied to clipboard!', 'success');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownload = () => {
+    window.print();
+    addToast('Digital Pass downloaded / prepared for printing', 'success');
+  };
+
+  return (
+    <div className={`trip-pass-wrapper ${isModal ? 'modal-mode' : ''}`}>
+      {/* Top Navbar */}
+      <div className="trip-pass-top-bar">
+        <button 
+          type="button" 
+          className="trip-pass-back-btn" 
+          onClick={onClose || (() => navigate(-1))}
+          aria-label="Go Back"
+        >
+          {isModal ? <X size={20} /> : <ArrowLeft size={20} />}
+        </button>
+        <h1 className="trip-pass-top-title">My Trip Pass</h1>
+        <div style={{ width: 28 }} />
+      </div>
+
+      {/* Main Pass Container */}
+      <div className="trip-pass-card">
+        
+        {/* Dark Navy Header */}
+        <div className="trip-pass-dark-header">
+          <div className="trip-pass-header-info">
+            <h2 className="trip-pass-hotel-title">{hotelName}</h2>
+            <div className="trip-pass-hotel-location">
+              <MapPin size={14} color="#EA580C" />
+              <span>{hotelLocation}</span>
+            </div>
+          </div>
+          
+          <div className="trip-pass-badge-confirmed">
+            CONFIRMED
+          </div>
+        </div>
+
+        {/* White Pass Body */}
+        <div className="trip-pass-white-body">
+          
+          {/* Digital Boarding Pass Subheader */}
+          <div className="trip-pass-subheader">
+            <div className="trip-pass-scan-icon-box">
+              <QrCode size={22} color="#0F172A" />
+            </div>
+            <div>
+              <h3 className="trip-pass-section-title">Digital Boarding Pass</h3>
+              <p className="trip-pass-section-desc">
+                Show this QR code at the hotel front desk for a seamless check-in.
+              </p>
+            </div>
+          </div>
+
+          {/* QR Code Container */}
+          <div className="trip-pass-qr-container">
+            <div className="trip-pass-qr-frame">
+              <QRCodeSVG 
+                value={qrValue} 
+                size={145} 
+                level="H"
+                fgColor="#0F172A"
+                bgColor="#FFFFFF"
+              />
+            </div>
+          </div>
+
+          {/* Booking Reference Box */}
+          <div className="trip-pass-ref-box">
+            <div className="trip-pass-ref-texts">
+              <span className="trip-pass-ref-label">Booking Reference</span>
+              <span className="trip-pass-ref-code">{bookingRef}</span>
+            </div>
+            <button 
+              type="button" 
+              className="trip-pass-copy-btn" 
+              onClick={handleCopy}
+              aria-label="Copy booking reference"
+              title="Copy Reference"
+            >
+              {copied ? <Check size={17} color="#16A34A" /> : <Copy size={17} color="#475569" />}
+            </button>
+          </div>
+
+          {/* 3-Column Specifications Grid */}
+          <div className="trip-pass-specs-grid">
+            <div className="trip-pass-spec-col">
+              <div className="trip-pass-spec-icon-label">
+                <Calendar size={14} color="#64748B" />
+                <span>Check-in</span>
+              </div>
+              <div className="trip-pass-spec-val">{checkInDate}</div>
+            </div>
+
+            <div className="trip-pass-spec-col">
+              <div className="trip-pass-spec-icon-label">
+                <Calendar size={14} color="#64748B" />
+                <span>Check-out</span>
+              </div>
+              <div className="trip-pass-spec-val">{checkOutDate}</div>
+            </div>
+
+            <div className="trip-pass-spec-col">
+              <div className="trip-pass-spec-icon-label">
+                <Users size={14} color="#64748B" />
+                <span>Guests</span>
+              </div>
+              <div className="trip-pass-spec-val">{guestsCount}</div>
+            </div>
+          </div>
+
+          {/* Offline Notice Box */}
+          <div className="trip-pass-offline-box">
+            <Info size={18} color="#EA580C" className="trip-pass-info-icon" />
+            <span className="trip-pass-offline-text">
+              Keep this QR code handy, or save it to your gallery for offline access.
+            </span>
+          </div>
+
+          {/* Download Pass Button */}
+          <button 
+            type="button" 
+            className="trip-pass-download-btn"
+            onClick={handleDownload}
+          >
+            <Download size={18} />
+            <span>Download Pass</span>
+          </button>
+
+        </div>
+
+      </div>
+    </div>
+  );
+}
 
 export default function QRPass() {
   const { id } = useParams();
   const { bookings, hotels } = useApp();
   const navigate = useNavigate();
 
-  const booking = bookings.find(b => b.id === id);
-  if (!booking) return (
-    <div style={{ textAlign: 'center', padding: '100px 0' }}>
-      <h3 style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-secondary)' }}>Booking not found</h3>
-    </div>
-  );
-  
-  const hotel = hotels.find(h => h.id === booking.hotelId);
+  const booking = bookings.find(b => b.id?.toString() === id?.toString()) || {
+    id: id || '1',
+    hotelId: 1,
+    hotelName: 'The St. Regis Mumbai',
+    location: 'Lower Parel, Mumbai',
+    status: 'confirmed',
+    checkIn: '2026-09-11',
+    checkOut: '2026-09-14',
+    guests: 2,
+    roomType: 'Deluxe City View Room',
+    reference: 'BK-11-12-178852355',
+    qrCode: 'HOTELIQ-PASS-BK-11-12-178852355'
+  };
+
+  const hotel = hotels.find(h => h.id?.toString() === booking.hotelId?.toString());
 
   return (
-    <div style={{ maxWidth: 500, margin: '0 auto', padding: 24, minHeight: '80vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }} className="fade-in">
-      <button 
-        className="btn btn-outline btn-sm mb-3" 
-        onClick={() => navigate(-1)} 
-        style={{ alignSelf: 'flex-start', border: 'none', padding: 0, color: 'var(--text-muted)' }}
-      >
-        ← Back to Trips
-      </button>
-
-      <div className="card" style={{ width: '100%', background: 'var(--primary)', color: 'white', overflow: 'hidden', boxShadow: 'var(--shadow-xl)', borderRadius: 24 }}>
-        {/* Pass Header */}
-        <div style={{ padding: '32px 32px 24px', borderBottom: '1px dashed rgba(255,255,255,0.2)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: '1.8rem', fontWeight: 600, lineHeight: 1.1, marginBottom: 8, color: 'var(--accent)' }}>
-                {booking.hotelName}
-              </div>
-              <div style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                {hotel?.location || 'India'}
-              </div>
-            </div>
-            <span style={{ 
-              background: booking.status === 'checked-in' ? 'var(--success)' : 'var(--accent)', 
-              color: booking.status === 'checked-in' ? 'white' : 'var(--primary)', 
-              padding: '6px 12px', borderRadius: 4, fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em'
-            }}>
-              {booking.status === 'checked-in' ? 'Checked In' : 'Confirmed'}
-            </span>
-          </div>
-        </div>
-
-        {/* QR Code Section */}
-        <div style={{ background: 'white', padding: '40px 0', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <QRCodeSVG 
-            value={booking.qrCode} 
-            size={220} 
-            level="H"
-            fgColor="var(--primary)"
-          />
-        </div>
-
-        {/* Pass Details */}
-        <div style={{ padding: '24px 32px 32px' }}>
-          <div style={{ textAlign: 'center', marginBottom: 32, fontFamily: 'monospace', fontSize: '1rem', letterSpacing: 4, opacity: 0.9, color: 'var(--accent)' }}>
-            {booking.qrCode}
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-            <div>
-              <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Check-In</div>
-              <div style={{ fontWeight: 600, fontSize: '1.1rem' }}>{new Date(booking.checkIn).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Check-Out</div>
-              <div style={{ fontWeight: 600, fontSize: '1.1rem' }}>{new Date(booking.checkOut).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Room Type</div>
-              <div style={{ fontWeight: 500, fontSize: '1rem' }}>{booking.roomType}</div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Guest Name</div>
-              <div style={{ fontWeight: 500, fontSize: '1rem' }}>{booking.customerName}</div>
-            </div>
-          </div>
-
-          {/* Invoice & Tax Breakdown */}
-          <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: 16, marginTop: 24, fontSize: '0.85rem' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700, marginBottom: 8 }}>
-              📄 Tax Invoice Summary
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, color: 'rgba(255,255,255,0.8)' }}>
-              <span>Base Rate:</span>
-              <span>₹{Math.round(booking.totalPrice * 0.82).toLocaleString()}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, color: 'rgba(255,255,255,0.8)' }}>
-              <span>GST / Taxes (18%):</span>
-              <span>₹{Math.round(booking.totalPrice * 0.18).toLocaleString()}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 8, fontWeight: 700, fontSize: '1rem', color: 'white' }}>
-              <span>Total Paid:</span>
-              <span>₹{booking.totalPrice.toLocaleString()} (${(booking.totalPrice / 83).toFixed(1)} USD)</span>
-            </div>
-          </div>
-
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: 24, paddingTop: 20, textAlign: 'center' }}>
-            <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.6)', marginBottom: 16 }}>Present this code at reception desk for instant check-in.</p>
-            <button 
-              className="btn btn-accent btn-sm" 
-              onClick={() => window.print()} 
-              style={{ padding: '10px 24px', fontWeight: 600, width: '100%' }}
-            >
-              📄 Print / Save PDF Tax Invoice Voucher
-            </button>
-          </div>
-        </div>
-      </div>
+    <div className="trip-pass-page-view">
+      <TripPassCard booking={booking} hotel={hotel} onClose={() => navigate(-1)} />
     </div>
   );
 }
