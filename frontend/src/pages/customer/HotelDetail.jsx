@@ -418,6 +418,39 @@ export default function HotelDetail() {
               ))}
             </div>
 
+            {/* Inline Mobile Booking Card Matching Reference Design */}
+            <div className="hotel-booking-inline-mobile">
+              <div className="hotel-booking-inline-top">
+                <div>
+                  <div className="hotel-booking-inline-price">
+                    ₹{startingPrice.toLocaleString()} <span className="hotel-booking-inline-unit">/ night</span>
+                  </div>
+                  <div className="hotel-booking-inline-sub">Taxes included</div>
+                </div>
+                <button 
+                  type="button" 
+                  className="hotel-booking-inline-btn"
+                  onClick={scrollToRooms}
+                >
+                  Select Rooms →
+                </button>
+              </div>
+
+              <div className="hotel-booking-inline-dates">
+                <span>📅 {checkIn} → {checkOut}</span>
+                <span>•</span>
+                <span>👥 {guests} Guests</span>
+                <span>•</span>
+                <span>🛏️ {roomsCount} Room</span>
+              </div>
+
+              <div className="hotel-booking-inline-guarantees">
+                <span>✓ Free cancellation</span>
+                <span>💳 Pay at hotel</span>
+                <span>⚡ Instant confirmation</span>
+              </div>
+            </div>
+
             {/* Tab: Overview Content */}
             {activeTab === 'overview' && (
               <div>
@@ -829,38 +862,7 @@ export default function HotelDetail() {
 
         </div>
 
-        {/* 3. Mobile Floating Bottom Bar Matching Reference */}
-        <div className="hotel-mobile-bottom-bar">
-          <div className="hotel-mobile-bottom-top-row">
-            <div>
-              <div className="hotel-mobile-bottom-price">
-                ₹{startingPrice.toLocaleString()} <span style={{ fontSize: '0.78rem', fontWeight: 500, color: '#64748B' }}>/ night</span>
-              </div>
-              <div className="hotel-mobile-bottom-sub">Taxes included</div>
-            </div>
-            <button 
-              type="button" 
-              className="hotel-mobile-bottom-btn"
-              onClick={scrollToRooms}
-            >
-              Select Rooms →
-            </button>
-          </div>
 
-          <div className="hotel-mobile-bottom-dates-row">
-            <span>📅 {checkIn} → {checkOut}</span>
-            <span>•</span>
-            <span>👥 {guests} Guests</span>
-            <span>•</span>
-            <span>🛏️ {roomsCount} Room</span>
-          </div>
-
-          <div className="hotel-mobile-bottom-guarantees">
-            <span>✓ Free cancellation</span>
-            <span>💳 Pay at hotel</span>
-            <span>⚡ Instant confirmation</span>
-          </div>
-        </div>
 
         {/* 4. Room Confirmation Modal */}
         {selectRoomModal.show && selectRoomModal.room && (
