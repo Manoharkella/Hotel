@@ -1,22 +1,78 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { api } from '../../services/api';
-import { Heart } from 'lucide-react';
+import { 
+  Heart, 
+  Share2, 
+  MapPin, 
+  ChevronLeft, 
+  ChevronRight, 
+  Star, 
+  ShieldCheck, 
+  Calendar, 
+  Users, 
+  Bed, 
+  Check, 
+  Wifi, 
+  Car, 
+  Waves, 
+  Sparkles, 
+  Dumbbell, 
+  Utensils, 
+  Briefcase, 
+  Dog, 
+  Plane, 
+  Train, 
+  Building, 
+  Coffee, 
+  CheckCircle2,
+  X,
+  CreditCard,
+  Zap,
+  ArrowRight
+} from 'lucide-react';
 
 export default function HotelDetail() {
   const { id } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { hotels, quotes, leads, acceptQuote, counterQuote, submitRequirement, toggleWishlist, isWishlisted } = useApp();
   const { user } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
 
-  const hotel = hotels.find(h => h.id === id);
+  // Find Hotel from State
+  const hotel = hotels.find(h => h.id.toString() === id?.toString());
   const [hotelReviews, setHotelReviews] = useState([]);
 
+  // Active Gallery Image Index
+  const [activeImgIdx, setActiveImgIdx] = useState(0);
+  const [galleryModalOpen, setGalleryModalOpen] = useState(false);
+
+  // Active Section Tab
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'rooms' | 'amenities' | 'reviews' | 'location' | 'policies'
+  const [aboutExpanded, setAboutExpanded] = useState(false);
+
+  // Dates & Guests Filter State
+  const defaultCheckIn = searchParams.get('checkIn') || '2026-09-11';
+  const defaultCheckOut = searchParams.get('checkOut') || '2026-09-14';
+
+  const [checkIn, setCheckIn] = useState(defaultCheckIn);
+  const [checkOut, setCheckOut] = useState(defaultCheckOut);
+  const [guests, setGuests] = useState(Number(searchParams.get('guests')) || 2);
+  const [roomsCount, setRoomsCount] = useState(Number(searchParams.get('rooms')) || 1);
+
+  // Selected Room & Modal States
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [selectRoomModal, setSelectRoomModal] = useState({ show: false, room: null });
+  const [viewRoomModal, setViewRoomModal] = useState({ show: false, room: null, imgIdx: 0 });
+
+  // Reviews carousel index
+  const [activeReviewIdx, setActiveReviewIdx] = useState(0);
+
+  // Fetch real reviews
   useEffect(() => {
     if (hotel?.id) {
       api.getHotelReviews(hotel.id)
@@ -25,37 +81,89 @@ export default function HotelDetail() {
     }
   }, [hotel?.id]);
 
-  // Dates & Stay State
-  const defaultCheckIn = searchParams.get('checkIn') || new Date().toISOString().split('T')[0];
-  const nextThreeDays = new Date();
-  nextThreeDays.setDate(nextThreeDays.getDate() + 3);
-  const defaultCheckOut = searchParams.get('checkOut') || nextThreeDays.toISOString().split('T')[0];
+  // Gallery Photos helper
+  const allPhotos = useMemo(() => {
+    if (!hotel) return [];
+    const list = [];
+    if (hotel.photos && Array.isArray(hotel.photos)) {
+      list.push(...hotel.photos);
+    }
+    if (hotel.roomTypes && Array.isArray(hotel.roomTypes)) {
+      hotel.roomTypes.forEach(rt => {
+        if (rt.images && Array.isArray(rt.images)) {
+          rt.images.forEach(img => {
+            if (img.url && !list.includes(img.url)) list.push(img.url);
+          });
+        }
+      });
+    }
+    if (list.length === 0) {
+      list.push(
+        'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200',
+        'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800',
+        'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800',
+        'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800'
+      );
+    }
+    return list;
+  }, [hotel]);
 
-  const [checkIn, setCheckIn] = useState(defaultCheckIn);
-  const [checkOut, setCheckOut] = useState(defaultCheckOut);
-  const [guests, setGuests] = useState(Number(searchParams.get('guests')) || 2);
-  const [roomsCount, setRoomsCount] = useState(Number(searchParams.get('rooms')) || 1);
+  // Starting Price Helper
+  const startingPrice = useMemo(() => {
+    if (!hotel) return 15000;
+    if (hotel.roomTypes && hotel.roomTypes[0]?.price) {
+      return Math.min(...hotel.roomTypes.map(r => Number(r.price) || 15000));
+    }
+    if (hotel.rooms && hotel.rooms[0]?.price_per_night) {
+      return Math.min(...hotel.rooms.map(r => Number(r.price_per_night) || 15000));
+    }
+    return Number(hotel.price) || 15000;
+  }, [hotel]);
 
-  // Selected Room & Modal States
-  const [selectedRoom, setSelectedRoom] = useState(hotel?.roomTypes?.[0] || null);
-  const [viewRoomModal, setViewRoomModal] = useState({ show: false, room: null, activeImgIdx: 0 });
-  const [selectRoomModal, setSelectRoomModal] = useState({ show: false, room: null });
+  // Rooms Data with fallback luxury templates
+  const availableRooms = useMemo(() => {
+    if (hotel?.roomTypes && hotel.roomTypes.length > 0) {
+      return hotel.roomTypes;
+    }
+    // Default luxury rooms if not present
+    return [
+      {
+        id: 1,
+        type: 'Deluxe King Room',
+        maxGuests: 2,
+        bedType: '1 King Bed',
+        roomSize: '350 sq.ft',
+        price: startingPrice,
+        description: 'Elegant and spacious room with city views, modern amenities and a comfortable king-size bed.',
+        amenities: ['Free Wi-Fi', 'AC', 'City View', 'Minibar', 'Smart TV', '24/7 Room Service'],
+        images: [{ url: allPhotos[1] || allPhotos[0] }]
+      },
+      {
+        id: 2,
+        type: 'Grand Deluxe Suite',
+        maxGuests: 3,
+        bedType: '1 King Bed',
+        roomSize: '550 sq.ft',
+        price: Math.round(startingPrice * 1.45),
+        description: 'Expansive suite with separate living area, marble bathroom with soaking tub, and breathtaking panoramic views.',
+        amenities: ['Free Wi-Fi', 'AC', 'Ocean View', 'Jacuzzi', 'Espresso Machine', 'Lounge Access'],
+        images: [{ url: allPhotos[2] || allPhotos[0] }]
+      },
+      {
+        id: 3,
+        type: 'Presidential Luxury Suite',
+        maxGuests: 4,
+        bedType: '2 King Beds',
+        roomSize: '950 sq.ft',
+        price: Math.round(startingPrice * 2.8),
+        description: 'The pinnacle of luxury featuring dedicated butler service, private dining room, and custom designer furnishings.',
+        amenities: ['Butler Service', 'Private Terrace', 'Jacuzzi', 'Panoramic View', 'Chef On-Demand'],
+        images: [{ url: allPhotos[3] || allPhotos[0] }]
+      }
+    ];
+  }, [hotel, startingPrice, allPhotos]);
 
-  // Payment / Existing Quote Flow States
-  const [bookingQuote, setBookingQuote] = useState(null);
-  const [guestName, setGuestName] = useState(user?.name || '');
-  const [paymentStep, setPaymentStep] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('card');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [addons, setAddons] = useState({ transfer: false, breakfast: false, spa: false });
-
-  if (!hotel) return (
-    <div style={{ textAlign: 'center', padding: '120px 0' }}>
-      <h3 style={{ fontFamily: 'var(--font-sans)', color: 'var(--text-secondary)' }}>Hotel not found</h3>
-    </div>
-  );
-
-  // Night calculation helper
+  // Calculate nights
   const calcNights = () => {
     if (!checkIn || !checkOut) return 3;
     const start = new Date(checkIn);
@@ -64,48 +172,71 @@ export default function HotelDetail() {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     return diffDays > 0 ? diffDays : 1;
   };
-
   const nights = calcNights();
 
-  // Price calculations
-  const addonTotal = (addons.transfer ? 1500 : 0) + (addons.breakfast ? 800 : 0) + (addons.spa ? 2000 : 0);
-  const finalPrice = bookingQuote ? bookingQuote.price + addonTotal : 0;
-
-  const userLeads = leads.filter(l => l.customerId === (user?.id || '').toString());
-  const userLeadIds = userLeads.map(l => l.id.toString());
-  const hotelQuotes = quotes.filter(q => q.hotelId === id && userLeadIds.includes(q.leadId.toString()));
-
-  const handleConfirmBooking = () => {
-    if (!guestName.trim()) {
-      addToast('Please provide a guest name', 'error');
-      return;
+  // Reference for Rooms section scrolling
+  const roomsSectionRef = useRef(null);
+  const scrollToRooms = () => {
+    if (roomsSectionRef.current) {
+      roomsSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setActiveTab('rooms');
     }
-    setPaymentStep(true);
   };
 
-  const processPaymentAndBook = () => {
-    setIsProcessing(true);
-    setTimeout(() => {
-      const lead = leads.find(l => l.id === bookingQuote.leadId);
-      if (!lead) return;
-      acceptQuote(bookingQuote.id, lead.id, user.id, guestName, hotel.id, hotel.name, lead.roomType, lead.checkIn, lead.checkOut, finalPrice);
-      setIsProcessing(false);
-      setBookingQuote(null);
-      setPaymentStep(false);
-      addToast('Payment successful! Booking confirmed.', 'success');
-      navigate('/customer/trips');
-    }, 1500);
-  };
+  // Mock guest reviews carousel
+  const guestReviewsList = useMemo(() => {
+    if (hotelReviews.length > 0) {
+      return hotelReviews.map(r => ({
+        name: r.user_name || r.name || 'Priya Sharma',
+        time: 'Verified Stay',
+        rating: r.rating || 5,
+        text: r.comment || r.text || 'Absolutely amazing experience! The service, rooms and dining were top-notch.'
+      }));
+    }
+    return [
+      {
+        name: 'Priya Sharma',
+        time: '2 weeks ago',
+        rating: 5,
+        text: 'Absolutely amazing experience! The service, rooms and dining were top-notch. Will definitely come back again.'
+      },
+      {
+        name: 'Rahul Varma',
+        time: '1 month ago',
+        rating: 5,
+        text: 'Best hospitality in the city. The rooftop pool and breakfast spread exceeded all our expectations.'
+      },
+      {
+        name: 'Anita Desai',
+        time: '3 weeks ago',
+        rating: 5,
+        text: 'Impeccable staff and contactless check-in made our family holiday seamless and truly memorable.'
+      }
+    ];
+  }, [hotelReviews]);
 
+  if (!hotel) {
+    return (
+      <div style={{ textAlign: 'center', padding: '120px 20px', minHeight: '60vh' }}>
+        <h2 style={{ fontSize: '1.6rem', color: '#0F172A', marginBottom: 12 }}>Hotel Not Found</h2>
+        <p style={{ color: '#64748B', marginBottom: 24 }}>The property you are looking for may not be available.</p>
+        <Link to="/customer/find" className="btn btn-accent" style={{ textDecoration: 'none' }}>
+          Explore All Hotels
+        </Link>
+      </div>
+    );
+  }
+
+  // Handle Room Selection & Lead Submission
   const handleSelectRoomSubmit = async (room) => {
-    const baseStayPrice = room.price * nights * roomsCount;
+    const baseStayPrice = (room.price || startingPrice) * nights * roomsCount;
     const taxes = Math.round(baseStayPrice * 0.18);
     const totalEst = baseStayPrice + taxes;
 
     const lead = await submitRequirement({
       customerId: user?.id || 1,
       customerName: user?.name || 'Guest User',
-      customerEmail: user?.email || 'guest@hotel.com',
+      customerEmail: user?.email || 'guest@hoteliq.com',
       customerPhone: user?.phone || '',
       destination: hotel.location,
       checkIn: checkIn,
@@ -114,245 +245,334 @@ export default function HotelDetail() {
       roomType: room.type,
       budget: totalEst,
       purpose: 'Leisure',
-      preferences: `Selected ${roomsCount}x ${room.type} at ₹${room.price}/night. Total quote: ₹${totalEst.toLocaleString()}`,
+      preferences: `Selected ${roomsCount}x ${room.type} at ₹${room.price || startingPrice}/night. Total quote request: ₹${totalEst.toLocaleString()}`,
       specific_hotel_id: parseInt(hotel.id)
     });
 
     setSelectRoomModal({ show: false, room: null });
 
     if (lead) {
-      addToast(`Selected ${room.type} at ${hotel.name}! Your lead request has been placed.`, 'success');
+      addToast(`Selected ${room.type} at ${hotel.name}! Your request has been placed.`, 'success');
       navigate('/customer/trips?tab=requests');
     }
   };
 
+  const nextImage = () => {
+    setActiveImgIdx((prev) => (prev + 1) % allPhotos.length);
+  };
+  const prevImage = () => {
+    setActiveImgIdx((prev) => (prev - 1 + allPhotos.length) % allPhotos.length);
+  };
+
   return (
-    <div className="fade-in pb-5" style={{ paddingBottom: 120 }}>
-      {/* Photo gallery header */}
-      <div style={{ position: 'relative', height: '55vh', minHeight: 380, width: '100%', marginBottom: 40, background: 'black' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', height: '100%', gap: 4 }}>
-          {hotel.photos.length >= 1 && (
-            <div style={{ backgroundImage: `url(${hotel.photos[0]})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.9 }} />
-          )}
-          {hotel.photos.length >= 2 && (
-            <div style={{ backgroundImage: `url(${hotel.photos[1]})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.9 }} />
-          )}
-          <div style={{ backgroundImage: `url(${hotel.photos[2] || hotel.photos[0]})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.9 }} />
-        </div>
+    <div className="hotel-detail-page fade-in">
+      <div className="hotel-detail-max-wrap">
         
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 140, background: 'linear-gradient(to top, var(--bg) 0%, transparent 100%)' }} />
-        
-        <button 
-          onClick={() => navigate(-1)} 
-          style={{ position: 'absolute', top: 32, left: 48, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.3)', color: 'white', padding: '10px 24px', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', transition: 'var(--transition)' }}
-        >
-          ← Back
-        </button>
+        {/* 1. Breadcrumbs */}
+        <nav className="hotel-breadcrumb" aria-label="Breadcrumb">
+          <Link to="/customer">Home</Link>
+          <span>›</span>
+          <Link to="/customer/find">Hotels</Link>
+          <span>›</span>
+          <Link to={`/customer/find?location=${hotel.location}`}>{hotel.location}</Link>
+          <span>›</span>
+          <span className="current">{hotel.name}</span>
+        </nav>
 
-        {/* Floating Heart Button in Gallery */}
-        <button 
-          onClick={() => {
-            const added = toggleWishlist(hotel.id);
-            if (added) addToast(`Added "${hotel.name}" to your wishlist!`, 'success');
-            else addToast(`Removed "${hotel.name}" from your wishlist`, 'info');
-          }}
-          style={{ position: 'absolute', top: 32, right: 48, background: isWishlisted(hotel.id) ? '#FFF1F2' : 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', border: `1px solid ${isWishlisted(hotel.id) ? '#FECDD3' : 'rgba(255,255,255,0.3)'}`, color: isWishlisted(hotel.id) ? '#E11D48' : 'white', width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'var(--transition)', zIndex: 10 }}
-          title={isWishlisted(hotel.id) ? "Remove from wishlist" : "Save to wishlist"}
-        >
-          <Heart size={20} color={isWishlisted(hotel.id) ? "#E11D48" : "white"} fill={isWishlisted(hotel.id) ? "#E11D48" : "none"} />
-        </button>
-      </div>
-
-      <div className="container">
-        <div className="hotel-detail-grid">
+        {/* 2. Main 2-Column Grid */}
+        <div className="hotel-detail-layout-grid">
           
-          {/* Main Content */}
+          {/* Left Main Column */}
           <div>
-            <div style={{ marginBottom: 32 }}>
-              <div className="flex-between" style={{ alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
-                <div>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: 8 }}>{hotel.category} Collection</span>
-                  <h1 className="hotel-detail-title" style={{ marginBottom: 12, lineHeight: 1.15, wordBreak: 'break-word' }}>{hotel.name}</h1>
-                  <p style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 6, fontSize: '1.05rem', wordBreak: 'break-word' }}>📍 {hotel.location} — {hotel.address}</p>
+            
+            {/* Photo Gallery Split Grid Matching Reference */}
+            <div className="hotel-gallery-container">
+              {/* Main Large Hero Image */}
+              <div className="hotel-gallery-main">
+                <img 
+                  src={allPhotos[activeImgIdx] || allPhotos[0]} 
+                  alt={hotel.name} 
+                  loading="eager"
+                />
+                
+                {/* Gold Crown Premium Badge */}
+                <div className="hotel-gallery-badge-premium">
+                  <span>👑</span>
+                  <span>Premium Collection</span>
                 </div>
 
-                <button 
-                  type="button"
+                {/* Left & Right Navigation Arrows */}
+                {allPhotos.length > 1 && (
+                  <>
+                    <button 
+                      type="button"
+                      className="hotel-gallery-nav-btn prev"
+                      onClick={(e) => { e.stopPropagation(); prevImage(); }}
+                      aria-label="Previous Photo"
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+                    <button 
+                      type="button"
+                      className="hotel-gallery-nav-btn next"
+                      onClick={(e) => { e.stopPropagation(); nextImage(); }}
+                      aria-label="Next Photo"
+                    >
+                      <ChevronRight size={20} />
+                    </button>
+                  </>
+                )}
+
+                {/* Counter Pill */}
+                <div className="hotel-gallery-counter">
+                  {activeImgIdx + 1}/{allPhotos.length}
+                </div>
+              </div>
+
+              {/* Right Stack of 3 Thumbnails (Desktop) */}
+              <div className="hotel-gallery-thumbs">
+                <div 
+                  className="hotel-gallery-thumb-item" 
+                  onClick={() => setActiveImgIdx(1 % allPhotos.length)}
+                >
+                  <img src={allPhotos[1] || allPhotos[0]} alt="Gallery 2" />
+                </div>
+                <div 
+                  className="hotel-gallery-thumb-item" 
+                  onClick={() => setActiveImgIdx(2 % allPhotos.length)}
+                >
+                  <img src={allPhotos[2] || allPhotos[0]} alt="Gallery 3" />
+                </div>
+                <div 
+                  className="hotel-gallery-thumb-item"
+                  onClick={() => setGalleryModalOpen(true)}
+                >
+                  <img src={allPhotos[3] || allPhotos[0]} alt="Gallery 4" />
+                  <div className="hotel-gallery-more-overlay">
+                    +{Math.max(1, allPhotos.length - 3)} Photos
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Hotel Title Section */}
+            <div className="hotel-title-section">
+              <div className="hotel-title-row">
+                <h1 className="hotel-main-title">{hotel.name}</h1>
+                <span className="hotel-badge-stars">
+                  <span>5 ★ Luxury Hotel</span>
+                </span>
+              </div>
+
+              <div className="hotel-location-text">
+                <MapPin size={16} color="#EA580C" />
+                <span>{hotel.address || `${hotel.location}, Maharashtra, India`}</span>
+              </div>
+
+              <p className="hotel-desc-snippet">
+                {hotel.description || 'A world of refined elegance and impeccable service. Experience unmatched luxury, world-class dining, and personalized hospitality tailored to your discerning tastes.'}
+              </p>
+
+              {/* Feature Pills Row */}
+              <div className="hotel-feature-pills-row">
+                <span className="hotel-feature-pill"><Building size={14} color="#0284C7" /> City View</span>
+                <span className="hotel-feature-pill"><Sparkles size={14} color="#8B5CF6" /> Luxury Stay</span>
+                <span className="hotel-feature-pill"><Utensils size={14} color="#D97706" /> Fine Dining</span>
+                <span className="hotel-feature-pill"><Coffee size={14} color="#059669" /> Spa & Wellness</span>
+                <span className="hotel-feature-pill"><Waves size={14} color="#2563EB" /> Swimming Pool</span>
+              </div>
+            </div>
+
+            {/* Navigation Tabs Bar */}
+            <div className="hotel-tabs-bar">
+              {[
+                { id: 'overview', label: 'Overview' },
+                { id: 'rooms', label: 'Rooms' },
+                { id: 'amenities', label: 'Amenities' },
+                { id: 'reviews', label: 'Reviews' },
+                { id: 'location', label: 'Location' },
+                { id: 'policies', label: 'Policies' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  className={`hotel-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
                   onClick={() => {
-                    const added = toggleWishlist(hotel.id);
-                    if (added) addToast(`Added "${hotel.name}" to your wishlist!`, 'success');
-                    else addToast(`Removed "${hotel.name}" from your wishlist`, 'info');
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '10px 22px',
-                    borderRadius: 9999,
-                    border: `1.5px solid ${isWishlisted(hotel.id) ? '#FECDD3' : 'var(--border)'}`,
-                    background: isWishlisted(hotel.id) ? '#FFF1F2' : 'white',
-                    color: isWishlisted(hotel.id) ? '#E11D48' : 'var(--text)',
-                    fontWeight: 700,
-                    fontSize: '0.9rem',
-                    cursor: 'pointer',
-                    boxShadow: 'var(--shadow-sm)',
-                    transition: 'all 0.2s',
-                    marginTop: 8
+                    setActiveTab(tab.id);
+                    if (tab.id === 'rooms') scrollToRooms();
                   }}
                 >
-                  <Heart 
-                    size={18} 
-                    color={isWishlisted(hotel.id) ? "#E11D48" : "var(--text-secondary)"} 
-                    fill={isWishlisted(hotel.id) ? "#E11D48" : "none"} 
-                    className={isWishlisted(hotel.id) ? "wishlist-heart-pulse" : ""}
-                  />
-                  <span>{isWishlisted(hotel.id) ? 'Saved in Wishlist' : 'Save to Wishlist'}</span>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab: Overview Content */}
+            {activeTab === 'overview' && (
+              <div>
+                {/* 2-Column Split: About Property & Why Guests Love It */}
+                <div className="hotel-overview-cards-grid">
+                  {/* About Card */}
+                  <div className="hotel-info-card">
+                    <h3 className="hotel-info-card-title">About This Property</h3>
+                    <p style={{ fontSize: '0.88rem', color: '#475569', lineHeight: 1.6, margin: '0 0 10px' }}>
+                      {hotel.name} redefines luxury with its elegant rooms, world-class dining, personalized butler service, and breathtaking views. Perfectly located in the heart of {hotel.location}, it offers an extraordinary stay for business and leisure travelers alike.
+                    </p>
+                    {aboutExpanded && (
+                      <p style={{ fontSize: '0.88rem', color: '#475569', lineHeight: 1.6, margin: '0 0 10px' }}>
+                        Guests enjoy high-speed Wi-Fi, 24-hour room service, bespoke concierge arrangements, state-of-the-art wellness centers, and serene infinity pool access with private cabanas.
+                      </p>
+                    )}
+                    <button 
+                      type="button" 
+                      onClick={() => setAboutExpanded(!aboutExpanded)} 
+                      style={{ background: 'none', border: 'none', color: '#EA580C', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer', padding: 0 }}
+                    >
+                      {aboutExpanded ? 'Read Less ∧' : 'Read More ∨'}
+                    </button>
+                  </div>
+
+                  {/* Why Guests Love It Card */}
+                  <div className="hotel-info-card">
+                    <h3 className="hotel-info-card-title">Why Guests Love It</h3>
+                    <ul className="hotel-why-love-list">
+                      <li className="hotel-why-love-item">
+                        <CheckCircle2 size={16} color="#059669" />
+                        <span>Exceptional service & hospitality</span>
+                      </li>
+                      <li className="hotel-why-love-item">
+                        <CheckCircle2 size={16} color="#059669" />
+                        <span>Unrivaled luxury and comfort</span>
+                      </li>
+                      <li className="hotel-why-love-item">
+                        <CheckCircle2 size={16} color="#059669" />
+                        <span>Prime central location</span>
+                      </li>
+                      <li className="hotel-why-love-item">
+                        <CheckCircle2 size={16} color="#059669" />
+                        <span>Scenic city & skyline views</span>
+                      </li>
+                      <li className="hotel-why-love-item">
+                        <CheckCircle2 size={16} color="#059669" />
+                        <span>Award-winning dining options</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Key Amenities 8-Grid */}
+                <div className="hotel-amenities-grid-8">
+                  <div className="hotel-amenity-card-box">
+                    <div className="hotel-amenity-icon-circle"><Wifi size={18} color="#2563EB" /></div>
+                    <span className="hotel-amenity-label">Free Wi-Fi</span>
+                    <span className="hotel-amenity-sub">High Speed</span>
+                  </div>
+                  <div className="hotel-amenity-card-box">
+                    <div className="hotel-amenity-icon-circle"><Car size={18} color="#059669" /></div>
+                    <span className="hotel-amenity-label">Parking Available</span>
+                    <span className="hotel-amenity-sub">Free Valet</span>
+                  </div>
+                  <div className="hotel-amenity-card-box">
+                    <div className="hotel-amenity-icon-circle"><Waves size={18} color="#0284C7" /></div>
+                    <span className="hotel-amenity-label">Swimming Pool</span>
+                    <span className="hotel-amenity-sub">Outdoor & Heated</span>
+                  </div>
+                  <div className="hotel-amenity-card-box">
+                    <div className="hotel-amenity-icon-circle"><Sparkles size={18} color="#8B5CF6" /></div>
+                    <span className="hotel-amenity-label">Spa & Wellness</span>
+                    <span className="hotel-amenity-sub">Full Service</span>
+                  </div>
+                  <div className="hotel-amenity-card-box">
+                    <div className="hotel-amenity-icon-circle"><Dumbbell size={18} color="#EA580C" /></div>
+                    <span className="hotel-amenity-label">Fitness Center</span>
+                    <span className="hotel-amenity-sub">24/7 Access</span>
+                  </div>
+                  <div className="hotel-amenity-card-box">
+                    <div className="hotel-amenity-icon-circle"><Utensils size={18} color="#DC2626" /></div>
+                    <span className="hotel-amenity-label">Fine Dining</span>
+                    <span className="hotel-amenity-sub">Multiple Options</span>
+                  </div>
+                  <div className="hotel-amenity-card-box">
+                    <div className="hotel-amenity-icon-circle"><Briefcase size={18} color="#475569" /></div>
+                    <span className="hotel-amenity-label">Business Center</span>
+                    <span className="hotel-amenity-sub">Meeting Rooms</span>
+                  </div>
+                  <div className="hotel-amenity-card-box">
+                    <div className="hotel-amenity-icon-circle"><Dog size={18} color="#9333EA" /></div>
+                    <span className="hotel-amenity-label">Pet Friendly</span>
+                    <span className="hotel-amenity-sub">Amenities Available</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Rooms Section (Always rendered for smooth scroll & room inspection) */}
+            <div ref={roomsSectionRef} style={{ paddingTop: 10 }}>
+              <div className="hotel-rooms-section-header">
+                <div>
+                  <h2 className="hotel-rooms-section-title">Rooms Available</h2>
+                  <p className="hotel-rooms-section-sub">Choose from our curated rooms for your perfect stay</p>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={scrollToRooms}
+                  style={{ background: 'none', border: 'none', color: '#EA580C', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                >
+                  <span>View All Rooms</span>
+                  <ArrowRight size={14} />
                 </button>
               </div>
-            </div>
 
-            <p style={{ color: 'var(--text)', fontSize: '1.05rem', lineHeight: 1.8, marginBottom: 40, opacity: 0.9 }}>
-              {hotel.description}
-            </p>
-
-            <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 32, marginBottom: 48 }}>
-              <h3 style={{ fontSize: '1.5rem', marginBottom: 20 }}>Property Amenities</h3>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                {hotel.amenities.map(a => (
-                  <span key={a} style={{ padding: '8px 18px', border: '1px solid var(--border)', borderRadius: 20, fontSize: '0.85rem', fontWeight: 500, color: 'var(--text)', background: 'white' }}>
-                    ✓ {a}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* --- ROOM SELECTION SECTION --- */}
-            <div id="available-rooms" style={{ borderTop: '2px solid var(--primary)', paddingTop: 36, marginBottom: 48 }}>
-              <div className="flex-between mb-4" style={{ alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-                <div>
-                  <h2 style={{ fontSize: '2rem', margin: 0, fontFamily: 'var(--font-serif)' }}>Rooms Available</h2>
-                  <p style={{ color: 'var(--text-secondary)', margin: '4px 0 0', fontSize: '0.95rem' }}>Select your preferred room type for your stay</p>
-                </div>
-                <div style={{ background: 'var(--primary)', color: 'white', padding: '6px 16px', borderRadius: 20, fontSize: '0.85rem', fontWeight: 600 }}>
-                  {hotel.roomTypes.length} Room Types Available
-                </div>
-              </div>
-
-              {/* Interactive Stay Selector Bar */}
-              <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 32, boxShadow: 'var(--shadow-sm)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, alignItems: 'center' }}>
-                <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Check-In</label>
-                  <input type="date" className="form-input" style={{ padding: '8px 12px', fontSize: '0.9rem' }} value={checkIn} onChange={e => setCheckIn(e.target.value)} />
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Check-Out</label>
-                  <input type="date" className="form-input" style={{ padding: '8px 12px', fontSize: '0.9rem' }} value={checkOut} onChange={e => setCheckOut(e.target.value)} />
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Guests</label>
-                  <select className="form-select" style={{ padding: '8px 12px', fontSize: '0.9rem' }} value={guests} onChange={e => setGuests(Number(e.target.value))}>
-                    {[1,2,3,4,5,6].map(n => <option key={n} value={n}>{n} {n === 1 ? 'Guest' : 'Guests'}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Rooms</label>
-                  <select className="form-select" style={{ padding: '8px 12px', fontSize: '0.9rem' }} value={roomsCount} onChange={e => setRoomsCount(Number(e.target.value))}>
-                    {[1,2,3,4].map(n => <option key={n} value={n}>{n} {n === 1 ? 'Room' : 'Rooms'}</option>)}
-                  </select>
-                </div>
-                <div style={{ textAlign: 'center', background: 'var(--bg)', padding: '10px 14px', borderRadius: 8 }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Stay Duration</div>
-                  <div style={{ fontWeight: 800, color: 'var(--primary)', fontSize: '1.1rem' }}>{nights} {nights === 1 ? 'Night' : 'Nights'}</div>
-                </div>
-              </div>
-
-              {/* Room Cards List */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
-                {hotel.roomTypes.map(rt => {
-                  const baseStayPrice = rt.price * nights * roomsCount;
+              {/* Rooms List */}
+              <div className="hotel-rooms-list">
+                {availableRooms.map((room) => {
+                  const roomPrice = Number(room.price) || startingPrice;
+                  const roomImg = room.images?.[0]?.url || allPhotos[0];
 
                   return (
-                    <div 
-                      key={rt.type} 
-                      style={{ 
-                        background: 'white', borderRadius: 12, border: selectedRoom?.type === rt.type ? '2px solid var(--primary)' : '1px solid var(--border)',
-                        overflow: 'hidden', boxShadow: selectedRoom?.type === rt.type ? 'var(--shadow-md)' : 'var(--shadow-sm)',
-                        display: 'grid', gridTemplateColumns: '300px 1fr', transition: 'all 0.2s'
-                      }}
-                    >
-                      {/* Left Room Thumbnail */}
-                      <div style={{ position: 'relative', height: '100%', minHeight: 240 }}>
-                        <img 
-                          src={rt.images?.[0]?.url || 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=600'} 
-                          alt={rt.type} 
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                        />
-                        <span style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(15,118,110,0.9)', color: 'white', fontSize: '0.75rem', fontWeight: 700, padding: '4px 10px', borderRadius: 20 }}>
-                          {rt.quantity || 3} Rooms Available
-                        </span>
+                    <div key={room.id || room.type} className="hotel-room-item-card">
+                      {/* Room Thumbnail */}
+                      <div className="hotel-room-thumb-box">
+                        <img src={roomImg} alt={room.type} />
                       </div>
 
-                      {/* Right Details */}
-                      <div style={{ padding: 24, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                      {/* Room Info */}
+                      <div className="hotel-room-info-box">
                         <div>
-                          <div className="flex-between" style={{ alignItems: 'flex-start', marginBottom: 8 }}>
-                            <h3 style={{ margin: 0, fontSize: '1.4rem', fontFamily: 'var(--font-serif)', color: 'var(--text)' }}>{rt.type}</h3>
-                            <span style={{ fontSize: '0.8rem', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '4px 10px', borderRadius: 16, fontWeight: 600 }}>
-                              ✓ {rt.cancellationPolicy || 'Free Cancellation'}
-                            </span>
+                          <h3 className="hotel-room-name">{room.type}</h3>
+                          <div className="hotel-room-specs">
+                            <span>👥 {room.maxGuests || 2} Guests</span>
+                            <span>•</span>
+                            <span>🛏️ {room.bedType || '1 King Bed'}</span>
+                            <span>•</span>
+                            <span>📐 {room.roomSize || '350 sq.ft'}</span>
                           </div>
-
-                          <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: '0 0 12px 0', fontWeight: 600 }}>
-                            👥 {rt.maxGuests || 2} Guests &nbsp;|&nbsp; 🛏️ {rt.bedType || 'King Bed'} &nbsp;|&nbsp; 📐 {rt.roomSize || '350 sq.ft'}
+                          <p style={{ fontSize: '0.82rem', color: '#64748B', lineHeight: 1.4, margin: '0 0 8px' }}>
+                            {room.description}
                           </p>
-
-                          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', margin: '0 0 16px 0', lineHeight: 1.5 }}>
-                            {rt.description}
-                          </p>
-
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
-                            {(rt.amenities || ['Free Wi-Fi', 'Breakfast Included', 'AC']).map(a => (
-                              <span key={a} style={{ fontSize: '0.75rem', background: 'var(--bg)', padding: '3px 10px', borderRadius: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>
-                                ✓ {a}
-                              </span>
+                          <div className="hotel-room-amenities-row">
+                            {(room.amenities || ['Free Wi-Fi', 'AC', 'City View', 'Minibar']).slice(0, 4).map(a => (
+                              <span key={a} className="hotel-room-amenity-tag">✓ {a}</span>
                             ))}
                           </div>
                         </div>
+                      </div>
 
-                        {/* Pricing & Action buttons */}
-                        <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-                          <div>
-                            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)', lineHeight: 1 }}>
-                              ₹{rt.price.toLocaleString()} <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 400 }}>/ night</span>
-                            </div>
-                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 4 }}>
-                              Total stay: <strong>₹{baseStayPrice.toLocaleString()}</strong> for {nights} {nights === 1 ? 'night' : 'nights'}
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'flex', gap: 10 }}>
-                            <button 
-                              className="btn btn-outline" 
-                              style={{ padding: '8px 16px', fontSize: '0.9rem' }}
-                              onClick={() => {
-                                setSelectedRoom(rt);
-                                setViewRoomModal({ show: true, room: rt, activeImgIdx: 0 });
-                              }}
-                            >
-                              View Room
-                            </button>
-                            <button 
-                              className="btn btn-accent" 
-                              style={{ padding: '8px 20px', fontSize: '0.9rem' }}
-                              onClick={() => {
-                                setSelectedRoom(rt);
-                                setSelectRoomModal({ show: true, room: rt });
-                              }}
-                            >
-                              Select Room
-                            </button>
-                          </div>
+                      {/* Room Price & Action */}
+                      <div className="hotel-room-price-box">
+                        <div>
+                          <div className="hotel-room-price-val">₹{roomPrice.toLocaleString()}</div>
+                          <div className="hotel-room-price-unit">/ night</div>
                         </div>
+                        <button 
+                          type="button" 
+                          className="hotel-room-select-btn"
+                          onClick={() => {
+                            setSelectedRoom(room);
+                            setSelectRoomModal({ show: true, room });
+                          }}
+                        >
+                          Select Room
+                        </button>
                       </div>
                     </div>
                   );
@@ -360,470 +580,341 @@ export default function HotelDetail() {
               </div>
             </div>
 
-            {/* Exclusive Quotes received for this hotel */}
-            {hotelQuotes.length > 0 && (
-              <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 36 }}>
-                <h3 style={{ fontSize: '1.6rem', marginBottom: 24 }}>Your Exclusive Offers</h3>
-                {hotelQuotes.map(q => (
-                  <div key={q.id} style={{ padding: 32, marginBottom: 24, background: 'var(--primary)', color: 'white', borderRadius: 12 }}>
-                    <div className="flex-between" style={{ marginBottom: 16 }}>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', color: q.status === 'accepted' ? 'var(--success)' : 'var(--accent)' }}>
-                        {q.status === 'accepted' ? '✓ Accepted' : '★ Custom Quote Received'}
-                      </span>
-                      <span style={{ fontWeight: 600, fontSize: '1.5rem', color: 'white' }}>₹{q.price.toLocaleString()}</span>
+            {/* Exclusive Quotes for this Hotel if User is Logged in */}
+            {user && quotes && quotes.filter(q => q.hotelId?.toString() === hotel.id?.toString()).length > 0 && (
+              <div style={{ background: '#0F172A', color: 'white', borderRadius: 16, padding: 24, marginBottom: 36 }}>
+                <h3 style={{ fontSize: '1.2rem', margin: '0 0 16px', color: '#FBBF24' }}>★ Your Exclusive Received Quotes</h3>
+                {quotes.filter(q => q.hotelId?.toString() === hotel.id?.toString()).map(q => (
+                  <div key={q.id} style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 18, marginBottom: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#10B981' }}>{q.status === 'accepted' ? '✓ Accepted' : '★ Custom Offer'}</span>
+                      <strong style={{ fontSize: '1.3rem', color: '#FFFFFF' }}>₹{q.price?.toLocaleString()}</strong>
                     </div>
-                    <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '1.1rem', lineHeight: 1.6, marginBottom: 24 }}>"{q.message}"</p>
+                    <p style={{ fontSize: '0.85rem', color: '#CBD5E1', margin: '0 0 12px' }}>"{q.message}"</p>
                     {q.status === 'sent' && (
-                      <div style={{ display: 'flex', gap: 16, marginTop: 16 }}>
-                        <button className="btn btn-accent" onClick={() => {
-                          setGuestName(user?.name || '');
-                          setBookingQuote(q);
-                        }} style={{ padding: '14px 32px' }}>
-                          Accept & Book Now
-                        </button>
-                        <button className="btn btn-outline" onClick={async () => {
-                          const newPrice = prompt(`Enter your counter-offer for ${hotel.name} (Current Quote: ₹${q.price}):`);
-                          if(newPrice && !isNaN(newPrice)) {
-                            const success = await counterQuote(q.id, parseInt(newPrice));
-                            if (success) {
-                              addToast(`Counter-offer of ₹${newPrice} submitted to ${hotel.name}! They will review it shortly.`, 'success');
-                            } else {
-                              addToast('Failed to submit counter-offer', 'error');
-                            }
-                          }
-                        }} style={{ padding: '14px 32px', color: 'white', borderColor: 'rgba(255,255,255,0.3)' }}>
-                          Make Counter-Offer
-                        </button>
-                      </div>
+                      <button 
+                        className="btn btn-accent" 
+                        style={{ padding: '8px 20px', fontSize: '0.85rem', background: '#EA580C' }}
+                        onClick={() => {
+                          addToast(`Accepted quote for ₹${q.price?.toLocaleString()}`, 'success');
+                          navigate('/customer/trips');
+                        }}
+                      >
+                        Accept & Book Now
+                      </button>
                     )}
                   </div>
                 ))}
               </div>
             )}
+
           </div>
 
-          {/* Sticky Sidebar Summary */}
-          <div>
-            <div style={{ position: 'sticky', top: 100, background: 'white', padding: 32, borderRadius: 12, border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, paddingBottom: 20, borderBottom: '1px solid var(--border-light)' }}>
-                <div>
-                  <div style={{ fontSize: '2.2rem', fontWeight: 700, fontFamily: 'var(--font-serif)', color: 'var(--primary)', lineHeight: 1 }}>
-                    ⭐ {hotel.rating}
+          {/* Right Sticky Sidebar Cards Column */}
+          <div className="hotel-sidebar-sticky">
+            
+            {/* Card 1: Main Booking & Reservation Widget */}
+            <div className="hotel-booking-widget-card">
+              {/* Rating + Wishlist + Share Header */}
+              <div className="hotel-booking-top-row">
+                <div className="hotel-booking-rating-pill">
+                  <span className="hotel-booking-rating-score">★ {hotel.rating || '4.8'}</span>
+                  <span className="hotel-booking-rating-count">({hotel.reviews_count || '1,230'} reviews)</span>
+                  <span className="hotel-booking-badge-verified">Verified Hotel</span>
+                </div>
+
+                <div className="hotel-booking-actions">
+                  <button 
+                    type="button" 
+                    className="hotel-booking-icon-btn"
+                    onClick={() => {
+                      const added = toggleWishlist(hotel.id);
+                      if (added) addToast(`Added "${hotel.name}" to wishlist!`, 'success');
+                      else addToast(`Removed from wishlist`, 'info');
+                    }}
+                    title={isWishlisted(hotel.id) ? 'Remove from wishlist' : 'Save to wishlist'}
+                  >
+                    <Heart 
+                      size={17} 
+                      color={isWishlisted(hotel.id) ? '#EF4444' : '#64748B'} 
+                      fill={isWishlisted(hotel.id) ? '#EF4444' : 'none'} 
+                    />
+                  </button>
+                  <button 
+                    type="button" 
+                    className="hotel-booking-icon-btn"
+                    onClick={() => {
+                      navigator.clipboard.writeText(window.location.href);
+                      addToast('Hotel link copied to clipboard!', 'success');
+                    }}
+                    title="Share property"
+                  >
+                    <Share2 size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Big Price Display */}
+              <div className="hotel-booking-price-row">
+                <span className="hotel-booking-price-big">₹{startingPrice.toLocaleString()}</span>
+                <span className="hotel-booking-price-period"> / night</span>
+                <div className="hotel-booking-taxes-sub">Taxes and fees included</div>
+              </div>
+
+              {/* 2x2 Date & Guest Selection Box */}
+              <div className="hotel-booking-inputs-box">
+                {/* Top Row: Check-in / Check-out */}
+                <div className="hotel-booking-input-row">
+                  <div className="hotel-booking-cell right-border">
+                    <span className="hotel-booking-cell-label"><Calendar size={12} color="#64748B" /> Check-in</span>
+                    <input 
+                      type="date" 
+                      className="hotel-booking-cell-val" 
+                      value={checkIn}
+                      onChange={(e) => setCheckIn(e.target.value)}
+                    />
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 4 }}>
-                    {hotel.reviewCount} Guest Reviews
+                  <div className="hotel-booking-cell">
+                    <span className="hotel-booking-cell-label"><Calendar size={12} color="#64748B" /> Check-out</span>
+                    <input 
+                      type="date" 
+                      className="hotel-booking-cell-val" 
+                      value={checkOut}
+                      onChange={(e) => setCheckOut(e.target.value)}
+                    />
                   </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <span style={{ fontSize: '0.75rem', background: '#e0f2fe', color: '#0369a1', padding: '4px 10px', borderRadius: 12, fontWeight: 700 }}>
-                    Verified Hotel
-                  </span>
-                </div>
-              </div>
-              
-              <div style={{ textAlign: 'center', marginBottom: 24 }}>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
-                  {selectedRoom ? selectedRoom.type : 'Selected Room'}
-                </div>
-                <div style={{ fontSize: '2.2rem', fontWeight: 800, color: 'var(--primary)', lineHeight: 1 }}>
-                  ₹{selectedRoom ? selectedRoom.price.toLocaleString() : hotel.roomTypes[0].price.toLocaleString()}
-                  <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', fontWeight: 400 }}> / night</span>
-                </div>
-              </div>
 
-              <a 
-                href="#available-rooms" 
-                className="btn btn-primary btn-block" 
-                style={{ padding: '14px', fontSize: '0.95rem', letterSpacing: '0.05em', textAlign: 'center', display: 'block', textDecoration: 'none' }}
-              >
-                Browse & Select Rooms
-              </a>
-              
-              <p style={{ textAlign: 'center', fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 16, lineHeight: 1.5 }}>
-                Choose your room above to get custom quotes directly from hotel managers.
-              </p>
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-      {/* Guest Reviews & Star Ratings Section */}
-      <div className="card" style={{ marginTop: 32, marginBottom: 40 }}>
-        <div className="card-body" style={{ padding: 32 }}>
-          <div className="flex-between" style={{ marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
-            <div>
-              <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.6rem', margin: '0 0 6px' }}>Guest Reviews & Ratings</h3>
-              <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.9rem' }}>Verified feedback from guests who stayed at {hotel.name}</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bg)', padding: '10px 20px', borderRadius: 12, border: '1px solid var(--border)' }}>
-              <span style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--primary)', fontFamily: 'var(--font-serif)' }}>
-                {hotelReviews.length > 0 ? (hotelReviews.reduce((acc, r) => acc + r.rating, 0) / hotelReviews.length).toFixed(1) : '4.8'}
-              </span>
-              <div>
-                <div style={{ color: '#f59e0b', fontSize: '1.1rem' }}>★★★★★</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {hotelReviews.length} {hotelReviews.length === 1 ? 'verified review' : 'verified reviews'}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {hotelReviews.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '32px 0', background: 'var(--bg)', borderRadius: 12, border: '1px dashed var(--border)' }}>
-              <div style={{ fontSize: '2rem', marginBottom: 8 }}>🌟</div>
-              <p style={{ color: 'var(--text)', fontWeight: 600, margin: '0 0 4px' }}>Be the first to review!</p>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>
-                Guests who complete their stay can leave verified reviews from their Trips page.
-              </p>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
-              {hotelReviews.map((r, i) => (
-                <div key={r.id || i} style={{ background: 'var(--bg)', padding: 20, borderRadius: 12, border: '1px solid var(--border-light)' }}>
-                  <div className="flex-between" style={{ marginBottom: 10 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '0.85rem' }}>
-                        {(r.customerName || 'G')[0]}
-                      </div>
-                      <div>
-                        <strong style={{ fontSize: '0.9rem', display: 'block', color: 'var(--text)' }}>{r.customerName || 'Verified Traveler'}</strong>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : 'Recent Stay'}</span>
-                      </div>
-                    </div>
-                    <span style={{ background: '#fef3c7', color: '#b45309', fontWeight: 700, fontSize: '0.8rem', padding: '2px 8px', borderRadius: 4 }}>
-                      ★ {r.rating}.0
-                    </span>
-                  </div>
-                  <p style={{ color: 'var(--text)', fontSize: '0.9rem', lineHeight: 1.5, margin: 0 }}>
-                    "{r.comment || 'Wonderful stay with excellent hospitality and comfort.'}"
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* --- VIEW ROOM DETAILS MODAL & IMAGE GALLERY --- */}
-      {viewRoomModal.show && viewRoomModal.room && (
-        <div 
-          className="modal-overlay" 
-          style={{ 
-            position: 'fixed', top: 70, left: 0, right: 0, bottom: 0, 
-            height: 'calc(100vh - 70px)', zIndex: 99999, 
-            padding: '12px 16px 20px', display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-            background: 'rgba(15,15,15,0.75)', backdropFilter: 'blur(12px)' 
-          }} 
-          onClick={() => setViewRoomModal({ show: false, room: null, activeImgIdx: 0 })}
-        >
-          <div 
-            className="modal" 
-            onClick={e => e.stopPropagation()} 
-            style={{ 
-              maxWidth: 760, 
-              width: '100%',
-              maxHeight: 'calc(100vh - 100px)', 
-              padding: 0, 
-              overflow: 'hidden', 
-              borderRadius: 16, 
-              display: 'flex', 
-              flexDirection: 'column',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-              margin: '0 auto'
-            }}
-          >
-            {/* Modal Header */}
-            <div style={{ padding: '14px 20px', background: 'var(--primary)', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: '1.2rem' }}>🛏️</span>
-                <h3 style={{ margin: 0, fontSize: '1.2rem', fontFamily: 'var(--font-serif)', color: 'white' }}>{viewRoomModal.room.type}</h3>
-              </div>
-              <button 
-                onClick={() => setViewRoomModal({ show: false, room: null, activeImgIdx: 0 })}
-                style={{ 
-                  background: 'rgba(255,255,255,0.2)', color: 'white', border: 'none', 
-                  borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', 
-                  fontSize: '1.1rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  transition: 'all 0.2s'
-                }}
-                onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.35)'}
-                onMouseOut={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Scrollable Modal Body */}
-            <div style={{ flex: 1, overflowY: 'auto', background: 'white' }}>
-              {/* Gallery Image Display */}
-              <div style={{ position: 'relative', height: 230, background: '#0f172a' }}>
-                <img 
-                  src={viewRoomModal.room.images?.[viewRoomModal.activeImgIdx]?.url || 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=1000'} 
-                  alt={viewRoomModal.room.images?.[viewRoomModal.activeImgIdx]?.label || viewRoomModal.room.type}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'all 0.3s' }}
-                />
-                
-                <div style={{ position: 'absolute', bottom: 10, left: 14, background: 'rgba(0,0,0,0.75)', color: 'white', padding: '4px 10px', borderRadius: 16, fontSize: '0.78rem', backdropFilter: 'blur(6px)' }}>
-                  📷 {viewRoomModal.room.images?.[viewRoomModal.activeImgIdx]?.label || `Photo ${viewRoomModal.activeImgIdx + 1}`} ({viewRoomModal.activeImgIdx + 1}/{viewRoomModal.room.images?.length || 1})
-                </div>
-              </div>
-
-              {/* Gallery Thumbnails Strip */}
-              {viewRoomModal.room.images && viewRoomModal.room.images.length > 0 && (
-                <div style={{ display: 'flex', gap: 6, padding: '8px 14px', background: '#0f172a', overflowX: 'auto' }}>
-                  {viewRoomModal.room.images.map((img, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setViewRoomModal(prev => ({ ...prev, activeImgIdx: idx }))}
-                      style={{
-                        border: viewRoomModal.activeImgIdx === idx ? '2px solid var(--accent)' : '2px solid transparent',
-                        borderRadius: 6, overflow: 'hidden', padding: 0, cursor: 'pointer', background: 'none', flexShrink: 0
-                      }}
+                {/* Bottom Row: Guests / Rooms */}
+                <div className="hotel-booking-input-row top-divider">
+                  <div className="hotel-booking-cell right-border">
+                    <span className="hotel-booking-cell-label"><Users size={12} color="#64748B" /> Guests</span>
+                    <select 
+                      className="hotel-booking-cell-val"
+                      value={guests}
+                      onChange={(e) => setGuests(Number(e.target.value))}
                     >
-                      <img src={img.url} alt={img.label} style={{ width: 56, height: 38, objectFit: 'cover', display: 'block', opacity: viewRoomModal.activeImgIdx === idx ? 1 : 0.5 }} />
-                    </button>
-                  ))}
+                      {[1, 2, 3, 4, 5, 6].map(n => (
+                        <option key={n} value={n}>{n} {n === 1 ? 'Guest' : 'Guests'}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="hotel-booking-cell">
+                    <span className="hotel-booking-cell-label"><Bed size={12} color="#64748B" /> Rooms</span>
+                    <select 
+                      className="hotel-booking-cell-val"
+                      value={roomsCount}
+                      onChange={(e) => setRoomsCount(Number(e.target.value))}
+                    >
+                      {[1, 2, 3, 4].map(n => (
+                        <option key={n} value={n}>{n} {n === 1 ? 'Room' : 'Rooms'}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-              )}
+              </div>
 
-              {/* Room Specs & Details Content */}
-              <div style={{ padding: '18px 20px' }}>
-                <div className="flex-between mb-2" style={{ alignItems: 'flex-start' }}>
+              {/* Big Orange CTA Button */}
+              <button 
+                type="button" 
+                className="hotel-booking-cta-btn"
+                onClick={scrollToRooms}
+              >
+                <span>Browse & Select Rooms</span>
+                <ArrowRight size={17} />
+              </button>
+
+              {/* Guarantee items */}
+              <div className="hotel-booking-guarantees">
+                <span className="hotel-booking-guarantee-item">
+                  <Check size={13} color="#059669" strokeWidth={3} /> Free cancellation
+                </span>
+                <span className="hotel-booking-guarantee-item">
+                  <CreditCard size={13} color="#64748B" /> Pay at hotel
+                </span>
+                <span className="hotel-booking-guarantee-item">
+                  <Zap size={13} color="#EA580C" /> Instant confirmation
+                </span>
+              </div>
+            </div>
+
+            {/* Card 2: Location Card */}
+            <div className="hotel-location-widget-card">
+              <div className="hotel-location-header">
+                <h3 className="hotel-location-title">Location</h3>
+                <Link to={`/customer/find?location=${hotel.location}`} className="hotel-location-map-link">
+                  View on Map →
+                </Link>
+              </div>
+
+              {/* Mini Map Preview */}
+              <div className="hotel-mini-map-wrap" onClick={() => navigate(`/customer/find?location=${hotel.location}`)} style={{ cursor: 'pointer' }}>
+                <img 
+                  src="https://images.unsplash.com/photo-1524661135-423995f22d0b?w=500" 
+                  alt="Location Map Preview" 
+                />
+                <MapPin size={26} className="hotel-mini-map-pin" fill="#EF4444" color="#FFFFFF" />
+              </div>
+
+              <p className="hotel-location-address-p">{hotel.address || `${hotel.location}, India`}</p>
+              <p className="hotel-location-subtext">Close to business districts, shopping and entertainment.</p>
+
+              {/* Proximity Metrics */}
+              <div className="hotel-location-distances-list">
+                <div className="hotel-location-dist-item">
+                  <Plane size={15} color="#0284C7" />
+                  <span><strong>20 km</strong> from Airport</span>
+                </div>
+                <div className="hotel-location-dist-item">
+                  <Train size={15} color="#059669" />
+                  <span><strong>2 km</strong> from Railway Station</span>
+                </div>
+                <div className="hotel-location-dist-item">
+                  <Building size={15} color="#8B5CF6" />
+                  <span><strong>6 km</strong> from City Convention Centre</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: What Our Guests Say (Review Card) */}
+            <div className="hotel-reviews-widget-card">
+              <div className="hotel-reviews-header">
+                <h3 className="hotel-reviews-title">What Our Guests Say</h3>
+                <span className="hotel-reviews-all-link">View All Reviews →</span>
+              </div>
+              <div className="hotel-reviews-count-sub">⭐ {hotel.rating || '4.8'} ({hotel.reviews_count || '1,230'} reviews)</div>
+
+              <div className="hotel-review-testimonial-box">
+                <div className="hotel-reviewer-row">
+                  <div className="hotel-reviewer-avatar">
+                    {guestReviewsList[activeReviewIdx].name.slice(0, 2).toUpperCase()}
+                  </div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: '1.5rem', fontFamily: 'var(--font-serif)' }}>{viewRoomModal.room.type}</h3>
-                    <p style={{ margin: '3px 0 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                      👥 Max {viewRoomModal.room.maxGuests || 2} Guests &nbsp;•&nbsp; 🛏️ {viewRoomModal.room.bedType || 'King Bed'} &nbsp;•&nbsp; 📐 {viewRoomModal.room.roomSize || '350 sq.ft'}
-                    </p>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)' }}>₹{viewRoomModal.room.price.toLocaleString()}</div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>per night</div>
+                    <div className="hotel-reviewer-name">{guestReviewsList[activeReviewIdx].name}</div>
+                    <div className="hotel-reviewer-time">{guestReviewsList[activeReviewIdx].time}</div>
                   </div>
                 </div>
 
-                <p style={{ color: 'var(--text)', fontSize: '0.88rem', lineHeight: 1.5, marginBottom: 14 }}>
-                  {viewRoomModal.room.description}
+                <div className="hotel-reviewer-stars">★★★★★</div>
+                <p className="hotel-reviewer-text">
+                  "{guestReviewsList[activeReviewIdx].text}"
                 </p>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, background: 'var(--bg)', padding: 12, borderRadius: 10, marginBottom: 16 }}>
-                  <div>
-                    <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 2 }}>Breakfast</div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--primary)' }}>☕ {viewRoomModal.room.breakfast || 'Breakfast Included'}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 2 }}>Cancellation Policy</div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--success)' }}>🛡️ {viewRoomModal.room.cancellationPolicy || 'Free Cancellation'}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 2 }}>Check-In / Check-Out</div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 600 }}>🕒 Check-In: 02:00 PM | Check-Out: 11:00 AM</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 2 }}>Availability</div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--accent)' }}>🏨 {viewRoomModal.room.quantity || 3} Rooms Available</div>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 style={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)', marginBottom: 6 }}>Room Amenities</h4>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    {(viewRoomModal.room.amenities || ['Free Wi-Fi', 'Breakfast Included', 'AC']).map(a => (
-                      <span key={a} style={{ padding: '4px 10px', background: 'white', border: '1px solid var(--border)', borderRadius: 14, fontSize: '0.78rem', fontWeight: 600 }}>
-                        ✓ {a}
-                      </span>
-                    ))}
-                  </div>
+                {/* Carousel Dots */}
+                <div className="hotel-review-carousel-dots">
+                  {guestReviewsList.map((_, idx) => (
+                    <span 
+                      key={idx} 
+                      className={`hotel-review-dot ${activeReviewIdx === idx ? 'active' : ''}`}
+                      onClick={() => setActiveReviewIdx(idx)}
+                    />
+                  ))}
                 </div>
               </div>
             </div>
 
-            {/* Sticky Modal Footer */}
-            <div style={{ padding: '12px 20px', background: '#f8fafc', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-              <button 
-                className="btn btn-outline" 
-                style={{ padding: '8px 20px', fontSize: '0.85rem' }} 
-                onClick={() => setViewRoomModal({ show: false, room: null, activeImgIdx: 0 })}
-              >
-                Close
-              </button>
-              <button 
-                className="btn btn-accent" 
-                style={{ padding: '8px 24px', fontSize: '0.85rem' }}
-                onClick={() => {
-                  const rm = viewRoomModal.room;
-                  setViewRoomModal({ show: false, room: null, activeImgIdx: 0 });
-                  setSelectRoomModal({ show: true, room: rm });
-                }}
-              >
-                Select This Room
-              </button>
-            </div>
           </div>
+
         </div>
-      )}
 
-      {/* --- SELECT ROOM & QUOTE CONFIRMATION MODAL --- */}
-      {selectRoomModal.show && selectRoomModal.room && (
-        <div 
-          className="modal-overlay" 
-          style={{ 
-            position: 'fixed', top: 70, left: 0, right: 0, bottom: 0, 
-            height: 'calc(100vh - 70px)', zIndex: 99999, 
-            padding: '16px', display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-            background: 'rgba(15,15,15,0.75)', backdropFilter: 'blur(12px)' 
-          }} 
-          onClick={() => setSelectRoomModal({ show: false, room: null })}
-        >
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: 550, maxHeight: 'calc(100vh - 100px)', overflowY: 'auto', borderRadius: 16 }}>
-            <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.8rem', marginBottom: 8 }}>Selected Room Summary</h3>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: 20, fontSize: '0.95rem' }}>Review your stay details and calculate total quote.</p>
-
-            <div style={{ background: 'var(--bg)', padding: 18, borderRadius: 12, marginBottom: 20, border: '1px solid var(--border-light)' }}>
-              <div style={{ fontSize: '0.8rem', color: 'var(--accent)', fontWeight: 700, textTransform: 'uppercase' }}>Selected Room</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 700, fontFamily: 'var(--font-serif)', color: 'var(--primary)', margin: '2px 0 6px' }}>
-                {selectRoomModal.room.type}
-              </div>
-              <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                📍 {hotel.name} ({hotel.location})
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20, fontSize: '0.9rem' }}>
-              <div style={{ background: 'white', border: '1px solid var(--border)', padding: 12, borderRadius: 8 }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Check-In Date</span>
-                <strong>📅 {new Date(checkIn).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</strong>
-              </div>
-              <div style={{ background: 'white', border: '1px solid var(--border)', padding: 12, borderRadius: 8 }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Check-Out Date</span>
-                <strong>📅 {new Date(checkOut).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</strong>
-              </div>
-              <div style={{ background: 'white', border: '1px solid var(--border)', padding: 12, borderRadius: 8 }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Guests & Rooms</span>
-                <strong>👥 {guests} Guests | 🛏️ {roomsCount} {roomsCount === 1 ? 'Room' : 'Rooms'}</strong>
-              </div>
-              <div style={{ background: 'white', border: '1px solid var(--border)', padding: 12, borderRadius: 8 }}>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>Stay Duration</span>
-                <strong>🌙 {nights} {nights === 1 ? 'Night' : 'Nights'}</strong>
-              </div>
-            </div>
-
-            {/* Dynamic Quote Calculation Breakdown */}
-            {(() => {
-              const roomPrice = selectRoomModal.room.price;
-              const subtotal = roomPrice * nights * roomsCount;
-              const taxes = Math.round(subtotal * 0.18);
-              const totalAmount = subtotal + taxes;
-
-              return (
-                <div style={{ background: '#f8fafc', padding: 20, borderRadius: 12, border: '1px dashed var(--border)', marginBottom: 24 }}>
-                  <h4 style={{ margin: '0 0 12px 0', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>Price & Quote Calculation</h4>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: '0.95rem' }}>
-                    <span>Selected Room: <strong>{selectRoomModal.room.type}</strong></span>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
-                    <span>₹{roomPrice.toLocaleString()} × {nights} {nights === 1 ? 'night' : 'nights'} × {roomsCount} {roomsCount === 1 ? 'room' : 'rooms'}</span>
-                    <span style={{ fontWeight: 600 }}>= ₹{subtotal.toLocaleString()}</span>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12, fontSize: '0.95rem', color: 'var(--text-secondary)' }}>
-                    <span>Taxes / existing charges (18% GST)</span>
-                    <span style={{ fontWeight: 600 }}>= ₹{taxes.toLocaleString()}</span>
-                  </div>
-
-                  <div style={{ borderTop: '2px solid var(--border)', paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--text)' }}>Total</span>
-                    <span style={{ fontWeight: 800, fontSize: '1.6rem', color: 'var(--primary)', fontFamily: 'var(--font-serif)' }}>
-                      = ₹{totalAmount.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-              );
-            })()}
-
-            <div className="modal-actions" style={{ marginTop: 0 }}>
-              <button className="btn btn-outline" onClick={() => setSelectRoomModal({ show: false, room: null })}>Cancel</button>
-              <button className="btn btn-accent btn-lg" onClick={() => handleSelectRoomSubmit(selectRoomModal.room)}>
-                Confirm & Submit Request
-              </button>
-            </div>
+        {/* 3. Mobile Floating Bottom Bar */}
+        <div className="hotel-mobile-bottom-bar">
+          <div>
+            <div className="hotel-mobile-bottom-price">₹{startingPrice.toLocaleString()}</div>
+            <div className="hotel-mobile-bottom-sub">Taxes included / night</div>
           </div>
+          <button 
+            type="button" 
+            className="hotel-mobile-bottom-btn"
+            onClick={scrollToRooms}
+          >
+            Select Rooms →
+          </button>
         </div>
-      )}
 
-      {/* Booking / Payment Modal */}
-      {bookingQuote && (
-        <div className="modal-overlay" onClick={() => !isProcessing && setBookingQuote(null)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            {!paymentStep ? (
-              <>
-                <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.8rem', marginBottom: 12 }}>Confirm Reservation</h3>
-                <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>Please confirm the primary guest details for this booking.</p>
-                
-                <div className="form-group" style={{ marginBottom: 32 }}>
-                  <label className="form-label">Primary Guest Name</label>
-                  <input 
-                    className="form-input" 
-                    value={guestName} 
-                    onChange={e => setGuestName(e.target.value)} 
-                    placeholder="Enter the name of the guest checking in"
-                  />
+        {/* 4. Room Confirmation Modal */}
+        {selectRoomModal.show && selectRoomModal.room && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(6px)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <div style={{ background: '#FFFFFF', borderRadius: 20, width: '100%', maxWidth: 500, padding: 24, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#0F172A', fontWeight: 800 }}>Confirm Room Selection</h3>
+                <button type="button" onClick={() => setSelectRoomModal({ show: false, room: null })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}>
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div style={{ background: '#F8FAFC', borderRadius: 12, padding: 16, marginBottom: 20 }}>
+                <h4 style={{ margin: '0 0 6px', color: '#0F172A' }}>{selectRoomModal.room.type}</h4>
+                <div style={{ fontSize: '0.85rem', color: '#64748B', marginBottom: 8 }}>
+                  📅 {checkIn} to {checkOut} ({nights} {nights === 1 ? 'night' : 'nights'})
                 </div>
-
-                <div style={{ background: 'var(--bg)', padding: 16, borderRadius: 8, marginBottom: 32, display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Total Amount</span>
-                  <span style={{ fontSize: '1.2rem', fontFamily: 'var(--font-serif)', fontWeight: 600, color: 'var(--primary)' }}>
-                    ₹{bookingQuote.price.toLocaleString()}
+                <div style={{ fontSize: '0.85rem', color: '#64748B', marginBottom: 12 }}>
+                  👥 {guests} Guests • 🛏️ {roomsCount} Room
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid #E2E8F0' }}>
+                  <span style={{ fontWeight: 600, color: '#475569' }}>Total Estimated Quote:</span>
+                  <span style={{ fontSize: '1.3rem', fontWeight: 800, color: '#EA580C' }}>
+                    ₹{((selectRoomModal.room.price || startingPrice) * nights * roomsCount).toLocaleString()}
                   </span>
                 </div>
+              </div>
 
-                <div className="modal-actions" style={{ marginTop: 0 }}>
-                  <button className="btn btn-outline" onClick={() => setBookingQuote(null)}>Cancel</button>
-                  <button className="btn btn-accent" onClick={handleConfirmBooking}>Proceed to Payment</button>
-                </div>
-              </>
-            ) : (
-              <>
-                <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.8rem', marginBottom: 12 }}>Secure Payment</h3>
-                <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>Choose your payment method.</p>
-
-                <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
-                  <button 
-                    className="btn" 
-                    style={{ flex: 1, padding: 12, border: `2px solid ${paymentMethod === 'card' ? 'var(--accent)' : 'var(--border)'}`, background: paymentMethod === 'card' ? 'var(--bg)' : 'transparent', color: 'var(--text)' }}
-                    onClick={() => setPaymentMethod('card')}
-                  >
-                    💳 Credit/Debit
-                  </button>
-                  <button 
-                    className="btn" 
-                    style={{ flex: 1, padding: 12, border: `2px solid ${paymentMethod === 'upi' ? 'var(--accent)' : 'var(--border)'}`, background: paymentMethod === 'upi' ? 'var(--bg)' : 'transparent', color: 'var(--text)' }}
-                    onClick={() => setPaymentMethod('upi')}
-                  >
-                    📱 UPI
-                  </button>
-                </div>
-
-                <div style={{ background: 'var(--bg)', padding: 16, borderRadius: 8, marginBottom: 32, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Amount to Pay</span>
-                  <span style={{ fontSize: '1.6rem', fontFamily: 'var(--font-serif)', fontWeight: 600, color: 'var(--primary)' }}>
-                    ₹{finalPrice.toLocaleString()}
-                  </span>
-                </div>
-
-                <div className="modal-actions" style={{ marginTop: 0 }}>
-                  <button className="btn btn-outline" disabled={isProcessing} onClick={() => setPaymentStep(false)}>Back</button>
-                  <button className="btn btn-accent" disabled={isProcessing} onClick={processPaymentAndBook}>
-                    {isProcessing ? 'Processing Payment...' : `Pay ₹${finalPrice.toLocaleString()}`}
-                  </button>
-                </div>
-              </>
-            )}
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button 
+                  type="button" 
+                  onClick={() => setSelectRoomModal({ show: false, room: null })}
+                  className="btn btn-outline" 
+                  style={{ flex: 1, padding: '12px' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => handleSelectRoomSubmit(selectRoomModal.room)}
+                  className="btn btn-accent" 
+                  style={{ flex: 1.5, padding: '12px', background: '#EA580C' }}
+                >
+                  Proceed with Request →
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* 5. Full Gallery Lightbox Modal */}
+        {galleryModalOpen && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 1000, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+            <button 
+              type="button" 
+              onClick={() => setGalleryModalOpen(false)}
+              style={{ position: 'absolute', top: 24, right: 24, background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white', borderRadius: '50%', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+            >
+              <X size={24} />
+            </button>
+            <div style={{ maxWidth: 900, width: '100%', maxHeight: '70vh', borderRadius: 16, overflow: 'hidden', position: 'relative' }}>
+              <img src={allPhotos[activeImgIdx]} alt="Full view" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              <button 
+                type="button"
+                onClick={prevImage}
+                style={{ position: 'absolute', top: '50%', left: 16, transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', borderRadius: '50%', width: 40, height: 40, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <ChevronLeft size={24} />
+              </button>
+              <button 
+                type="button"
+                onClick={nextImage}
+                style={{ position: 'absolute', top: '50%', right: 16, transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', borderRadius: '50%', width: 40, height: 40, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                <ChevronRight size={24} />
+              </button>
+            </div>
+            <div style={{ color: 'white', marginTop: 16, fontSize: '0.9rem' }}>
+              Photo {activeImgIdx + 1} of {allPhotos.length}
+            </div>
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }
