@@ -1723,6 +1723,31 @@ tr:hover td { background: rgba(0,0,0,0.015); }
   border: 1px solid #E2E8F0;
 }
 
+/* Custom Map Price Tag */
+.map-price-bubble {
+  background: #EA580C;
+  color: #FFFFFF;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 800;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.35);
+  border: 1.5px solid #FFFFFF;
+  white-space: nowrap;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+.map-price-bubble:hover,
+.map-price-bubble.selected {
+  background: #0F172A;
+  transform: scale(1.18);
+  z-index: 1000 !important;
+}
+
 /* Custom City Markers on Map */
 .map-city-marker-card {
   background: #FFFFFF;
@@ -2028,8 +2053,51 @@ tr:hover td { background: rgba(0,0,0,0.015); }
     gap: 20px !important;
   }
   .find-map-box {
-    height: 280px !important;
+    height: 320px !important;
     border-radius: 16px !important;
+    position: relative !important;
+  }
+  .map-badge-top-left {
+    top: 10px !important;
+    left: 10px !important;
+    padding: 5px 10px !important;
+    font-size: 0.72rem !important;
+    gap: 4px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  }
+  .map-btn-top-right {
+    top: 10px !important;
+    right: 10px !important;
+    padding: 5px 10px !important;
+    font-size: 0.72rem !important;
+    gap: 4px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  }
+  .map-btn-bottom-left {
+    bottom: 10px !important;
+    left: 10px !important;
+    padding: 6px 12px !important;
+    font-size: 0.74rem !important;
+    gap: 4px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  }
+  .map-legend-bottom-right {
+    display: none !important;
+  }
+  .leaflet-control-zoom {
+    display: none !important;
+  }
+  .leaflet-control-attribution {
+    font-size: 8px !important;
+    background: rgba(255, 255, 255, 0.7) !important;
+    max-width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .map-price-bubble {
+    font-size: 0.64rem !important;
+    padding: 2px 6px !important;
   }
   .find-list-column {
     height: auto !important;

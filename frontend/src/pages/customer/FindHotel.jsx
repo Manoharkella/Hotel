@@ -61,29 +61,12 @@ const createHotelPriceMarker = (hotel, isSelected) => {
   return L.divIcon({
     className: 'custom-hotel-price-marker',
     html: `
-      <div style="
-        background: ${isSelected ? '#0F172A' : '#EA580C'};
-        color: #FFFFFF;
-        padding: 4px 9px;
-        border-radius: 9999px;
-        font-family: 'Plus Jakarta Sans', sans-serif;
-        font-size: 0.72rem;
-        font-weight: 800;
-        box-shadow: 0 4px 14px rgba(0,0,0,0.35);
-        border: 2px solid #FFFFFF;
-        white-space: nowrap;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 3px;
-        transform: scale(${isSelected ? 1.15 : 1});
-        transition: transform 0.2s ease;
-      ">
+      <div class="map-price-bubble ${isSelected ? 'selected' : ''}">
         <span>₹${price.toLocaleString()}</span>
       </div>
     `,
-    iconSize: [64, 26],
-    iconAnchor: [32, 13]
+    iconSize: [56, 22],
+    iconAnchor: [28, 11]
   });
 };
 
