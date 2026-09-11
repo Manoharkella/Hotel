@@ -4,28 +4,28 @@ import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { useToast } from '../../context/ToastContext';
 import { 
-  User, 
+  ShieldCheck, 
   Mail, 
   Phone, 
   MapPin, 
-  Award, 
-  ShieldCheck, 
-  Bell, 
-  Check, 
-  Sparkles, 
-  LogOut, 
-  Gift, 
-  Compass, 
   ChevronRight, 
-  Heart, 
+  Radio, 
+  Crown, 
+  Gift, 
+  Ticket, 
+  CheckCircle2, 
   Calendar, 
-  CreditCard, 
-  Lock, 
-  Sliders, 
-  Bed, 
-  CheckCircle2,
-  QrCode,
-  ArrowRight
+  Heart, 
+  Settings, 
+  Shield, 
+  LogOut, 
+  X,
+  Sparkles,
+  Check,
+  Bed,
+  User,
+  Bell,
+  Lock
 } from 'lucide-react';
 
 export default function CustomerProfile() {
@@ -34,37 +34,33 @@ export default function CustomerProfile() {
   const { addToast } = useToast();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState('personal'); // 'personal' | 'preferences' | 'security'
-  const [isClaimed, setIsClaimed] = useState(false);
+  const [isVoucherClaimed, setIsVoucherClaimed] = useState(false);
+  const [activeModal, setActiveModal] = useState(null); // 'edit_profile' | 'preferences' | 'security' | 'privileges'
   const [isSaving, setIsSaving] = useState(false);
 
-  // Personal Info Form State
+  // Form states
+  const displayName = user?.name ? (user.name.toLowerCase() === 'arjun' ? 'Arjun Kumar' : user.name) : 'Arjun Kumar';
   const [personalForm, setPersonalForm] = useState({
-    name: user?.name || 'Arjun Kumar',
+    name: displayName,
     email: user?.email || 'arjun@gmail.com',
     phone: user?.phone || '+91 98765 43210',
-    city: user?.city || 'Hyderabad, India',
-    emergencyContact: user?.emergencyContact || '+91 98765 00000',
-    bio: user?.bio || 'Frequent leisure & business traveler exploring luxury stays.'
+    city: user?.city || 'Hyderabad, India'
   });
 
-  // Travel Preferences Form State
   const [prefForm, setPrefForm] = useState({
-    roomType: user?.preferences?.roomType || 'Deluxe',
+    roomType: user?.preferences?.roomType || 'Deluxe Room',
     bedType: user?.preferences?.bedType || 'King Size Bed',
-    purpose: user?.preferences?.purpose || 'Leisure',
+    purpose: user?.preferences?.purpose || 'Leisure & Business',
     dietary: user?.preferences?.dietary || 'Complimentary Breakfast Included',
     specialRequests: user?.preferences?.specialRequests || 'High floor, quiet room away from elevator.'
   });
 
-  // Security & Notifications Form State
   const [securityForm, setSecurityForm] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
     smsNotifications: true,
-    emailAlerts: true,
-    bidAlerts: true
+    emailAlerts: true
   });
 
   const handleSavePersonal = (e) => {
@@ -75,12 +71,11 @@ export default function CustomerProfile() {
         name: personalForm.name,
         email: personalForm.email,
         phone: personalForm.phone,
-        city: personalForm.city,
-        emergencyContact: personalForm.emergencyContact,
-        bio: personalForm.bio
+        city: personalForm.city
       });
       setIsSaving(false);
-      addToast('Personal information updated successfully!', 'success');
+      setActiveModal(null);
+      addToast('Profile information updated successfully!', 'success');
     }, 400);
   };
 
@@ -92,850 +87,508 @@ export default function CustomerProfile() {
         preferences: { ...prefForm }
       });
       setIsSaving(false);
-      addToast('Travel preferences saved for all future bookings!', 'success');
+      setActiveModal(null);
+      addToast('Stay preferences saved for future stays!', 'success');
     }, 400);
   };
 
-  const handleUpdatePassword = (e) => {
+  const handleSaveSecurity = (e) => {
     e.preventDefault();
-    if (!securityForm.newPassword) {
-      addToast('Please enter a new password', 'error');
-      return;
-    }
-    if (securityForm.newPassword !== securityForm.confirmPassword) {
+    if (securityForm.newPassword && securityForm.newPassword !== securityForm.confirmPassword) {
       addToast('New passwords do not match', 'error');
       return;
     }
-    addToast('Security credentials updated successfully!', 'success');
-    setSecurityForm({ ...securityForm, currentPassword: '', newPassword: '', confirmPassword: '' });
+    setIsSaving(true);
+    setTimeout(() => {
+      setIsSaving(false);
+      setActiveModal(null);
+      addToast('Security & notification settings updated!', 'success');
+    }, 400);
   };
 
   const handleClaimVoucher = () => {
-    setIsClaimed(true);
-    addToast('🎉 Voucher code "HOSTIQ500" claimed! ₹500 discount automatically ready for your next stay.', 'success');
+    if (isVoucherClaimed) {
+      addToast('Voucher is already active on your account!', 'info');
+      return;
+    }
+    setIsVoucherClaimed(true);
+    addToast('🎉 ₹500 Instant Stay Voucher claimed! Applied to your next stay.', 'success');
   };
 
-  const initial = (personalForm.name || user?.name || 'A')[0]?.toUpperCase();
+  const handleLogout = () => {
+    if (window.confirm('Are you sure you want to sign out of HostIQ?')) {
+      logout();
+      navigate('/login');
+      addToast('You have been signed out.', 'info');
+    }
+  };
+
+  const userName = personalForm.name || user?.name || 'Arjun Kumar';
+  const initial = userName[0]?.toUpperCase() || 'A';
   const loyaltyPoints = user?.loyalty_points || 500;
 
   return (
-    <div className="fade-in" style={{ maxWidth: 1240, margin: '0 auto', padding: '24px 20px 80px' }}>
+    <div className="profile-page-wrapper fade-in">
       
-      {/* 1. LUXURY HEADER & PROFILE SHOWCASE BANNER */}
-      <div style={{
-        background: 'linear-gradient(135deg, #0F0F0F 0%, #1e1e1e 60%, #2a251e 100%)',
-        borderRadius: 24,
-        padding: '32px 36px',
-        color: 'white',
-        marginBottom: 28,
-        boxShadow: '0 15px 40px rgba(0,0,0,0.12)',
-        border: '1px solid rgba(212, 175, 55, 0.25)',
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        {/* Decorative Gold Ambient Glow */}
-        <div style={{
-          position: 'absolute',
-          top: -60,
-          right: -60,
-          width: 220,
-          height: 220,
-          background: 'radial-gradient(circle, rgba(212, 175, 55, 0.2) 0%, transparent 70%)',
-          pointerEvents: 'none'
-        }} />
+      {/* 1. USER PROFILE HEADER CARD */}
+      <div 
+        className="profile-user-card"
+        onClick={() => setActiveModal('edit_profile')}
+        role="button"
+        tabIndex={0}
+      >
+        <div className="profile-avatar-wrapper">
+          <div className="profile-avatar-circle">
+            {initial}
+          </div>
+          <div className="profile-online-badge" title="Online" />
+        </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 24 }}>
-          
-          {/* Avatar & User Details */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-            <div style={{
-              width: 84,
-              height: 84,
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%)',
-              color: '#0F0F0F',
-              fontSize: '2.2rem',
-              fontWeight: 800,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 8px 24px rgba(212, 175, 55, 0.35)',
-              border: '3px solid rgba(255, 255, 255, 0.2)',
-              position: 'relative',
-              flexShrink: 0
-            }}>
-              {initial}
-              <div style={{
-                position: 'absolute',
-                bottom: 0,
-                right: 0,
-                width: 22,
-                height: 22,
-                borderRadius: '50%',
-                background: '#10B981',
-                border: '3px solid #0F0F0F'
-              }} title="Online" />
+        <div className="profile-user-details">
+          <div className="profile-user-name-row">
+            <h2 className="profile-user-name">{userName}</h2>
+          </div>
+          <div>
+            <span className="profile-verified-badge">
+              <ShieldCheck size={11} />
+              <span>Verified Traveler</span>
+            </span>
+          </div>
+          <div className="profile-meta-row" style={{ marginTop: 3 }}>
+            <Mail size={12} color="#64748B" />
+            <span>{personalForm.email}</span>
+          </div>
+          <div className="profile-meta-row">
+            <Phone size={12} color="#64748B" />
+            <span>{personalForm.phone}</span>
+          </div>
+          <div className="profile-meta-row">
+            <MapPin size={12} color="#64748B" />
+            <span>{personalForm.city}</span>
+          </div>
+        </div>
+
+        <ChevronRight size={18} className="profile-chevron-right" />
+      </div>
+
+      {/* 2. HOSTIQ ELITE BLACK LOYALTY CARD */}
+      <div className="profile-elite-card">
+        <div className="profile-elite-top">
+          <div className="profile-elite-brand">
+            <div className="profile-elite-logo">
+              Host<span>IQ</span>
             </div>
+            <div className="profile-elite-pill">
+              ELITE
+            </div>
+          </div>
+          <div className="profile-nfc-label">
+            <Radio size={14} color="#94A3B8" />
+            <span>NFC CHECK-IN</span>
+          </div>
+        </div>
 
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <h2 style={{ margin: 0, color: 'white', fontFamily: 'var(--font-serif)', fontSize: '1.9rem', letterSpacing: '-0.01em' }}>
-                  {personalForm.name}
-                </h2>
-                <span style={{
-                  background: 'rgba(16, 185, 129, 0.15)',
-                  color: '#34D399',
-                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                  padding: '3px 10px',
-                  borderRadius: 9999,
-                  fontSize: '0.72rem',
-                  fontWeight: 700,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4
-                }}>
-                  <ShieldCheck size={12} /> Verified Traveler
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 8, color: 'rgba(255,255,255,0.75)', fontSize: '0.86rem', flexWrap: 'wrap' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <Mail size={14} color="#D4AF37" /> {personalForm.email}
-                </span>
-                <span>•</span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <Phone size={14} color="#D4AF37" /> {personalForm.phone}
-                </span>
-                <span>•</span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <MapPin size={14} color="#D4AF37" /> {personalForm.city}
-                </span>
-              </div>
+        <div className="profile-elite-bottom">
+          <div className="profile-member-info">
+            <div className="profile-crown-box">
+              <Crown size={18} />
+            </div>
+            <div className="profile-member-texts">
+              <span className="profile-member-label">MEMBER ID</span>
+              <span className="profile-member-id">HIQ-88269-43216</span>
             </div>
           </div>
 
-          {/* Quick Summary Pill Badges */}
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.07)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              borderRadius: 16,
-              padding: '10px 18px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>
-                Loyalty Tier
-              </div>
-              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#D4AF37', marginTop: 2 }}>
-                ⭐ Gold Member
-              </div>
-            </div>
-
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.07)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              borderRadius: 16,
-              padding: '10px 18px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>
-                Saved Stays
-              </div>
-              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#F43F5E', marginTop: 2 }}>
-                ❤️ {wishlist?.length || 0} Wishlist
-              </div>
-            </div>
-
-            <div style={{
-              background: 'rgba(255, 255, 255, 0.07)',
-              border: '1px solid rgba(255, 255, 255, 0.12)',
-              borderRadius: 16,
-              padding: '10px 18px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>
-                QR Mobile Pass
-              </div>
-              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#34D399', marginTop: 2 }}>
-                ✓ Active
-              </div>
-            </div>
+          <div className="profile-balance-group">
+            <span className="profile-balance-label">BALANCE</span>
+            <span className="profile-balance-pts">{loyaltyPoints} PTS</span>
           </div>
-
         </div>
       </div>
 
-      {/* 2. DASHBOARD MAIN GRID */}
-      <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr', gap: 24, alignItems: 'start' }}>
+      {/* 3. HOSTIQ REWARDS TIER CARD */}
+      <div className="profile-rewards-tier-card">
+        <div className="profile-tier-header">
+          <div className="profile-tier-title">
+            <Gift size={16} color="#D97706" />
+            <span>HostIQ Rewards Tier</span>
+          </div>
+          <span className="profile-tier-badge">Gold Tier</span>
+        </div>
+
+        <div className="profile-progress-labels">
+          <span>Progress to Platinum Tier</span>
+          <span>{loyaltyPoints} / 1,000 PTS</span>
+        </div>
+
+        <div className="profile-progress-bar-track">
+          <div 
+            className="profile-progress-bar-fill" 
+            style={{ width: `${Math.min((loyaltyPoints / 1000) * 100, 100)}%` }} 
+          />
+        </div>
+      </div>
+
+      {/* 4. VOUCHER PROMOTION CARD */}
+      <div className="profile-voucher-card">
+        <div 
+          className="profile-voucher-item-row"
+          onClick={handleClaimVoucher}
+        >
+          <div className="profile-voucher-icon-box">
+            <Ticket size={20} />
+          </div>
+          <div className="profile-voucher-texts">
+            <span className="profile-voucher-name">₹500 Instant Stay Voucher</span>
+            <span className="profile-voucher-sub">
+              {isVoucherClaimed ? '✓ Claimed & active on your account' : 'Redeem 500 Loyalty Points'}
+            </span>
+          </div>
+          <ChevronRight size={18} color="#94A3B8" />
+        </div>
+
+        <button 
+          type="button" 
+          className="profile-voucher-claim-btn"
+          onClick={handleClaimVoucher}
+          style={{ background: isVoucherClaimed ? '#059669' : '#EA580C' }}
+        >
+          {isVoucherClaimed ? '✓ Voucher Claimed (HOSTIQ500)' : 'Claim ₹500 Voucher'}
+        </button>
+      </div>
+
+      {/* 5. GOLD MEMBER PRIVILEGES CARD */}
+      <div className="profile-privileges-card">
+        <div className="profile-privileges-header">
+          <div className="profile-privileges-title">
+            <Crown size={15} color="#D97706" />
+            <span>Your Gold Member Privileges</span>
+          </div>
+          <button 
+            type="button" 
+            className="profile-privileges-view-all"
+            onClick={() => setActiveModal('privileges')}
+          >
+            <span>View All</span>
+            <ChevronRight size={14} />
+          </button>
+        </div>
+
+        <div className="profile-privilege-item">
+          <CheckCircle2 size={15} className="profile-privilege-icon" />
+          <span>Complimentary Room Upgrades (When Available)</span>
+        </div>
+
+        <div className="profile-privilege-item">
+          <CheckCircle2 size={15} className="profile-privilege-icon" />
+          <span>Express Contactless QR Check-In</span>
+        </div>
+
+        <div className="profile-privilege-item">
+          <CheckCircle2 size={15} className="profile-privilege-icon" />
+          <span>Late Check-Out until 12:00 PM</span>
+        </div>
+
+        <div className="profile-privilege-item">
+          <CheckCircle2 size={15} className="profile-privilege-icon" />
+          <span>Priority Access to Reverse-Bidding Deals</span>
+        </div>
+      </div>
+
+      {/* 6. ACTION NAVIGATION ROWS */}
+      <div className="profile-nav-list">
         
-        {/* LEFT COLUMN: DIGITAL MEMBERSHIP PASS & REWARDS */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          
-          {/* Virtual Metal Membership Card */}
-          <div style={{
-            background: 'linear-gradient(135deg, #18181b 0%, #09090b 100%)',
-            borderRadius: 20,
-            padding: '24px',
-            color: 'white',
-            boxShadow: '0 12px 30px rgba(0,0,0,0.15)',
-            border: '1px solid rgba(212, 175, 55, 0.3)',
-            position: 'relative',
-            overflow: 'hidden'
-          }}>
-            {/* Card Texture Glow */}
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              right: 0,
-              width: 160,
-              height: 160,
-              background: 'radial-gradient(circle, rgba(212, 175, 55, 0.15) 0%, transparent 70%)',
-              pointerEvents: 'none'
-            }} />
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
-              <span style={{ fontFamily: 'var(--font-serif)', fontSize: '1.25rem', fontWeight: 700, letterSpacing: '0.05em', color: 'white' }}>
-                Host<span style={{ color: '#D4AF37' }}>IQ</span> <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#D4AF37', border: '1px solid #D4AF37', borderRadius: 6, padding: '1px 6px', marginLeft: 4 }}>ELITE</span>
-              </span>
-              <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.1em' }}>
-                (( · )) NFC CHECK-IN
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-              {/* Chip Icon */}
-              <div style={{
-                width: 38,
-                height: 28,
-                background: 'linear-gradient(135deg, #fbbf24 0%, #b45309 100%)',
-                borderRadius: 5,
-                border: '1px solid #fde68a'
-              }} />
-              <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.6)', letterSpacing: '0.15em' }}>
-                MEMBER ID: HIQ-8829-2026
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-              <div>
-                <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block' }}>
-                  Cardholder
-                </span>
-                <strong style={{ fontSize: '1rem', color: 'white', letterSpacing: '0.05em' }}>
-                  {personalForm.name.toUpperCase()}
-                </strong>
-              </div>
-
-              <div style={{ textAlign: 'right' }}>
-                <span style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block' }}>
-                  Balance
-                </span>
-                <span style={{ fontSize: '1.2rem', fontWeight: 800, color: '#D4AF37' }}>
-                  {loyaltyPoints} PTS
-                </span>
-              </div>
-            </div>
+        {/* My Trips & Bookings */}
+        <div 
+          className="profile-nav-item"
+          onClick={() => navigate('/customer/trips')}
+        >
+          <Calendar size={18} className="profile-nav-icon" />
+          <div className="profile-nav-texts">
+            <span className="profile-nav-title">My Trips & Bookings</span>
+            <span className="profile-nav-desc">View confirmed stays & QR passes</span>
           </div>
-
-          {/* Loyalty Rewards & Voucher Perks Card */}
-          <div style={{
-            background: 'white',
-            borderRadius: 20,
-            border: '1px solid var(--border)',
-            padding: '24px',
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Gift size={18} color="var(--accent)" />
-                <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700 }}>HostIQ Rewards Tier</h4>
-              </div>
-              <span style={{ background: '#FEF3C7', color: '#92400E', padding: '3px 10px', borderRadius: 9999, fontSize: '0.75rem', fontWeight: 800 }}>
-                Gold Tier
-              </span>
-            </div>
-
-            {/* Progress to Platinum */}
-            <div style={{ marginBottom: 18 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 6 }}>
-                <span>Progress to Platinum Tier</span>
-                <strong>{loyaltyPoints} / 1,000 PTS</strong>
-              </div>
-              <div style={{ width: '100%', height: 7, background: 'var(--bg)', borderRadius: 9999, overflow: 'hidden' }}>
-                <div style={{ width: `${Math.min(100, (loyaltyPoints / 1000) * 100)}%`, height: '100%', background: 'linear-gradient(90deg, #D4AF37, #F59E0B)', borderRadius: 9999 }} />
-              </div>
-            </div>
-
-            {/* Redeemable Stay Voucher Box */}
-            <div style={{
-              background: '#FFFBEB',
-              border: '1px solid #FDE68A',
-              borderRadius: 14,
-              padding: '16px',
-              marginBottom: 16
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <div>
-                  <strong style={{ fontSize: '0.92rem', color: '#78350F' }}>₹500 Instant Stay Voucher</strong>
-                  <span style={{ display: 'block', fontSize: '0.75rem', color: '#92400E' }}>Redeem 500 Loyalty Points</span>
-                </div>
-                <div style={{ background: '#D97706', color: 'white', padding: '2px 8px', borderRadius: 6, fontSize: '0.7rem', fontWeight: 800 }}>
-                  Active
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                {isClaimed ? (
-                  <div style={{
-                    width: '100%',
-                    background: '#ECFDF5',
-                    border: '1px solid #A7F3D0',
-                    color: '#065F46',
-                    padding: '8px 12px',
-                    borderRadius: 10,
-                    fontSize: '0.8rem',
-                    fontWeight: 700,
-                    textAlign: 'center',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 6
-                  }}>
-                    <Check size={16} /> Code: <strong>HOSTIQ500</strong> (Ready at checkout)
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleClaimVoucher}
-                    className="btn btn-sm btn-block"
-                    style={{ background: '#D97706', color: 'white', fontWeight: 700, fontSize: '0.82rem', height: 36 }}
-                  >
-                    ⚡ Claim ₹500 Voucher
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Tier Benefits */}
-            <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 14 }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: 8, letterSpacing: '0.05em' }}>
-                Your Gold Member Privileges:
-              </span>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <CheckCircle2 size={15} color="#10B981" /> Complimentary Room Upgrades (When Available)
-                </li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <CheckCircle2 size={15} color="#10B981" /> Express Contactless QR Check-In
-                </li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <CheckCircle2 size={15} color="#10B981" /> Late Check-Out until 12:00 PM
-                </li>
-                <li style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <CheckCircle2 size={15} color="#10B981" /> Priority Access to Reverse-Bidding Deals
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          {/* Quick Navigation Cards */}
-          <div style={{
-            background: 'white',
-            borderRadius: 20,
-            border: '1px solid var(--border)',
-            padding: '16px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 8,
-            boxShadow: 'var(--shadow-sm)'
-          }}>
-            <button
-              onClick={() => navigate('/customer/trips')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 16px',
-                borderRadius: 12,
-                border: '1px solid var(--border-light)',
-                background: 'var(--bg)',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                textAlign: 'left'
-              }}
-              onMouseOver={e => e.currentTarget.style.borderColor = 'var(--primary)'}
-              onMouseOut={e => e.currentTarget.style.borderColor = 'var(--border-light)'}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Calendar size={18} color="var(--primary)" />
-                <div>
-                  <strong style={{ fontSize: '0.88rem', color: 'var(--text)', display: 'block' }}>My Trips & Bookings</strong>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>View confirmed stays & QR passes</span>
-                </div>
-              </div>
-              <ChevronRight size={16} color="var(--text-muted)" />
-            </button>
-
-            <button
-              onClick={() => navigate('/customer/wishlist')}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '12px 16px',
-                borderRadius: 12,
-                border: '1px solid var(--border-light)',
-                background: 'var(--bg)',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                textAlign: 'left'
-              }}
-              onMouseOver={e => e.currentTarget.style.borderColor = '#F43F5E'}
-              onMouseOut={e => e.currentTarget.style.borderColor = 'var(--border-light)'}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Heart size={18} color="#F43F5E" />
-                <div>
-                  <strong style={{ fontSize: '0.88rem', color: 'var(--text)', display: 'block' }}>Saved Properties</strong>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{wishlist?.length || 0} hotels in your wishlist</span>
-                </div>
-              </div>
-              <ChevronRight size={16} color="var(--text-muted)" />
-            </button>
-
-            <button
-              onClick={() => {
-                logout();
-                addToast('Signed out successfully. See you soon!', 'info');
-                navigate('/customer_login');
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '12px 16px',
-                borderRadius: 12,
-                border: '1px solid #FEE2E2',
-                background: '#FEF2F2',
-                color: '#B91C1C',
-                fontSize: '0.85rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                marginTop: 4
-              }}
-            >
-              <LogOut size={16} color="#B91C1C" />
-              <span>Sign Out of HostIQ</span>
-            </button>
-          </div>
-
+          <ChevronRight size={18} color="#94A3B8" />
         </div>
 
-        {/* RIGHT COLUMN: TABBED MANAGEMENT CONSOLE */}
-        <div style={{
-          background: 'white',
-          borderRadius: 24,
-          border: '1px solid var(--border)',
-          boxShadow: 'var(--shadow-sm)',
-          overflow: 'hidden'
-        }}>
-          
-          {/* Tabs Navigation Header */}
-          <div style={{
-            display: 'flex',
-            borderBottom: '1px solid var(--border-light)',
-            background: 'var(--bg)',
-            padding: '6px 12px 0',
-            gap: 8,
-            overflowX: 'auto'
-          }}>
-            <button
-              type="button"
-              onClick={() => setActiveTab('personal')}
-              style={{
-                padding: '12px 20px',
-                border: 'none',
-                background: activeTab === 'personal' ? 'white' : 'transparent',
-                borderTopLeftRadius: 12,
-                borderTopRightRadius: 12,
-                borderBottom: activeTab === 'personal' ? '2px solid var(--primary)' : '2px solid transparent',
-                fontWeight: activeTab === 'personal' ? 800 : 600,
-                fontSize: '0.88rem',
-                color: activeTab === 'personal' ? 'var(--primary)' : 'var(--text-secondary)',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                transition: 'all 0.2s'
-              }}
-            >
-              <User size={16} /> Personal Details
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('preferences')}
-              style={{
-                padding: '12px 20px',
-                border: 'none',
-                background: activeTab === 'preferences' ? 'white' : 'transparent',
-                borderTopLeftRadius: 12,
-                borderTopRightRadius: 12,
-                borderBottom: activeTab === 'preferences' ? '2px solid var(--primary)' : '2px solid transparent',
-                fontWeight: activeTab === 'preferences' ? 800 : 600,
-                fontSize: '0.88rem',
-                color: activeTab === 'preferences' ? 'var(--primary)' : 'var(--text-secondary)',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                transition: 'all 0.2s'
-              }}
-            >
-              <Bed size={16} /> Stay Preferences
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('security')}
-              style={{
-                padding: '12px 20px',
-                border: 'none',
-                background: activeTab === 'security' ? 'white' : 'transparent',
-                borderTopLeftRadius: 12,
-                borderTopRightRadius: 12,
-                borderBottom: activeTab === 'security' ? '2px solid var(--primary)' : '2px solid transparent',
-                fontWeight: activeTab === 'security' ? 800 : 600,
-                fontSize: '0.88rem',
-                color: activeTab === 'security' ? 'var(--primary)' : 'var(--text-secondary)',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                transition: 'all 0.2s'
-              }}
-            >
-              <Lock size={16} /> Security & Alerts
-            </button>
+        {/* Saved Properties */}
+        <div 
+          className="profile-nav-item"
+          onClick={() => navigate('/customer/wishlist')}
+        >
+          <Heart size={18} className="profile-nav-icon" color="#E11D48" />
+          <div className="profile-nav-texts">
+            <span className="profile-nav-title">Saved Properties</span>
+            <span className="profile-nav-desc">{wishlist?.length || 0} hotels in your wishlist</span>
           </div>
+          <ChevronRight size={18} color="#94A3B8" />
+        </div>
 
-          {/* Tab 1: Personal Details */}
-          {activeTab === 'personal' && (
-            <div className="fade-in" style={{ padding: '28px 32px' }}>
-              <div style={{ marginBottom: 24 }}>
-                <h3 style={{ margin: 0, fontSize: '1.25rem', fontFamily: 'var(--font-serif)', color: 'var(--text)' }}>
-                  Personal Information
-                </h3>
-                <p style={{ margin: '4px 0 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                  Update your contact info used for hotel bookings, SMS check-in passes, and guest verification.
-                </p>
-              </div>
+        {/* Stay Preferences */}
+        <div 
+          className="profile-nav-item"
+          onClick={() => setActiveModal('preferences')}
+        >
+          <Settings size={18} className="profile-nav-icon" />
+          <div className="profile-nav-texts">
+            <span className="profile-nav-title">Stay Preferences</span>
+            <span className="profile-nav-desc">Rooms, amenities, and travel needs</span>
+          </div>
+          <ChevronRight size={18} color="#94A3B8" />
+        </div>
 
-              <form onSubmit={handleSavePersonal}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 18 }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '0.82rem', fontWeight: 700 }}>
-                      Full Name
-                    </label>
-                    <input 
-                      className="form-input" 
-                      value={personalForm.name} 
-                      onChange={e => setPersonalForm({ ...personalForm, name: e.target.value })} 
-                      required 
-                    />
-                  </div>
+        {/* Security & Alerts */}
+        <div 
+          className="profile-nav-item"
+          onClick={() => setActiveModal('security')}
+        >
+          <Shield size={18} className="profile-nav-icon" />
+          <div className="profile-nav-texts">
+            <span className="profile-nav-title">Security & Alerts</span>
+            <span className="profile-nav-desc">Manage security, notifications</span>
+          </div>
+          <ChevronRight size={18} color="#94A3B8" />
+        </div>
 
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '0.82rem', fontWeight: 700 }}>
-                      Email Address <span style={{ color: '#10B981', fontSize: '0.75rem' }}>(Verified ✓)</span>
-                    </label>
-                    <input 
-                      className="form-input" 
-                      type="email" 
-                      value={personalForm.email} 
-                      onChange={e => setPersonalForm({ ...personalForm, email: e.target.value })} 
-                      required 
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 18 }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '0.82rem', fontWeight: 700 }}>
-                      Primary Mobile Phone
-                    </label>
-                    <input 
-                      className="form-input" 
-                      type="tel" 
-                      value={personalForm.phone} 
-                      onChange={e => setPersonalForm({ ...personalForm, phone: e.target.value })} 
-                      required 
-                    />
-                  </div>
-
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '0.82rem', fontWeight: 700 }}>
-                      Emergency / Alternate Contact
-                    </label>
-                    <input 
-                      className="form-input" 
-                      type="tel" 
-                      value={personalForm.emergencyContact} 
-                      onChange={e => setPersonalForm({ ...personalForm, emergencyContact: e.target.value })} 
-                    />
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: 18 }}>
-                  <label className="form-label" style={{ fontSize: '0.82rem', fontWeight: 700 }}>
-                    Home City & Country
-                  </label>
-                  <input 
-                    className="form-input" 
-                    value={personalForm.city} 
-                    onChange={e => setPersonalForm({ ...personalForm, city: e.target.value })} 
-                  />
-                </div>
-
-                <div className="form-group" style={{ marginBottom: 28 }}>
-                  <label className="form-label" style={{ fontSize: '0.82rem', fontWeight: 700 }}>
-                    About Traveler (Guest Notes)
-                  </label>
-                  <textarea 
-                    className="form-textarea" 
-                    rows={3} 
-                    value={personalForm.bio} 
-                    onChange={e => setPersonalForm({ ...personalForm, bio: e.target.value })} 
-                    style={{ fontSize: '0.85rem' }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button 
-                    className="btn btn-primary" 
-                    type="submit" 
-                    disabled={isSaving}
-                    style={{ minWidth: 180, height: 46 }}
-                  >
-                    {isSaving ? 'Saving Changes...' : 'Save Profile Changes'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {/* Tab 2: Travel Preferences */}
-          {activeTab === 'preferences' && (
-            <div className="fade-in" style={{ padding: '28px 32px' }}>
-              <div style={{ marginBottom: 24 }}>
-                <h3 style={{ margin: 0, fontSize: '1.25rem', fontFamily: 'var(--font-serif)', color: 'var(--text)' }}>
-                  Stay & Travel Preferences
-                </h3>
-                <p style={{ margin: '4px 0 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                  Customize your default room preferences. Participating hotels will tailor room preparations to match your desires.
-                </p>
-              </div>
-
-              <form onSubmit={handleSavePreferences}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 18 }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '0.82rem', fontWeight: 700 }}>
-                      Preferred Room Tier
-                    </label>
-                    <select 
-                      className="form-select"
-                      value={prefForm.roomType}
-                      onChange={e => setPrefForm({ ...prefForm, roomType: e.target.value })}
-                    >
-                      <option value="Deluxe">Deluxe Room</option>
-                      <option value="Executive">Executive Club Suite</option>
-                      <option value="Suite">Presidential Suite</option>
-                      <option value="Standard">Standard King</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '0.82rem', fontWeight: 700 }}>
-                      Bed Preference
-                    </label>
-                    <select 
-                      className="form-select"
-                      value={prefForm.bedType}
-                      onChange={e => setPrefForm({ ...prefForm, bedType: e.target.value })}
-                    >
-                      <option value="King Size Bed">1 King Size Bed</option>
-                      <option value="Twin Beds">2 Twin Beds</option>
-                      <option value="Queen Bed">1 Queen Bed</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 18 }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '0.82rem', fontWeight: 700 }}>
-                      Primary Purpose of Visit
-                    </label>
-                    <select 
-                      className="form-select"
-                      value={prefForm.purpose}
-                      onChange={e => setPrefForm({ ...prefForm, purpose: e.target.value })}
-                    >
-                      <option value="Leisure">Leisure & Vacation</option>
-                      <option value="Business">Business & Corporate</option>
-                      <option value="Honeymoon">Romantic / Honeymoon</option>
-                      <option value="Family">Family Vacation</option>
-                    </select>
-                  </div>
-
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '0.82rem', fontWeight: 700 }}>
-                      Dining & Breakfast
-                    </label>
-                    <select 
-                      className="form-select"
-                      value={prefForm.dietary}
-                      onChange={e => setPrefForm({ ...prefForm, dietary: e.target.value })}
-                    >
-                      <option value="Complimentary Breakfast Included">Complimentary Breakfast Included</option>
-                      <option value="Vegetarian Buffet">Pure Vegetarian Buffet</option>
-                      <option value="Continental">Continental / European</option>
-                      <option value="No Preference">No Specific Preference</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: 28 }}>
-                  <label className="form-label" style={{ fontSize: '0.82rem', fontWeight: 700 }}>
-                    Default Room Requests & Amenities
-                  </label>
-                  <textarea 
-                    className="form-textarea" 
-                    rows={3} 
-                    value={prefForm.specialRequests} 
-                    onChange={e => setPrefForm({ ...prefForm, specialRequests: e.target.value })} 
-                    placeholder="e.g. High floor, quiet room away from elevator, extra pillows, sea view..."
-                    style={{ fontSize: '0.85rem' }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button 
-                    className="btn btn-primary" 
-                    type="submit" 
-                    disabled={isSaving}
-                    style={{ minWidth: 200, height: 46 }}
-                  >
-                    {isSaving ? 'Updating...' : 'Save Travel Preferences'}
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {/* Tab 3: Security & Notification Alerts */}
-          {activeTab === 'security' && (
-            <div className="fade-in" style={{ padding: '28px 32px' }}>
-              <div style={{ marginBottom: 24 }}>
-                <h3 style={{ margin: 0, fontSize: '1.25rem', fontFamily: 'var(--font-serif)', color: 'var(--text)' }}>
-                  Security & Notifications
-                </h3>
-                <p style={{ margin: '4px 0 0', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                  Manage login credentials and instant communication channels for stay counter-offers and QR passes.
-                </p>
-              </div>
-
-              {/* Notification Toggles */}
-              <div style={{ background: 'var(--bg)', borderRadius: 16, padding: '20px', border: '1px solid var(--border-light)', marginBottom: 28 }}>
-                <h4 style={{ margin: '0 0 14px', fontSize: '0.95rem', fontWeight: 700 }}>
-                  🔔 Communication Channels
-                </h4>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
-                    <div>
-                      <strong style={{ fontSize: '0.88rem', color: 'var(--text)', display: 'block' }}>SMS Booking & QR Check-In Passes</strong>
-                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Receive your instant check-in pass link directly on mobile</span>
-                    </div>
-                    <input 
-                      type="checkbox" 
-                      checked={securityForm.smsNotifications} 
-                      onChange={e => setSecurityForm({ ...securityForm, smsNotifications: e.target.checked })} 
-                      style={{ width: 18, height: 18, accentColor: 'var(--primary)' }}
-                    />
-                  </label>
-
-                  <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
-                    <div>
-                      <strong style={{ fontSize: '0.88rem', color: 'var(--text)', display: 'block' }}>Reverse Bidding & Counter-Offer Alerts</strong>
-                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Get notified when partner hotels send custom discount bids</span>
-                    </div>
-                    <input 
-                      type="checkbox" 
-                      checked={securityForm.bidAlerts} 
-                      onChange={e => setSecurityForm({ ...securityForm, bidAlerts: e.target.checked })} 
-                      style={{ width: 18, height: 18, accentColor: 'var(--primary)' }}
-                    />
-                  </label>
-                </div>
-              </div>
-
-              {/* Change Password Form */}
-              <form onSubmit={handleUpdatePassword}>
-                <h4 style={{ margin: '0 0 14px', fontSize: '0.95rem', fontWeight: 700 }}>
-                  🔒 Change Password
-                </h4>
-
-                <div className="form-group" style={{ marginBottom: 14 }}>
-                  <label className="form-label" style={{ fontSize: '0.82rem', fontWeight: 700 }}>Current Password</label>
-                  <input 
-                    className="form-input" 
-                    type="password" 
-                    placeholder="Enter existing password" 
-                    value={securityForm.currentPassword}
-                    onChange={e => setSecurityForm({ ...securityForm, currentPassword: e.target.value })}
-                  />
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '0.82rem', fontWeight: 700 }}>New Password</label>
-                    <input 
-                      className="form-input" 
-                      type="password" 
-                      placeholder="Minimum 8 characters" 
-                      value={securityForm.newPassword}
-                      onChange={e => setSecurityForm({ ...securityForm, newPassword: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '0.82rem', fontWeight: 700 }}>Confirm New Password</label>
-                    <input 
-                      className="form-input" 
-                      type="password" 
-                      placeholder="Re-type new password" 
-                      value={securityForm.confirmPassword}
-                      onChange={e => setSecurityForm({ ...securityForm, confirmPassword: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button 
-                    className="btn btn-primary" 
-                    type="submit"
-                    style={{ minWidth: 180, height: 46 }}
-                  >
-                    Update Password
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
+        {/* Sign Out */}
+        <div 
+          className="profile-nav-item logout"
+          onClick={handleLogout}
+        >
+          <LogOut size={18} className="profile-nav-icon" />
+          <div className="profile-nav-texts">
+            <span className="profile-nav-title">Sign Out of HostIQ</span>
+          </div>
+          <ChevronRight size={18} className="profile-chevron-right" />
         </div>
 
       </div>
+
+      {/* =========================================================================
+          MODALS / BOTTOM SHEETS FOR PROFILE ACTIONS
+          ========================================================================= */}
+
+      {/* Edit Profile Modal */}
+      {activeModal === 'edit_profile' && (
+        <div className="chat-modal-overlay" onClick={() => setActiveModal(null)}>
+          <div className="room-modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="room-modal-header">
+              <h3 className="room-modal-title">Edit Personal Profile</h3>
+              <button className="room-modal-close-btn" onClick={() => setActiveModal(null)}>
+                <X size={18} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSavePersonal} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+              <div>
+                <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 600 }}>Full Name</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  value={personalForm.name} 
+                  onChange={e => setPersonalForm({ ...personalForm, name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 600 }}>Email Address</label>
+                <input 
+                  type="email" 
+                  className="form-input" 
+                  value={personalForm.email} 
+                  onChange={e => setPersonalForm({ ...personalForm, email: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 600 }}>Phone Number</label>
+                <input 
+                  type="tel" 
+                  className="form-input" 
+                  value={personalForm.phone} 
+                  onChange={e => setPersonalForm({ ...personalForm, phone: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 600 }}>City / Location</label>
+                <input 
+                  type="text" 
+                  className="form-input" 
+                  value={personalForm.city} 
+                  onChange={e => setPersonalForm({ ...personalForm, city: e.target.value })}
+                />
+              </div>
+
+              <div className="room-modal-actions" style={{ marginTop: 10 }}>
+                <button type="button" className="room-modal-btn-cancel" onClick={() => setActiveModal(null)}>
+                  Cancel
+                </button>
+                <button type="submit" className="room-modal-btn-proceed" disabled={isSaving}>
+                  {isSaving ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Stay Preferences Modal */}
+      {activeModal === 'preferences' && (
+        <div className="chat-modal-overlay" onClick={() => setActiveModal(null)}>
+          <div className="room-modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="room-modal-header">
+              <h3 className="room-modal-title">Stay Preferences</h3>
+              <button className="room-modal-close-btn" onClick={() => setActiveModal(null)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePreferences} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+              <div>
+                <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 600 }}>Preferred Room Type</label>
+                <select 
+                  className="form-input" 
+                  value={prefForm.roomType}
+                  onChange={e => setPrefForm({ ...prefForm, roomType: e.target.value })}
+                >
+                  <option value="Deluxe Room">Deluxe Room</option>
+                  <option value="Executive Suite">Executive Suite</option>
+                  <option value="Presidential Suite">Presidential Suite</option>
+                  <option value="Standard Room">Standard Room</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 600 }}>Bed Preference</label>
+                <select 
+                  className="form-input" 
+                  value={prefForm.bedType}
+                  onChange={e => setPrefForm({ ...prefForm, bedType: e.target.value })}
+                >
+                  <option value="King Size Bed">King Size Bed</option>
+                  <option value="Twin Beds">Twin Beds</option>
+                  <option value="Queen Bed">Queen Bed</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="form-label" style={{ fontSize: '0.78rem', fontWeight: 600 }}>Special Requests</label>
+                <textarea 
+                  className="form-textarea" 
+                  value={prefForm.specialRequests}
+                  onChange={e => setPrefForm({ ...prefForm, specialRequests: e.target.value })}
+                  style={{ minHeight: 70, fontSize: '0.82rem' }}
+                />
+              </div>
+
+              <div className="room-modal-actions" style={{ marginTop: 10 }}>
+                <button type="button" className="room-modal-btn-cancel" onClick={() => setActiveModal(null)}>
+                  Cancel
+                </button>
+                <button type="submit" className="room-modal-btn-proceed" disabled={isSaving}>
+                  {isSaving ? 'Saving...' : 'Save Preferences'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Security & Alerts Modal */}
+      {activeModal === 'security' && (
+        <div className="chat-modal-overlay" onClick={() => setActiveModal(null)}>
+          <div className="room-modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="room-modal-header">
+              <h3 className="room-modal-title">Security & Alerts</h3>
+              <button className="room-modal-close-btn" onClick={() => setActiveModal(null)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveSecurity} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #F1F5F9' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#0F172A' }}>SMS Booking Alerts</span>
+                <input 
+                  type="checkbox" 
+                  checked={securityForm.smsNotifications}
+                  onChange={e => setSecurityForm({ ...securityForm, smsNotifications: e.target.checked })}
+                  style={{ width: 18, height: 18, accentColor: '#EA580C' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #F1F5F9' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#0F172A' }}>Email Deal Updates</span>
+                <input 
+                  type="checkbox" 
+                  checked={securityForm.emailAlerts}
+                  onChange={e => setSecurityForm({ ...securityForm, emailAlerts: e.target.checked })}
+                  style={{ width: 18, height: 18, accentColor: '#EA580C' }}
+                />
+              </div>
+
+              <div className="room-modal-actions" style={{ marginTop: 10 }}>
+                <button type="button" className="room-modal-btn-cancel" onClick={() => setActiveModal(null)}>
+                  Cancel
+                </button>
+                <button type="submit" className="room-modal-btn-proceed">
+                  Save Settings
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Member Privileges Full View Modal */}
+      {activeModal === 'privileges' && (
+        <div className="chat-modal-overlay" onClick={() => setActiveModal(null)}>
+          <div className="room-modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+            <div className="room-modal-header">
+              <h3 className="room-modal-title">Gold Tier Privileges</h3>
+              <button className="room-modal-close-btn" onClick={() => setActiveModal(null)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 14 }}>
+              <div className="profile-privilege-item">
+                <CheckCircle2 size={16} className="profile-privilege-icon" />
+                <span>Complimentary Room Upgrades (When Available)</span>
+              </div>
+              <div className="profile-privilege-item">
+                <CheckCircle2 size={16} className="profile-privilege-icon" />
+                <span>Express Contactless QR Check-In</span>
+              </div>
+              <div className="profile-privilege-item">
+                <CheckCircle2 size={16} className="profile-privilege-icon" />
+                <span>Late Check-Out until 12:00 PM</span>
+              </div>
+              <div className="profile-privilege-item">
+                <CheckCircle2 size={16} className="profile-privilege-icon" />
+                <span>Priority Access to Reverse-Bidding Deals</span>
+              </div>
+              <div className="profile-privilege-item">
+                <CheckCircle2 size={16} className="profile-privilege-icon" />
+                <span>Dedicated 24/7 Concierge Support</span>
+              </div>
+              <div className="profile-privilege-item">
+                <CheckCircle2 size={16} className="profile-privilege-icon" />
+                <span>2x Points Multiplier on Luxury Properties</span>
+              </div>
+            </div>
+
+            <div className="room-modal-actions" style={{ marginTop: 16 }}>
+              <button type="button" className="room-modal-btn-proceed" onClick={() => setActiveModal(null)} style={{ width: '100%' }}>
+                Got It
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
