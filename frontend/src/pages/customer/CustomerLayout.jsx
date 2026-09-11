@@ -52,59 +52,59 @@ export default function CustomerLayout() {
     <div style={{ position: 'relative', minHeight: '100vh', minHeight: '100dvh', background: 'var(--bg)' }}>
       {/* Top Navbar */}
       <nav className={`customer-nav ${navSolid ? 'scrolled' : ''}`}>
-        {/* Brand Logo */}
+        {/* Left Side: Brand Logo */}
         <Link to="/customer" style={{ textDecoration: 'none' }}>
           <HotelLogo light={!navSolid} size="default" />
         </Link>
-        
-        {/* Desktop Nav Center Links */}
-        <div className="nav-center-links" style={{ display: 'flex', alignItems: 'center' }}>
-          <Link to="/customer" className={`nav-link-item ${location.pathname === '/customer' ? 'active' : ''}`}>
-            Home
-          </Link>
-          <Link to="/customer/find" className={`nav-link-item ${location.pathname.includes('/customer/find') ? 'active' : ''}`}>
-            Find a Stay
-          </Link>
-          <a href="#how-it-works" onClick={(e) => {
-            if (location.pathname !== '/customer') {
-              e.preventDefault();
-              navigate('/customer#how-it-works');
-            }
-          }} className="nav-link-item">
-            How It Works
-          </a>
-          <a href="#about" onClick={(e) => {
-            if (location.pathname !== '/customer') {
-              e.preventDefault();
-              navigate('/customer#about');
-            }
-          }} className="nav-link-item">
-            About
-          </a>
 
-          {/* If user logged in, show their links */}
-          {user && (
-            <>
-              <Link to="/customer/trips" className={`nav-link-item ${location.pathname.includes('trips') ? 'active' : ''}`} style={{ position: 'relative' }}>
-                Trips
-                {unreadQuotesCount > 0 && (
-                  <span style={{ 
-                    position: 'absolute', top: -4, right: -12, background: '#EA580C', color: 'white', 
-                    borderRadius: '50%', padding: '1px 5px', fontSize: '0.62rem', fontWeight: 800 
-                  }}>
-                    {unreadQuotesCount}
-                  </span>
-                )}
-              </Link>
-              <Link to="/customer/wishlist" className={`nav-link-item ${location.pathname.includes('wishlist') ? 'active' : ''}`}>
-                Saved
-              </Link>
-            </>
-          )}
-        </div>
+        {/* Right Side: Desktop Nav Links + Language + User Profile / Auth */}
+        <div className="nav-actions-right" style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          {/* Desktop Navigation Links */}
+          <div className="nav-center-links" style={{ display: 'flex', alignItems: 'center', gap: 22, marginRight: 8 }}>
+            <Link to="/customer" className={`nav-link-item ${location.pathname === '/customer' ? 'active' : ''}`}>
+              Home
+            </Link>
+            <Link to="/customer/find" className={`nav-link-item ${location.pathname.includes('/customer/find') ? 'active' : ''}`}>
+              Find a Stay
+            </Link>
+            <a href="#how-it-works" onClick={(e) => {
+              if (location.pathname !== '/customer') {
+                e.preventDefault();
+                navigate('/customer#how-it-works');
+              }
+            }} className="nav-link-item">
+              How It Works
+            </a>
+            <a href="#about" onClick={(e) => {
+              if (location.pathname !== '/customer') {
+                e.preventDefault();
+                navigate('/customer#about');
+              }
+            }} className="nav-link-item">
+              About
+            </a>
 
-        {/* Right Actions: Language + Sign In + Sign Up / User Profile */}
-        <div className="nav-actions-right">
+            {/* If user logged in, show their links */}
+            {user && (
+              <>
+                <Link to="/customer/trips" className={`nav-link-item ${location.pathname.includes('trips') ? 'active' : ''}`} style={{ position: 'relative' }}>
+                  Trips
+                  {unreadQuotesCount > 0 && (
+                    <span style={{ 
+                      position: 'absolute', top: -4, right: -12, background: '#EA580C', color: 'white', 
+                      borderRadius: '50%', padding: '1px 5px', fontSize: '0.62rem', fontWeight: 800 
+                    }}>
+                      {unreadQuotesCount}
+                    </span>
+                  )}
+                </Link>
+                <Link to="/customer/wishlist" className={`nav-link-item ${location.pathname.includes('wishlist') ? 'active' : ''}`}>
+                  Saved
+                </Link>
+              </>
+            )}
+          </div>
+
           {/* Language Selector (Desktop) */}
           <div className="desktop-header-lang" style={{ position: 'relative' }}>
             <button 

@@ -576,10 +576,15 @@ tr:hover td { background: rgba(0,0,0,0.015); }
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
 }
+.customer-nav .nav-left-group {
+  display: flex;
+  align-items: center;
+  gap: 36px;
+}
 .customer-nav .nav-center-links {
   display: flex;
   align-items: center;
-  gap: 32px;
+  gap: 26px;
 }
 .customer-nav .nav-link-item {
   text-decoration: none;
