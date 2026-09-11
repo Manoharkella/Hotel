@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 
 export default function NotificationDropdown({ role = 'hotel', userId, isDark = false, lightNav = false }) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const navigate = useNavigate();
   
   const { 
     notifications, 
@@ -40,7 +42,11 @@ export default function NotificationDropdown({ role = 'hotel', userId, isDark = 
   }, [isOpen]);
 
   const handleToggle = () => {
-    setIsOpen(prev => !prev);
+    if (window.innerWidth <= 640 && role === 'customer') {
+      navigate('/customer/notifications');
+    } else {
+      setIsOpen(prev => !prev);
+    }
   };
 
   const handleMarkAllRead = (e) => {

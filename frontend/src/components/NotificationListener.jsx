@@ -66,7 +66,6 @@ export default function NotificationListener() {
           if (!processedLeadIds.current.has(leadKey)) {
             processedLeadIds.current.add(leadKey);
             playNotificationSound();
-            addToast(`🔔 New Lead Request from ${lead.customerName || 'Traveler'} for ${lead.roomType || 'Stay'}!`, 'success');
             addNotification({
               id: `lead-${leadKey}`,
               userId: currentUserId,
@@ -98,7 +97,6 @@ export default function NotificationListener() {
           if (!processedQuoteIds.current.has(quoteKey)) {
             processedQuoteIds.current.add(quoteKey);
             playNotificationSound();
-            addToast(`🏷️ New Quote received from ${q.hotelName || 'Hotel'}: ₹${Number(q.price).toLocaleString()}!`, 'success');
             addNotification({
               id: `quote-${quoteKey}`,
               userId: currentUserId,
@@ -114,7 +112,7 @@ export default function NotificationListener() {
         });
       }
     }
-  }, [leads, quotes, user, addNotification, addToast]);
+  }, [leads, quotes, user, addNotification]);
 
   useEffect(() => {
     if (!user) return;
@@ -171,9 +169,6 @@ export default function NotificationListener() {
                 createdAt: msg.created_at || new Date().toISOString(),
                 read: false
               });
-
-              const previewText = msg.text.length > 50 ? msg.text.slice(0, 50) + '...' : msg.text;
-              addToast(`💬 ${senderLabel}: "${previewText}"`, 'info');
 
               if ('Notification' in window && Notification.permission === 'granted') {
                 try {

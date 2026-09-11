@@ -18,6 +18,7 @@ import QRPass from './pages/customer/QRPass';
 import CustomerProfile from './pages/customer/CustomerProfile';
 import Wishlist from './pages/customer/Wishlist';
 import RewardsStore from './pages/customer/RewardsStore';
+import NotificationsPage from './pages/customer/NotificationsPage';
 
 // Hotel Manager
 import HotelLayout from './pages/hotel/HotelLayout';
@@ -74,6 +75,7 @@ function AppRoutes() {
         <Route path="checkin/:id" element={<ProtectedRoute allowedRole="customer"><OnlineCheckIn /></ProtectedRoute>} />
         <Route path="qr/:id" element={<ProtectedRoute allowedRole="customer"><QRPass /></ProtectedRoute>} />
         <Route path="profile" element={<ProtectedRoute allowedRole="customer"><CustomerProfile /></ProtectedRoute>} />
+        <Route path="notifications" element={<ProtectedRoute allowedRole="customer"><NotificationsPage /></ProtectedRoute>} />
       </Route>
 
       {/* Hotel Manager Routes */}
