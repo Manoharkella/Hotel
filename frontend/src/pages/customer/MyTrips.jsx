@@ -74,11 +74,23 @@ export default function MyTrips() {
   const upcomingBookings = useMemo(() => {
     const list = userBookings.filter(b => ['confirmed', 'checked-in'].includes(b.status));
     if (list.length === 0) {
-      // 1 Fallback sample confirmed stay matching luxury theme
       return [
         {
-          id: '101',
+          id: '1',
           hotelId: 1,
+          hotelName: 'Radisson Blu Resort Vizag',
+          location: 'Rushikonda Beach, Visakhapatnam',
+          checkIn: '2026-09-08',
+          checkOut: '2026-09-11',
+          guests: 1,
+          roomType: 'Standard Room',
+          totalPrice: 9000,
+          status: 'confirmed',
+          createdAt: '2026-09-08'
+        },
+        {
+          id: '2',
+          hotelId: 2,
           hotelName: 'The St. Regis Mumbai',
           location: 'Lower Parel, Mumbai',
           checkIn: '2026-09-18',
@@ -86,6 +98,32 @@ export default function MyTrips() {
           guests: 2,
           roomType: 'Deluxe King Room',
           totalPrice: 45000,
+          status: 'confirmed',
+          createdAt: '2026-09-11'
+        },
+        {
+          id: '3',
+          hotelId: 3,
+          hotelName: 'Novotel Visakhapatnam',
+          location: 'Beach Road, Vizag',
+          checkIn: '2026-09-25',
+          checkOut: '2026-09-28',
+          guests: 2,
+          roomType: 'Ocean View Suite',
+          totalPrice: 24000,
+          status: 'confirmed',
+          createdAt: '2026-09-11'
+        },
+        {
+          id: '4',
+          hotelId: 4,
+          hotelName: 'Taj Falaknuma Palace',
+          location: 'Falaknuma, Hyderabad',
+          checkIn: '2026-10-02',
+          checkOut: '2026-10-05',
+          guests: 2,
+          roomType: 'Palace Room',
+          totalPrice: 135000,
           status: 'confirmed',
           createdAt: '2026-09-11'
         }
@@ -98,7 +136,7 @@ export default function MyTrips() {
     return userBookings.filter(b => ['checked-out', 'cancelled'].includes(b.status));
   }, [userBookings]);
 
-  // Real user leads / stay requests with fallback to 3 luxury requests matching mockup
+  // Real user leads / stay requests with fallback to 4 luxury requests matching mockup
   const userLeads = useMemo(() => {
     const real = leads.filter(l => {
       const isCustomerMatch = !user || !l.customerId || l.customerId?.toString() === user?.id?.toString() || user?.id === 1 || l.customerId === '1';
@@ -147,6 +185,20 @@ export default function MyTrips() {
           guests: 2,
           roomType: 'Deluxe Saver Room',
           budget: 4779,
+          createdAt: '2026-09-11',
+          status: 'active'
+        },
+        {
+          id: 1,
+          hotelId: 4,
+          hotelName: 'ITC Grand Chola',
+          destination: 'Chennai',
+          location: 'Guindy, Chennai',
+          checkIn: '2026-09-15',
+          checkOut: '2026-09-18',
+          guests: 2,
+          roomType: 'Executive Club Room',
+          budget: 18500,
           createdAt: '2026-09-11',
           status: 'active'
         }
@@ -417,7 +469,7 @@ export default function MyTrips() {
                       else navigate(`/customer/find?location=${lead.destination || 'Mumbai'}`);
                     }}
                   >
-                    <Eye size={14} />
+                    <Eye size={13} />
                     <span>View Hotel</span>
                   </button>
 
@@ -431,8 +483,8 @@ export default function MyTrips() {
                       });
                     }}
                   >
-                    <MessageCircle size={14} />
-                    <span>Chat with Hotel</span>
+                    <MessageCircle size={13} />
+                    <span>Chat</span>
                   </button>
 
                   <button 
@@ -444,8 +496,8 @@ export default function MyTrips() {
                       }
                     }}
                   >
-                    <X size={14} />
-                    <span>Cancel Request</span>
+                    <X size={13} />
+                    <span>Cancel</span>
                   </button>
                 </div>
 
@@ -472,7 +524,7 @@ export default function MyTrips() {
                   <div>
                     {isCheckedIn ? (
                       <span className="trip-status-badge confirmed">
-                        🏨 Checked-In (Room Active)
+                        🏨 Checked-In
                       </span>
                     ) : (
                       <span className="trip-status-badge confirmed">
@@ -505,7 +557,7 @@ export default function MyTrips() {
                 <div className="trip-specs-row">
                   <div className="trip-spec-item">
                     <Calendar size={14} color="#64748B" />
-                    <span>{formatTripDates(booking.checkIn, booking.checkOut)} <span style={{ color: '#94A3B8' }}>{nightsCount} nights</span></span>
+                    <span>{formatTripDates(booking.checkIn, booking.checkOut)} <span style={{ color: '#94A3B8' }}>{nightsCount}n</span></span>
                   </div>
 
                   <div className="trip-spec-item">
@@ -520,7 +572,7 @@ export default function MyTrips() {
 
                   <div className="trip-spec-item budget">
                     <CreditCard size={14} color="#059669" />
-                    <span>Total Paid: <strong style={{ color: '#059669' }}>₹{Number(booking.totalPrice || 45000).toLocaleString()}</strong></span>
+                    <span>Total: <strong style={{ color: '#059669' }}>₹{Number(booking.totalPrice || 45000).toLocaleString()}</strong></span>
                   </div>
                 </div>
 
@@ -531,8 +583,8 @@ export default function MyTrips() {
                     className="trip-btn-action primary"
                     onClick={() => navigate(`/customer/qr/${booking.id}`)}
                   >
-                    <QrCode size={14} />
-                    <span>{isCheckedIn ? 'Digital Keypass' : 'View QR Pass'}</span>
+                    <QrCode size={13} />
+                    <span>{isCheckedIn ? 'Keypass' : 'QR Pass'}</span>
                   </button>
 
                   <button 
@@ -543,8 +595,8 @@ export default function MyTrips() {
                       else navigate('/customer/find');
                     }}
                   >
-                    <Eye size={14} />
-                    <span>View Hotel</span>
+                    <Eye size={13} />
+                    <span>Hotel</span>
                   </button>
 
                   <button 
@@ -557,8 +609,8 @@ export default function MyTrips() {
                       });
                     }}
                   >
-                    <MessageCircle size={14} />
-                    <span>Chat with Hotel</span>
+                    <MessageCircle size={13} />
+                    <span>Chat</span>
                   </button>
 
                   <button 
@@ -572,8 +624,8 @@ export default function MyTrips() {
                       }
                     }}
                   >
-                    <X size={14} />
-                    <span>Cancel Stay</span>
+                    <X size={13} />
+                    <span>Cancel</span>
                   </button>
                 </div>
 
@@ -626,7 +678,7 @@ export default function MyTrips() {
                 <div className="trip-specs-row">
                   <div className="trip-spec-item">
                     <Calendar size={14} color="#64748B" />
-                    <span>{formatTripDates(booking.checkIn, booking.checkOut)} <span style={{ color: '#94A3B8' }}>{nightsCount} nights</span></span>
+                    <span>{formatTripDates(booking.checkIn, booking.checkOut)} <span style={{ color: '#94A3B8' }}>{nightsCount}n</span></span>
                   </div>
 
                   <div className="trip-spec-item">
@@ -641,7 +693,7 @@ export default function MyTrips() {
 
                   <div className="trip-spec-item budget">
                     <CreditCard size={14} color="#475569" />
-                    <span>Total Paid: <strong>₹{Number(booking.totalPrice || 45000).toLocaleString()}</strong></span>
+                    <span>Total: <strong>₹{Number(booking.totalPrice || 45000).toLocaleString()}</strong></span>
                   </div>
                 </div>
 
@@ -655,8 +707,8 @@ export default function MyTrips() {
                       else navigate('/customer/find');
                     }}
                   >
-                    <RotateCcw size={14} />
-                    <span>Book Again</span>
+                    <RotateCcw size={13} />
+                    <span>Rebook</span>
                   </button>
 
                   <button 
@@ -664,8 +716,8 @@ export default function MyTrips() {
                     className="trip-btn-action"
                     onClick={() => setRatingModal({ show: true, bookingId: booking.id, rating: 5, comment: '' })}
                   >
-                    <Star size={14} color="#F59E0B" fill="#F59E0B" />
-                    <span>Rate Stay</span>
+                    <Star size={13} color="#F59E0B" fill="#F59E0B" />
+                    <span>Review</span>
                   </button>
 
                   <button 
@@ -676,8 +728,8 @@ export default function MyTrips() {
                       else navigate('/customer/find');
                     }}
                   >
-                    <Eye size={14} />
-                    <span>View Hotel</span>
+                    <Eye size={13} />
+                    <span>Hotel</span>
                   </button>
                 </div>
 
