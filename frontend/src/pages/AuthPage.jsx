@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { useToast } from '../context/ToastContext';
+import HotelLogo from '../components/HotelLogo';
 import { Eye, EyeOff, Lock, Mail, User, Building, MapPin } from 'lucide-react';
 
 export default function AuthPage({ initialRole }) {
@@ -20,20 +21,19 @@ export default function AuthPage({ initialRole }) {
   };
 
   const [role, setRole] = useState(getRoleFromPath);
-  const [isLogin, setIsLogin] = useState(true);
+  
+  // Check if ?mode=signup or ?signup=true in URL
+  const queryParams = new URLSearchParams(routerLocation.search);
+  const isSignupQuery = queryParams.get('mode') === 'signup' || queryParams.get('signup') === 'true';
+  const [isLogin, setIsLogin] = useState(!isSignupQuery);
+
   const [isLoading, setIsLoading] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(true);
   const [error, setError] = useState('');
-
-  // Input refs for smooth Enter navigation
-  const nameInputRef = useRef(null);
-  const locationInputRef = useRef(null);
-  const addressInputRef = useRef(null);
-  const emailInputRef = useRef(null);
-  const passwordInputRef = useRef(null);
 
   // Hotel registration specific state
   const [step, setStep] = useState(1);
@@ -42,16 +42,41 @@ export default function AuthPage({ initialRole }) {
   const [rooms, setRooms] = useState([{ room_type: 'Single', quantity: 10, price_per_night: 2000 }]);
   const [photos, setPhotos] = useState(['https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=2000&auto=format&fit=crop']);
 
-  // Sync role when URL route changes
+  // Sync role and signup mode when URL route changes
   useEffect(() => {
     const current = getRoleFromPath();
     setRole(current);
-    setIsLogin(true);
+    const qp = new URLSearchParams(routerLocation.search);
+    const wantsSignup = qp.get('mode') === 'signup' || qp.get('signup') === 'true';
+    setIsLogin(!wantsSignup);
     setError('');
     setStep(1);
-  }, [routerLocation.pathname, initialRole]);
+  }, [routerLocation.pathname, routerLocation.search, initialRole]);
 
   const handleAddRoom = () => setRooms([...rooms, { room_type: 'Deluxe', quantity: 5, price_per_night: 4000 }]);
+
+  // Social login mock handler for Google & Microsoft
+  const handleSocialLogin = (provider) => {
+    setIsLoading(true);
+    setTimeout(() => {
+      const mockEmail = `${provider.toLowerCase()}.user@example.com`;
+      const mockName = `${provider} Traveler`;
+      try {
+        const loggedUser = signup(mockName, mockEmail, 'password123', 'customer', {
+          id: Date.now(),
+          full_name: mockName,
+          email: mockEmail,
+          role: 'customer'
+        });
+        addToast(`Signed in with ${provider} successfully!`, 'success');
+        navigate('/customer');
+      } catch (err) {
+        setError(`Failed to sign in with ${provider}.`);
+      } finally {
+        setIsLoading(false);
+      }
+    }, 600);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -68,18 +93,19 @@ export default function AuthPage({ initialRole }) {
 
     if (!email.trim()) { 
       setError('Please enter your email address.'); 
-      emailInputRef.current?.focus(); 
       return; 
     }
     if (!password) { 
       setError('Please enter your password.'); 
-      passwordInputRef.current?.focus(); 
       return; 
     }
     if (!isLogin && !name.trim() && role !== 'admin') { 
-      setError('Please enter your name.'); 
-      nameInputRef.current?.focus(); 
+      setError('Please enter your full name.'); 
       return; 
+    }
+    if (!isLogin && role === 'customer' && !agreeTerms) {
+      setError('Please agree to the Terms & Conditions and Privacy Policy.');
+      return;
     }
 
     setIsLoading(true);
@@ -136,416 +162,380 @@ export default function AuthPage({ initialRole }) {
     }
   };
 
-  const portalDetails = {
-    customer: {
-      title: isLogin ? 'Welcome Back' : 'Create Traveler Account',
-      subtitle: isLogin ? 'Sign in to explore stays and negotiate live rates' : 'Sign up in seconds to start booking',
-      btnText: isLogin ? 'Sign In' : 'Create Account',
-      btnClass: 'btn-auth-customer',
-      accentColor: '#D97706',
-      switchText: 'Are you a Hotel Partner?',
-      switchLinkText: 'Hotel Partner Login →',
-      switchPath: '/hotel_login'
-    },
-    hotel: {
-      title: isLogin ? 'Hotel Partner Sign In' : 'Register Your Hotel',
-      subtitle: isLogin ? 'Access your leads, guest passes, and property inventory' : 'List your property to receive traveler booking leads',
-      btnText: isLogin ? 'Enter Partner Portal' : 'Next: Add Rooms',
-      btnClass: 'btn-auth-hotel',
-      accentColor: '#059669',
-      switchText: 'Looking to book a stay as a guest?',
-      switchLinkText: 'Traveler Login →',
-      switchPath: '/customer_login'
-    },
-    admin: {
-      title: 'Administrator Sign In',
-      subtitle: 'Secure portal access for platform administrators',
-      btnText: 'Authorize & Sign In',
-      btnClass: 'btn-auth-admin',
-      accentColor: '#3B82F6',
-      switchText: 'Not an administrator?',
-      switchLinkText: '← Return to Traveler Login',
-      switchPath: '/customer_login'
-    }
-  }[role] || {
-    title: 'Sign In',
-    subtitle: 'Please enter your credentials to continue',
-    btnText: 'Sign In',
-    btnClass: 'btn-primary',
-    accentColor: 'var(--primary)',
-    switchText: '',
-    switchLinkText: '',
-    switchPath: '/customer_login'
-  };
+  // Banner Content based on Role & Auth Mode
+  const bannerImage = isLogin 
+    ? 'https://images.unsplash.com/photo-1590490360182-c33d57733427?q=80&w=1200&auto=format&fit=crop'
+    : 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=1200&auto=format&fit=crop';
 
   return (
-    <div className={`auth-layout ${role} fade-in`}>
-      {/* Background Dimming / Themed Blur Overlay */}
-      <div className={`auth-overlay ${role}`} />
+    <div className={`auth-layout ${role}`}>
+      <div className="auth-overlay" />
 
-      {/* Centered Themed Floating Card */}
-      <div className={`auth-card ${role} fade-up`}>
-        {/* Brand Logo Header */}
-        <div style={{ textAlign: 'center', marginBottom: 16 }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 8,
-            marginBottom: 4
-          }}>
-            <span style={{ fontSize: '1.8rem' }}>{role === 'customer' ? '🏨' : role === 'hotel' ? '🏢' : '🛡️'}</span>
-            <span className="logo-text" style={{
-              fontFamily: 'var(--font-serif, Georgia, serif)',
-              fontSize: '1.9rem',
-              fontWeight: 700,
-              letterSpacing: '-0.02em',
-              color: role === 'admin' ? '#FFFFFF' : 'var(--primary)'
-            }}>
-              Host<span style={{ color: portalDetails.accentColor, fontStyle: 'italic' }}>IQ</span>
-            </span>
+      {/* 2-Column Split Authentication Card */}
+      <div className="auth-split-card">
+        {/* Left Photo Column */}
+        <div 
+          className="auth-split-banner"
+          style={{ backgroundImage: `url(${bannerImage})` }}
+        >
+          {/* Top Banner Text */}
+          <div className="auth-banner-top">
+            {role === 'customer' ? (
+              isLogin ? (
+                <>
+                  <h2 className="auth-banner-heading">Good to<br />See You Again</h2>
+                  <p className="auth-banner-sub">Continue your journey with HotelIQ</p>
+                </>
+              ) : (
+                <>
+                  <h2 className="auth-banner-heading">Join HotelIQ</h2>
+                  <p className="auth-banner-sub">Be part of a smarter way to travel</p>
+                </>
+              )
+            ) : role === 'hotel' ? (
+              <>
+                <h2 className="auth-banner-heading">Hotel Partner<br />Portal</h2>
+                <p className="auth-banner-sub">Receive guest leads and optimize occupancy</p>
+              </>
+            ) : (
+              <>
+                <h2 className="auth-banner-heading">Administrator<br />Command</h2>
+                <p className="auth-banner-sub">Secure platform governance & analytics</p>
+              </>
+            )}
           </div>
-        </div>
 
-        {/* Heading & Subtitle */}
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <h2 style={{
-            margin: '0 0 6px',
-            fontSize: '1.4rem',
-            fontWeight: 700,
-            color: role === 'admin' ? '#FFFFFF' : 'var(--text)',
-            letterSpacing: '-0.01em'
-          }}>
-            {portalDetails.title}
-          </h2>
-          <p style={{
-            margin: 0,
-            fontSize: '0.88rem',
-            color: role === 'admin' ? '#94A3B8' : 'var(--text-secondary)',
-            lineHeight: 1.4
-          }}>
-            {portalDetails.subtitle}
-          </p>
-        </div>
-
-        {/* Error Alert */}
-        {error && (
-          <div style={{
-            background: role === 'admin' ? 'rgba(239, 68, 68, 0.15)' : '#FEF2F2',
-            border: '1px solid #FCA5A5',
-            color: role === 'admin' ? '#FCA5A5' : '#B91C1C',
-            borderRadius: 10,
-            padding: '10px 14px',
-            fontSize: '0.85rem',
-            marginBottom: 18,
-            textAlign: 'center',
-            fontWeight: 500
-          }}>
-            {error}
-          </div>
-        )}
-
-        {/* Auth Form */}
-        <form onSubmit={handleSubmit}>
-          {/* Hotel Registration Step 2: Room setup */}
-          {!isLogin && role === 'hotel' && step === 2 ? (
-            <div>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: '0 0 12px', color: 'var(--text)' }}>Room Inventory</h3>
-              {rooms.map((r, i) => (
-                <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                  <select 
-                    className="form-input" 
-                    style={{ flex: 2, padding: '10px 12px', fontSize: '0.88rem' }} 
-                    value={r.room_type} 
-                    onChange={e => { const newRooms = [...rooms]; newRooms[i].room_type = e.target.value; setRooms(newRooms); }}
-                  >
-                    <option value="Single">Single</option>
-                    <option value="Deluxe">Deluxe</option>
-                    <option value="Suite">Suite</option>
-                  </select>
-                  <input 
-                    className="form-input" 
-                    type="number" 
-                    placeholder="Qty" 
-                    style={{ flex: 1, padding: '10px 12px', fontSize: '0.88rem' }} 
-                    value={r.quantity} 
-                    onChange={e => { const newRooms = [...rooms]; newRooms[i].quantity = Number(e.target.value); setRooms(newRooms); }} 
-                  />
-                  <input 
-                    className="form-input" 
-                    type="number" 
-                    placeholder="₹ Rate" 
-                    style={{ flex: 1, padding: '10px 12px', fontSize: '0.88rem' }} 
-                    value={r.price_per_night} 
-                    onChange={e => { const newRooms = [...rooms]; newRooms[i].price_per_night = Number(e.target.value); setRooms(newRooms); }} 
-                  />
+          {/* Bottom Banner Quote or Taglines */}
+          <div className="auth-banner-bottom">
+            {role === 'customer' ? (
+              isLogin ? (
+                <div className="auth-banner-quote">
+                  "Better Stays<br />Create Brighter Journeys"
                 </div>
-              ))}
-              <button 
-                type="button" 
-                className="btn btn-outline btn-sm" 
-                style={{ padding: '6px 14px', fontSize: '0.8rem', marginBottom: 16 }} 
-                onClick={handleAddRoom}
-              >
-                + Add Room Type
-              </button>
+              ) : (
+                <div className="auth-banner-taglines">
+                  <span className="auth-banner-tagline-item">Explore.</span>
+                  <span className="auth-banner-tagline-item">Negotiate.</span>
+                  <span className="auth-banner-tagline-item">Book.</span>
+                  <span className="auth-banner-tagline-item">Experience More.</span>
+                </div>
+              )
+            ) : (
+              <div className="auth-banner-quote">
+                Empowering India's finest hospitality networks with live bidding intelligence.
+              </div>
+            )}
+          </div>
+        </div>
 
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: '0 0 8px', color: 'var(--text)' }}>Property Cover Photo</h3>
-              <div style={{ marginBottom: 18 }}>
-                <input 
-                  className="form-input" 
-                  style={{ padding: '10px 14px', fontSize: '0.88rem' }} 
-                  placeholder="https://images.unsplash.com/..." 
-                  value={photos[0]} 
-                  onChange={e => setPhotos([e.target.value])} 
-                />
-              </div>
-              
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button 
-                  type="button" 
-                  className="btn btn-outline" 
-                  style={{ flex: 1, padding: '11px' }} 
-                  onClick={() => setStep(1)}
-                >
-                  Back
-                </button>
-                <button 
-                  className={`btn ${portalDetails.btnClass}`} 
-                  type="submit" 
-                  disabled={isLoading}
-                  style={{ flex: 2, padding: '11px', fontWeight: 600 }}
-                >
-                  {isLoading ? 'Registering...' : 'Complete Registration'}
-                </button>
-              </div>
+        {/* Right Form Panel */}
+        <div className="auth-split-panel">
+          {/* Header with Logo, Title & Subtitle */}
+          <div className="auth-form-header">
+            <HotelLogo size="default" />
+            <h1 className="auth-form-title">
+              {role === 'customer' 
+                ? (isLogin ? 'Welcome Back' : 'Create an Account') 
+                : role === 'hotel' 
+                ? (isLogin ? 'Hotel Partner Sign In' : 'Register Your Hotel') 
+                : 'Administrator Sign In'}
+            </h1>
+            <p className="auth-form-subtitle">
+              {role === 'customer' 
+                ? (isLogin ? 'Sign in to explore stays and negotiate live rates' : 'Sign up to start your journey with HotelIQ') 
+                : role === 'hotel' 
+                ? (isLogin ? 'Access your leads, guest passes, and bookings' : 'List your property to receive live traveler booking requests') 
+                : 'Enter your administrator credentials to proceed'}
+            </p>
+          </div>
+
+          {/* Error message alert */}
+          {error && (
+            <div style={{
+              background: '#FEF2F2',
+              border: '1px solid #FCA5A5',
+              color: '#B91C1C',
+              borderRadius: 10,
+              padding: '10px 14px',
+              fontSize: '0.82rem',
+              marginBottom: 16,
+              fontWeight: 500,
+              textAlign: 'center'
+            }}>
+              {error}
             </div>
-          ) : (
-            <>
-              {/* Full Name / Hotel Name when Signing Up */}
-              {!isLogin && role !== 'admin' && (
-                <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: role === 'admin' ? '#94A3B8' : '#334155', marginBottom: 6 }}>
-                    {role === 'hotel' ? 'Property / Hotel Name' : 'Full Name'}
-                  </label>
-                  <div style={{ position: 'relative' }}>
-                    <div style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }}>
-                      {role === 'hotel' ? <Building size={18} /> : <User size={18} />}
-                    </div>
+          )}
+
+          {/* Form Content */}
+          <form onSubmit={handleSubmit}>
+            {/* Hotel Multi-step Registration Step 2: Room Inventory */}
+            {!isLogin && role === 'hotel' && step === 2 ? (
+              <div>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 10px', color: '#0F172A' }}>Room Types</h3>
+                {rooms.map((r, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                    <select 
+                      className="auth-input-field" 
+                      style={{ flex: 2, padding: '9px 12px' }} 
+                      value={r.room_type} 
+                      onChange={e => { const newRooms = [...rooms]; newRooms[i].room_type = e.target.value; setRooms(newRooms); }}
+                    >
+                      <option value="Single">Single</option>
+                      <option value="Deluxe">Deluxe</option>
+                      <option value="Suite">Suite</option>
+                    </select>
                     <input 
-                      ref={nameInputRef}
-                      type="text"
-                      className="form-input" 
-                      placeholder={role === 'hotel' ? 'e.g. The Grand Palace' : 'e.g. Arjun Kumar'} 
-                      value={name} 
-                      onChange={e => { setName(e.target.value); setError(''); }} 
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          if (role === 'hotel') locationInputRef.current?.focus();
-                          else emailInputRef.current?.focus();
-                        }
-                      }}
-                      style={{ padding: '11px 14px 11px 42px', fontSize: '0.92rem', borderRadius: 10, width: '100%' }}
-                      required
+                      className="auth-input-field" 
+                      type="number" 
+                      placeholder="Qty" 
+                      style={{ flex: 1, padding: '9px 12px' }} 
+                      value={r.quantity} 
+                      onChange={e => { const newRooms = [...rooms]; newRooms[i].quantity = Number(e.target.value); setRooms(newRooms); }} 
+                    />
+                    <input 
+                      className="auth-input-field" 
+                      type="number" 
+                      placeholder="₹ Rate" 
+                      style={{ flex: 1, padding: '9px 12px' }} 
+                      value={r.price_per_night} 
+                      onChange={e => { const newRooms = [...rooms]; newRooms[i].price_per_night = Number(e.target.value); setRooms(newRooms); }} 
                     />
                   </div>
-                </div>
-              )}
+                ))}
+                <button 
+                  type="button" 
+                  onClick={handleAddRoom}
+                  style={{
+                    background: 'none', border: '1px dashed #CBD5E1', borderRadius: 8, padding: '6px 12px',
+                    fontSize: '0.78rem', color: '#EA580C', fontWeight: 600, cursor: 'pointer', marginBottom: 14, width: '100%'
+                  }}
+                >
+                  + Add Another Room Type
+                </button>
 
-              {/* Hotel Location & Address (Sign up only) */}
-              {!isLogin && role === 'hotel' && (
-                <>
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-                      City / Destination
+                <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+                  <button 
+                    type="button" 
+                    onClick={() => setStep(1)}
+                    style={{ flex: 1, padding: '12px', background: '#F1F5F9', border: 'none', borderRadius: 10, fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    Back
+                  </button>
+                  <button 
+                    type="submit" 
+                    disabled={isLoading}
+                    className="auth-submit-btn" 
+                    style={{ flex: 2 }}
+                  >
+                    {isLoading ? 'Registering...' : 'Complete Registration'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Full Name / Property Name (When creating account) */}
+                {!isLogin && (
+                  <div className="auth-input-group">
+                    <label className="auth-input-label">
+                      {role === 'hotel' ? 'Property Name' : 'Full Name'}
                     </label>
-                    <div style={{ position: 'relative' }}>
-                      <div style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }}>
-                        <MapPin size={18} />
+                    <div className="auth-input-wrap">
+                      <div className="auth-input-icon">
+                        {role === 'hotel' ? <Building size={18} /> : <User size={18} />}
                       </div>
                       <input 
-                        ref={locationInputRef}
                         type="text"
-                        className="form-input" 
-                        placeholder="e.g. Goa, India" 
-                        value={location} 
-                        onChange={e => { setLocation(e.target.value); setError(''); }} 
-                        onKeyDown={e => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            addressInputRef.current?.focus();
-                          }
-                        }}
-                        style={{ padding: '11px 14px 11px 42px', fontSize: '0.92rem', borderRadius: 10, width: '100%' }}
+                        className="auth-input-field"
+                        placeholder={role === 'hotel' ? 'e.g. The Grand Palace Resort' : 'Enter your full name'}
+                        value={name}
+                        onChange={(e) => { setName(e.target.value); setError(''); }}
                         required
                       />
                     </div>
                   </div>
+                )}
 
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-                      Complete Street Address
-                    </label>
+                {/* Hotel Location & Address (Sign up only) */}
+                {!isLogin && role === 'hotel' && (
+                  <>
+                    <div className="auth-input-group">
+                      <label className="auth-input-label">City / Destination</label>
+                      <div className="auth-input-wrap">
+                        <div className="auth-input-icon"><MapPin size={18} /></div>
+                        <input 
+                          type="text" 
+                          className="auth-input-field" 
+                          placeholder="e.g. Goa, India" 
+                          value={location} 
+                          onChange={(e) => setLocation(e.target.value)} 
+                          required 
+                        />
+                      </div>
+                    </div>
+                    <div className="auth-input-group">
+                      <label className="auth-input-label">Address</label>
+                      <input 
+                        type="text" 
+                        className="auth-input-field" 
+                        style={{ paddingLeft: 14 }}
+                        placeholder="e.g. 123 Beach Road, Candolim" 
+                        value={address} 
+                        onChange={(e) => setAddress(e.target.value)} 
+                        required 
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Email Address */}
+                <div className="auth-input-group">
+                  <label className="auth-input-label">Email Address</label>
+                  <div className="auth-input-wrap">
+                    <div className="auth-input-icon">
+                      <Mail size={18} />
+                    </div>
                     <input 
-                      ref={addressInputRef}
-                      type="text"
-                      className="form-input" 
-                      placeholder="e.g. 123 Beach Road, North Goa" 
-                      value={address} 
-                      onChange={e => { setAddress(e.target.value); setError(''); }} 
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          emailInputRef.current?.focus();
-                        }
-                      }}
-                      style={{ padding: '11px 14px', fontSize: '0.92rem', borderRadius: 10, width: '100%' }}
+                      type="email"
+                      className="auth-input-field"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => { setEmail(e.target.value); setError(''); }}
                       required
                     />
                   </div>
-                </>
-              )}
-
-              {/* Email Address */}
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: role === 'admin' ? '#94A3B8' : '#334155', marginBottom: 6 }}>
-                  Email Address
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <div style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }}>
-                    <Mail size={18} />
-                  </div>
-                  <input 
-                    ref={emailInputRef}
-                    type="email" 
-                    className="form-input" 
-                    placeholder="name@example.com" 
-                    value={email} 
-                    onChange={e => { setEmail(e.target.value); setError(''); }} 
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        passwordInputRef.current?.focus();
-                      }
-                    }}
-                    style={{ padding: '11px 14px 11px 42px', fontSize: '0.92rem', borderRadius: 10, width: '100%' }}
-                    required
-                  />
                 </div>
-              </div>
 
-              {/* Password */}
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <label style={{ fontSize: '0.8rem', fontWeight: 600, color: role === 'admin' ? '#94A3B8' : '#334155', margin: 0 }}>
-                    Password
-                  </label>
-                </div>
-                <div style={{ position: 'relative' }}>
-                  <div style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }}>
-                    <Lock size={18} />
+                {/* Password */}
+                <div className="auth-input-group">
+                  <label className="auth-input-label">Password</label>
+                  <div className="auth-input-wrap">
+                    <div className="auth-input-icon">
+                      <Lock size={18} />
+                    </div>
+                    <input 
+                      type={showPassword ? 'text' : 'password'}
+                      className="auth-input-field"
+                      placeholder={isLogin ? 'Enter your password' : 'Create a password'}
+                      value={password}
+                      onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                      required
+                    />
+                    <button 
+                      type="button" 
+                      className="auth-toggle-pwd"
+                      onClick={() => setShowPassword(!showPassword)}
+                      title={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
                   </div>
-                  <input 
-                    ref={passwordInputRef}
-                    type={showPassword ? "text" : "password"} 
-                    className="form-input" 
-                    placeholder="••••••••" 
-                    value={password} 
-                    onChange={e => { setPassword(e.target.value); setError(''); }} 
-                    style={{ padding: '11px 44px 11px 42px', fontSize: '0.92rem', borderRadius: 10, width: '100%' }}
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    style={{
-                      position: 'absolute',
-                      right: 12,
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      color: role === 'admin' ? '#94A3B8' : 'var(--text-secondary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: 4
-                    }}
-                    title={showPassword ? "Hide password" : "Show password"}
+                </div>
+
+                {/* Forgot Password Link (Sign In only) */}
+                {isLogin && role === 'customer' && (
+                  <span 
+                    className="auth-forgot-link"
+                    onClick={() => addToast('Password reset link sent to your email!', 'info')}
                   >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
+                    Forgot Password?
+                  </span>
+                )}
+
+                {/* Terms and Conditions Checkbox (Sign Up only) */}
+                {!isLogin && role === 'customer' && (
+                  <label className="auth-terms-checkbox">
+                    <input 
+                      type="checkbox" 
+                      checked={agreeTerms} 
+                      onChange={(e) => setAgreeTerms(e.target.checked)} 
+                    />
+                    <span>
+                      I agree to the <a href="#terms" onClick={(e) => e.preventDefault()}>Terms & Conditions</a> and <a href="#privacy" onClick={(e) => e.preventDefault()}>Privacy Policy</a>
+                    </span>
+                  </label>
+                )}
+
+                {/* Primary Submit Button */}
+                <button 
+                  type="submit" 
+                  className="auth-submit-btn" 
+                  disabled={isLoading}
+                >
+                  {isLoading ? 'Processing...' : isLogin ? 'Sign In' : role === 'hotel' ? 'Next: Add Rooms' : 'Sign Up'}
+                </button>
+              </>
+            )}
+          </form>
+
+          {/* Social Logins (Google & Microsoft) for Customer Auth */}
+          {role === 'customer' && (
+            <>
+              <div className="auth-divider">
+                <span>OR CONTINUE WITH</span>
               </div>
 
-              {/* Submit Button */}
-              <button 
-                type="submit" 
-                disabled={isLoading}
-                className={`btn ${portalDetails.btnClass} btn-block`}
-                style={{
-                  padding: '13px 20px',
-                  borderRadius: 10,
-                  fontSize: '0.95rem',
-                  fontWeight: 600,
-                  cursor: isLoading ? 'not-allowed' : 'pointer'
-                }}
-              >
-                {isLoading ? 'Signing in...' : (isLogin || role === 'admin' ? portalDetails.btnText : (role === 'hotel' ? 'Next: Add Rooms' : 'Create Account'))}
-              </button>
+              <div className="auth-social-grid">
+                {/* Google Button */}
+                <button 
+                  type="button" 
+                  className="auth-social-btn" 
+                  onClick={() => handleSocialLogin('Google')}
+                  disabled={isLoading}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24">
+                    <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 8.9 5 12 5z"/>
+                    <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/>
+                    <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.8s.2-2.1.4-2.8L1.9 6.3C.7 8.7 0 10.3 0 12s.7 3.3 1.9 5.7l3.7-2.9z"/>
+                    <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.5-2.4-6.4-5.2L1.9 16c1.8 3.7 5.6 7 10.1 7z"/>
+                  </svg>
+                  <span>Google</span>
+                </button>
+
+                {/* Microsoft Button */}
+                <button 
+                  type="button" 
+                  className="auth-social-btn" 
+                  onClick={() => handleSocialLogin('Microsoft')}
+                  disabled={isLoading}
+                >
+                  <svg width="18" height="18" viewBox="0 0 21 21">
+                    <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
+                    <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
+                    <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
+                    <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+                  </svg>
+                  <span>Microsoft</span>
+                </button>
+              </div>
             </>
           )}
-        </form>
 
-        {/* Toggle between Sign In / Sign Up */}
-        {role !== 'admin' && (
-          <div style={{
-            textAlign: 'center',
-            marginTop: 18,
-            fontSize: '0.85rem',
-            color: role === 'admin' ? '#94A3B8' : 'var(--text-secondary)'
-          }}>
-            {isLogin ? "Don't have an account? " : "Already have an account? "}
-            <button 
-              type="button" 
-              onClick={() => { setIsLogin(!isLogin); setError(''); setStep(1); }} 
-              style={{ 
-                background: 'none', 
-                border: 'none', 
-                color: portalDetails.accentColor, 
-                fontWeight: 700, 
-                cursor: 'pointer', 
-                textDecoration: 'none',
-                padding: 0
-              }}
-            >
-              {isLogin ? 'Sign up' : 'Sign in'}
-            </button>
+          {/* Footer Switcher (Sign In <-> Sign Up) */}
+          {role !== 'admin' && (
+            <div className="auth-footer-switch">
+              <span>{isLogin ? "Don't have an account?" : "Already have an account?"}</span>
+              <button 
+                type="button" 
+                className="auth-footer-switch-btn"
+                onClick={() => {
+                  setIsLogin(!isLogin);
+                  setError('');
+                  setStep(1);
+                }}
+              >
+                {isLogin ? 'Sign Up' : 'Sign In'}
+              </button>
+            </div>
+          )}
+
+          {/* Portal Switcher (Hotel / Traveler / Admin) */}
+          <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid #F1F5F9', textAlign: 'center', fontSize: '0.78rem', color: '#94A3B8' }}>
+            {role === 'customer' ? (
+              <span>Are you a hotel partner? <a href="/hotel_login" onClick={(e) => { e.preventDefault(); navigate('/hotel_login'); }} style={{ color: '#EA580C', fontWeight: 700, textDecoration: 'none' }}>Hotel Partner Login →</a></span>
+            ) : (
+              <span>Looking to book a stay? <a href="/customer_login" onClick={(e) => { e.preventDefault(); navigate('/customer_login'); }} style={{ color: '#EA580C', fontWeight: 700, textDecoration: 'none' }}>← Traveler Login</a></span>
+            )}
           </div>
-        )}
-
-        {/* Portal Switch Link at Bottom */}
-        <div style={{ 
-          marginTop: 18, 
-          paddingTop: 12, 
-          borderTop: role === 'admin' ? '1px solid rgba(59, 130, 246, 0.2)' : '1px solid var(--border-light, #E2E8F0)', 
-          textAlign: 'center', 
-          fontSize: '0.82rem', 
-          color: role === 'admin' ? '#64748B' : 'var(--text-muted, #94A3B8)' 
-        }}>
-          <span>{portalDetails.switchText} </span>
-          <a 
-            href={portalDetails.switchPath} 
-            onClick={(e) => { e.preventDefault(); navigate(portalDetails.switchPath); }} 
-            style={{ 
-              color: portalDetails.accentColor, 
-              fontWeight: 700, 
-              textDecoration: 'none' 
-            }}
-          >
-            {portalDetails.switchLinkText}
-          </a>
         </div>
       </div>
     </div>

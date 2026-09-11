@@ -4,7 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { useLanguage } from '../../context/LanguageContext';
 import NotificationDropdown from '../../components/NotificationDropdown';
-import { Compass, Search, Briefcase, Heart, Gift, User as UserIcon } from 'lucide-react';
+import HotelLogo from '../../components/HotelLogo';
+import { Compass, Search, Briefcase, Heart, Gift, User as UserIcon, Globe, Menu, X, LogOut, ChevronDown } from 'lucide-react';
 
 export default function CustomerLayout() {
   const { user, logout } = useAuth();
@@ -16,16 +17,6 @@ export default function CustomerLayout() {
   const [scrolled, setScrolled] = useState(false);
   const [langDropdown, setLangDropdown] = useState(false);
 
-  // Dark mode
-  const [isDark, setIsDark] = useState(() => {
-    try { return localStorage.getItem('hostiq_customer_dark') === 'true'; } catch { return false; }
-  });
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-    try { localStorage.setItem('hostiq_customer_dark', isDark ? 'true' : 'false'); } catch {}
-  }, [isDark]);
-
   // Close mobile drawer when route changes
   useEffect(() => {
     setMenuOpen(false);
@@ -33,108 +24,133 @@ export default function CustomerLayout() {
 
   const unreadQuotesCount = quotes ? quotes.length : 0;
   const customerId = user?.id || 1;
-  const loyaltyPoints = user?.loyalty_points || 0;
-
-  const isHomePage = location.pathname === '/customer' || location.pathname === '/customer/';
+  const isHomePage = location.pathname === '/customer' || location.pathname === '/customer/' || location.pathname === '/';
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50);
+    const handleScroll = () => setScrolled(window.scrollY > 40);
     window.addEventListener('scroll', handleScroll);
     handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const handleLogout = () => { logout(); navigate('/customer_login'); };
+  const handleLogout = () => {
+    logout();
+    navigate('/customer_login');
+  };
 
   const navSolid = scrolled || !isHomePage;
-  const navClass = `customer-nav ${navSolid ? 'scrolled' : ''}`;
-  const linkColor = navSolid ? 'var(--text)' : 'white';
 
   const bottomNavItems = [
-    { path: '/customer', label: 'Explore', icon: Compass, exact: true },
-    { path: '/customer/find', label: 'Find', icon: Search },
-    { path: '/customer/trips', label: 'Trips', icon: Briefcase, badge: unreadQuotesCount },
-    { path: '/customer/wishlist', label: 'Saved', icon: Heart, badge: wishlist.length },
+    { path: '/customer', label: 'Home', icon: Compass, exact: true },
+    { path: '/customer/find', label: 'Find a Stay', icon: Search },
+    { path: '/customer/trips', label: 'My Trips', icon: Briefcase, badge: unreadQuotesCount },
+    { path: '/customer/wishlist', label: 'Wishlist', icon: Heart, badge: wishlist.length },
     { path: '/customer/profile', label: 'Profile', icon: UserIcon }
   ];
 
   return (
-    <div style={{ position: 'relative', minHeight: '100vh', minHeight: '100dvh' }}>
-      {/* Top Navigation */}
-      <nav className={navClass}>
-        <Link to="/customer" className="logo" style={{ textDecoration: 'none' }}>Host<span>IQ</span></Link>
+    <div style={{ position: 'relative', minHeight: '100vh', minHeight: '100dvh', background: 'var(--bg)' }}>
+      {/* Top Navbar */}
+      <nav className={`customer-nav ${navSolid ? 'scrolled' : ''}`}>
+        {/* Brand Logo */}
+        <Link to="/customer" style={{ textDecoration: 'none' }}>
+          <HotelLogo light={!navSolid} size="default" />
+        </Link>
         
-        {/* Desktop Nav Links */}
-        <div className="nav-links" style={{ alignItems: 'center' }}>
-          <Link to="/customer" style={{ opacity: location.pathname === '/customer' ? 1 : 0.7 }}>{t('home')}</Link>
-          <Link to="/customer/find" style={{ opacity: location.pathname.includes('find') ? 1 : 0.7 }}>{t('findStay')}</Link>
-          <Link to="/customer/trips" style={{ opacity: location.pathname.includes('trips') ? 1 : 0.7, position: 'relative' }}>
-            {t('myTrips')}
-            {unreadQuotesCount > 0 && (
-              <span style={{ 
-                position: 'absolute', top: -6, right: -14, background: 'var(--accent)', color: 'white', 
-                borderRadius: '50%', padding: '2px 6px', fontSize: '0.65rem', fontWeight: 800 
-              }}>
-                {unreadQuotesCount}
-              </span>
-            )}
+        {/* Desktop Nav Center Links */}
+        <div className="nav-center-links" style={{ display: 'flex', alignItems: 'center' }}>
+          <Link to="/customer" className={`nav-link-item ${location.pathname === '/customer' ? 'active' : ''}`}>
+            Home
           </Link>
-          <Link to="/customer/wishlist" style={{ opacity: location.pathname.includes('wishlist') ? 1 : 0.7, position: 'relative' }}>
-            {t('wishlist')}
-            {wishlist.length > 0 && (
-              <span className="nav-badge-red" style={{ position: 'absolute', top: -6, right: -16 }}>
-                {wishlist.length}
-              </span>
-            )}
+          <Link to="/customer/find" className={`nav-link-item ${location.pathname.includes('/customer/find') ? 'active' : ''}`}>
+            Find a Stay
           </Link>
-          <Link to="/customer/rewards" style={{ opacity: location.pathname.includes('rewards') ? 1 : 0.7, position: 'relative' }}>
-            {t('rewards')}
-            {loyaltyPoints > 0 && (
-              <span style={{ 
-                position: 'absolute', top: -6, right: -18, 
-                background: '#6366f1', color: 'white',
-                borderRadius: '50%', padding: '2px 6px', fontSize: '0.6rem', fontWeight: 800,
-                minWidth: 20, textAlign: 'center',
-              }}>
-                {loyaltyPoints > 999 ? `${(loyaltyPoints/1000).toFixed(1)}k` : loyaltyPoints}
-              </span>
-            )}
+          <a href="#how-it-works" onClick={(e) => {
+            if (location.pathname !== '/customer') {
+              e.preventDefault();
+              navigate('/customer#how-it-works');
+            }
+          }} className="nav-link-item">
+            How It Works
+          </a>
+          <Link to="/hotel_login" className="nav-link-item">
+            For Hotels
           </Link>
-          <Link to="/customer/profile" style={{ opacity: location.pathname.includes('profile') ? 1 : 0.7 }}>{t('profile')}</Link>
-          
-          {/* Language Switcher */}
+          <a href="#about" onClick={(e) => {
+            if (location.pathname !== '/customer') {
+              e.preventDefault();
+              navigate('/customer#about');
+            }
+          }} className="nav-link-item">
+            About
+          </a>
+
+          {/* If user logged in, show their links */}
+          {user && (
+            <>
+              <Link to="/customer/trips" className={`nav-link-item ${location.pathname.includes('trips') ? 'active' : ''}`} style={{ position: 'relative' }}>
+                Trips
+                {unreadQuotesCount > 0 && (
+                  <span style={{ 
+                    position: 'absolute', top: -4, right: -12, background: '#EA580C', color: 'white', 
+                    borderRadius: '50%', padding: '1px 5px', fontSize: '0.62rem', fontWeight: 800 
+                  }}>
+                    {unreadQuotesCount}
+                  </span>
+                )}
+              </Link>
+              <Link to="/customer/wishlist" className={`nav-link-item ${location.pathname.includes('wishlist') ? 'active' : ''}`}>
+                Saved
+              </Link>
+            </>
+          )}
+        </div>
+
+        {/* Right Actions: Language + Sign In + Sign Up / User Profile */}
+        <div className="nav-actions-right">
+          {/* Language Selector */}
           <div style={{ position: 'relative' }}>
             <button 
               onClick={() => setLangDropdown(!langDropdown)}
               style={{
-                background: navSolid ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.15)',
-                border: `1px solid ${navSolid ? 'var(--border)' : 'rgba(255,255,255,0.3)'}`,
-                color: linkColor,
-                padding: '5px 12px', borderRadius: 6, cursor: 'pointer',
-                fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4,
+                background: navSolid ? '#F1F5F9' : 'rgba(255,255,255,0.12)',
+                border: `1px solid ${navSolid ? '#E2E8F0' : 'rgba(255,255,255,0.25)'}`,
+                color: navSolid ? '#1E293B' : '#FFFFFF',
+                padding: '7px 14px',
+                borderRadius: 9999,
+                cursor: 'pointer',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
                 transition: 'all 0.2s',
               }}
             >
-              {lang.toUpperCase()}
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M6 9l6 6 6-6"/></svg>
+              <Globe size={15} />
+              <span>{lang.toUpperCase()}</span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6"/></svg>
             </button>
+
             {langDropdown && (
               <>
                 <div onClick={() => setLangDropdown(false)} style={{ position: 'fixed', inset: 0, zIndex: 90 }} />
                 <div style={{
-                  position: 'absolute', top: '100%', right: 0, marginTop: 6,
-                  background: isDark ? '#1e293b' : 'white', borderRadius: 10, padding: 6,
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.12)', border: '1px solid var(--border)',
-                  zIndex: 100, minWidth: 120,
+                  position: 'absolute', top: '100%', right: 0, marginTop: 8,
+                  background: '#FFFFFF', borderRadius: 12, padding: 6,
+                  boxShadow: '0 12px 30px rgba(0,0,0,0.18)', border: '1px solid #E2E8F0',
+                  zIndex: 100, minWidth: 140,
                 }}>
                   {Object.entries(LANG_NAMES).map(([code, name]) => (
-                    <button key={code} onClick={() => { setLang(code); setLangDropdown(false); }}
+                    <button 
+                      key={code} 
+                      onClick={() => { setLang(code); setLangDropdown(false); }}
                       style={{
                         display: 'block', width: '100%', padding: '8px 14px', border: 'none',
-                        background: lang === code ? (isDark ? '#334155' : '#f0f4ff') : 'transparent',
-                        color: lang === code ? '#6366f1' : (isDark ? '#e2e8f0' : '#374151'),
+                        background: lang === code ? '#FFF7ED' : 'transparent',
+                        color: lang === code ? '#EA580C' : '#334155',
                         fontSize: '0.82rem', fontWeight: lang === code ? 700 : 500,
-                        cursor: 'pointer', borderRadius: 6, textAlign: 'left',
+                        cursor: 'pointer', borderRadius: 8, textAlign: 'left',
                         transition: 'all 0.15s',
                       }}
                     >
@@ -146,110 +162,139 @@ export default function CustomerLayout() {
             )}
           </div>
 
-          {/* Dark Mode Toggle */}
-          <button
-            onClick={() => setIsDark(!isDark)}
-            title={isDark ? t('lightMode') : t('darkMode')}
-            style={{
-              background: navSolid ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.15)',
-              border: `1px solid ${navSolid ? 'var(--border)' : 'rgba(255,255,255,0.3)'}`,
-              color: linkColor,
-              width: 34, height: 34, borderRadius: 8, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '0.9rem', transition: 'all 0.2s',
-            }}
-          >
-            {isDark ? '☀' : '☾'}
-          </button>
+          {/* Mobile Right Controls: Notification Bell + Hamburger */}
+          <div className="mobile-header-controls" style={{ display: 'none', alignItems: 'center', gap: 8 }}>
+            <NotificationDropdown 
+              role="customer" 
+              userId={customerId} 
+              lightNav={!navSolid} 
+            />
+            <button 
+              className="mobile-menu-btn"
+              onClick={() => setMenuOpen(!menuOpen)}
+              style={{ 
+                color: navSolid ? '#0F172A' : '#FFFFFF', 
+                background: 'none', 
+                border: 'none', 
+                cursor: 'pointer', 
+                padding: 4,
+                display: 'flex',
+                alignItems: 'center'
+              }}
+            >
+              {menuOpen ? <X size={22} /> : <Menu size={22} />}
+            </button>
+          </div>
 
-          <NotificationDropdown 
-            role="customer" 
-            userId={customerId} 
-            lightNav={!scrolled && isHomePage} 
-          />
-
-          <button 
-            onClick={handleLogout} 
-            className={`btn ${navSolid ? 'btn-outline' : 'btn-outline-light'}`}
-            style={{ borderRadius: 0, padding: '10px 24px' }}
-          >
-            {t('logout')}
-          </button>
-        </div>
-        
-        {/* Mobile Header Controls */}
-        <div style={{ display: 'none', alignItems: 'center', gap: 8 }} className="mobile-header-controls">
-          <NotificationDropdown 
-            role="customer" 
-            userId={customerId} 
-            lightNav={!scrolled && isHomePage} 
-          />
-          <button 
-            className="mobile-menu-btn" 
-            onClick={() => setMenuOpen(!menuOpen)}
-            style={{ color: navSolid ? 'var(--text)' : 'white', fontSize: '1.2rem', background: 'none', border: 'none', cursor: 'pointer', padding: 8 }}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
-          </button>
+          {/* User Auth or Profile Actions (Desktop) */}
+          <div className="desktop-header-auth" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {!user ? (
+              <>
+                <Link to="/customer_login" className="nav-btn-signin">
+                  Sign In
+                </Link>
+                <Link to="/customer_login?mode=signup" className="nav-btn-signup">
+                  Sign Up
+                </Link>
+              </>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <NotificationDropdown 
+                  role="customer" 
+                  userId={customerId} 
+                  lightNav={!navSolid} 
+                />
+                <Link 
+                  to="/customer/profile"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    textDecoration: 'none',
+                    color: navSolid ? '#0F172A' : '#FFFFFF',
+                    background: navSolid ? '#F1F5F9' : 'rgba(255,255,255,0.15)',
+                    padding: '5px 12px',
+                    borderRadius: 9999,
+                    fontSize: '0.82rem',
+                    fontWeight: 600
+                  }}
+                >
+                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#EA580C', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800 }}>
+                    {user.name ? user.name[0].toUpperCase() : 'A'}
+                  </div>
+                  <span>{user.name ? user.name.split(' ')[0] : 'Arjun'}</span>
+                  <ChevronDown size={13} color={navSolid ? '#64748B' : 'white'} />
+                </Link>
+                <button 
+                  onClick={handleLogout} 
+                  title="Logout"
+                  style={{ 
+                    background: 'none', border: 'none', cursor: 'pointer', 
+                    color: navSolid ? '#64748B' : 'rgba(255,255,255,0.8)',
+                    padding: 6, display: 'flex', alignItems: 'center'
+                  }}
+                >
+                  <LogOut size={18} />
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </nav>
-      
+
       {/* Mobile Drawer Menu */}
       {menuOpen && (
         <>
           <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 98 }} />
           <div style={{ 
             position: 'fixed', 
-            top: navSolid ? 64 : 76, 
+            top: 68, 
             left: 0, 
             width: '100%', 
-            background: isDark ? '#1e293b' : 'white', 
-            padding: '20px 24px', 
-            borderBottom: '1px solid var(--border-light)', 
+            background: '#FFFFFF', 
+            padding: '24px 20px', 
+            borderBottom: '1px solid #E2E8F0', 
             display: 'flex', 
             flexDirection: 'column', 
-            gap: 14, 
+            gap: 16, 
             zIndex: 99, 
-            boxShadow: 'var(--shadow-lg)' 
+            boxShadow: '0 20px 40px rgba(0,0,0,0.15)' 
           }}>
-            <Link to="/customer" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: 'var(--text)', fontWeight: 600, fontSize: '0.95rem' }}>{t('home')}</Link>
-            <Link to="/customer/find" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: 'var(--text)', fontWeight: 600, fontSize: '0.95rem' }}>{t('findStay')}</Link>
-            <Link to="/customer/trips" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: 'var(--text)', fontWeight: 600, fontSize: '0.95rem' }}>{t('myTrips')}</Link>
-            <Link to="/customer/wishlist" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: 'var(--text)', fontWeight: 600, fontSize: '0.95rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span>{t('wishlist')}</span>
-              {wishlist.length > 0 && (<span className="nav-badge-red">{wishlist.length}</span>)}
-            </Link>
-            <Link to="/customer/rewards" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: 'var(--text)', fontWeight: 600, fontSize: '0.95rem' }}>{t('rewards')}</Link>
-            <Link to="/customer/profile" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: 'var(--text)', fontWeight: 600, fontSize: '0.95rem' }}>{t('profile')}</Link>
+            <Link to="/customer" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 700, fontSize: '1.05rem' }}>Home</Link>
+            <Link to="/customer/find" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 700, fontSize: '1.05rem' }}>Find a Stay</Link>
+            <a href="#how-it-works" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 700, fontSize: '1.05rem' }}>How It Works</a>
+            <Link to="/hotel_login" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 700, fontSize: '1.05rem' }}>For Hotels</Link>
+            <a href="#about" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 700, fontSize: '1.05rem' }}>About</a>
             
-            {/* Mobile language & dark mode */}
-            <div style={{ display: 'flex', gap: 8, paddingTop: 12, borderTop: '1px solid var(--border)', alignItems: 'center' }}>
-              {Object.entries(LANG_NAMES).map(([code, name]) => (
-                <button key={code} onClick={() => setLang(code)} style={{
-                  padding: '6px 12px', borderRadius: 6, border: 'none',
-                  background: lang === code ? '#6366f1' : (isDark ? '#334155' : '#f1f5f9'),
-                  color: lang === code ? 'white' : (isDark ? '#e2e8f0' : '#475569'),
-                  fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer',
-                }}>{name}</button>
-              ))}
-              <button onClick={() => setIsDark(!isDark)} style={{
-                marginLeft: 'auto', padding: '6px 12px', borderRadius: 6, border: 'none',
-                background: isDark ? '#334155' : '#f1f5f9', color: isDark ? '#fbbf24' : '#475569',
-                fontSize: '0.85rem', cursor: 'pointer',
-              }}>{isDark ? '☀ Light' : '☾ Dark'}</button>
+            <div style={{ paddingTop: 14, borderTop: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {!user ? (
+                <>
+                  <Link to="/customer_login" onClick={() => setMenuOpen(false)} className="btn btn-outline" style={{ width: '100%', textAlign: 'center', justifyContent: 'center' }}>
+                    Sign In
+                  </Link>
+                  <Link to="/customer_login?mode=signup" onClick={() => setMenuOpen(false)} className="btn btn-accent" style={{ width: '100%', textAlign: 'center', justifyContent: 'center', background: '#EA580C' }}>
+                    Sign Up
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link to="/customer/trips" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 600 }}>My Trips ({unreadQuotesCount})</Link>
+                  <Link to="/customer/wishlist" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 600 }}>Saved Hotels ({wishlist.length})</Link>
+                  <Link to="/customer/profile" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 600 }}>My Profile</Link>
+                  <button onClick={handleLogout} className="btn btn-outline" style={{ width: '100%', marginTop: 8 }}>Logout</button>
+                </>
+              )}
             </div>
-            
-            <button onClick={handleLogout} className="btn btn-outline btn-block mt-2" style={{ padding: '10px' }}>{t('logout')}</button>
           </div>
         </>
       )}
-      
+
       {/* Main Content Area */}
       <div className="customer-main-wrap" style={{ paddingTop: !isHomePage ? '84px' : '0', minHeight: '100vh', minHeight: '100dvh', background: 'var(--bg)' }}>
         <Outlet />
       </div>
 
-      {/* Mobile Native-Style Bottom Navigation Bar */}
+      {/* Mobile Bottom Navigation Bar */}
       <div 
         className="customer-bottom-nav"
         style={{
@@ -259,9 +304,9 @@ export default function CustomerLayout() {
           left: 0,
           right: 0,
           height: 62,
-          background: isDark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+          background: 'rgba(255, 255, 255, 0.98)',
           backdropFilter: 'blur(16px)',
-          borderTop: '1px solid var(--border)',
+          borderTop: '1px solid #E2E8F0',
           zIndex: 90,
           justifyContent: 'space-around',
           alignItems: 'center',
@@ -282,7 +327,7 @@ export default function CustomerLayout() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 textDecoration: 'none',
-                color: isActive ? '#4F46E5' : 'var(--text-secondary)',
+                color: isActive ? '#EA580C' : '#64748B',
                 position: 'relative',
                 flex: 1,
                 padding: '6px 0',
@@ -296,7 +341,7 @@ export default function CustomerLayout() {
                     position: 'absolute',
                     top: -4,
                     right: -8,
-                    background: '#EF4444',
+                    background: '#EA580C',
                     color: 'white',
                     fontSize: '0.62rem',
                     fontWeight: 800,

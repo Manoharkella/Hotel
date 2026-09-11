@@ -70,15 +70,15 @@ export default function AdminLayout() {
         transition: 'transform 0.3s ease'
       }}>
         {/* Clean brand header */}
-        <div className="sidebar-header" style={{ padding: '20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="sidebar-header" style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <Link to="/admin" style={{ textDecoration: 'none' }}>
-              <span style={{ fontFamily: 'var(--font-serif)', fontSize: '1.4rem', fontWeight: 700, color: 'white', letterSpacing: '-0.01em' }}>
-                Host<span style={{ color: '#10B981' }}>IQ</span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: '1.35rem', fontWeight: 800, color: 'white', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 6 }}>
+                🏨 Hotel<span style={{ color: '#3B82F6', fontStyle: 'italic', fontFamily: "'Playfair Display', serif" }}>IQ</span>
               </span>
             </Link>
-            <div style={{ fontSize: '0.65rem', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.12em', marginTop: 2, fontWeight: 600 }}>
-              Admin Panel
+            <div style={{ fontSize: '0.65rem', color: '#60A5FA', textTransform: 'uppercase', letterSpacing: '0.12em', marginTop: 2, fontWeight: 700 }}>
+              Admin Control Center
             </div>
           </div>
 

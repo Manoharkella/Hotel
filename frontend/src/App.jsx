@@ -64,16 +64,16 @@ function AppRoutes() {
       <Route path="/auth" element={<Navigate to="/customer_login" replace />} />
 
       {/* Customer Routes */}
-      <Route path="/customer" element={<ProtectedRoute allowedRole="customer"><CustomerLayout /></ProtectedRoute>}>
+      <Route path="/customer" element={<CustomerLayout />}>
         <Route index element={<CustomerHome />} />
         <Route path="find" element={<FindHotel />} />
         <Route path="hotel/:id" element={<HotelDetail />} />
-        <Route path="trips" element={<MyTrips />} />
-        <Route path="wishlist" element={<Wishlist />} />
-        <Route path="rewards" element={<RewardsStore />} />
-        <Route path="checkin/:id" element={<OnlineCheckIn />} />
-        <Route path="qr/:id" element={<QRPass />} />
-        <Route path="profile" element={<CustomerProfile />} />
+        <Route path="trips" element={<ProtectedRoute allowedRole="customer"><MyTrips /></ProtectedRoute>} />
+        <Route path="wishlist" element={<ProtectedRoute allowedRole="customer"><Wishlist /></ProtectedRoute>} />
+        <Route path="rewards" element={<ProtectedRoute allowedRole="customer"><RewardsStore /></ProtectedRoute>} />
+        <Route path="checkin/:id" element={<ProtectedRoute allowedRole="customer"><OnlineCheckIn /></ProtectedRoute>} />
+        <Route path="qr/:id" element={<ProtectedRoute allowedRole="customer"><QRPass /></ProtectedRoute>} />
+        <Route path="profile" element={<ProtectedRoute allowedRole="customer"><CustomerProfile /></ProtectedRoute>} />
       </Route>
 
       {/* Hotel Manager Routes */}
@@ -114,7 +114,7 @@ function AppRoutes() {
         user ? (
           <Navigate to={user.role === 'customer' ? '/customer' : user.role === 'hotel' ? '/hotel' : '/admin'} replace />
         ) : (
-          <Navigate to="/customer_login" replace />
+          <Navigate to="/customer" replace />
         )
       } />
 
@@ -123,7 +123,7 @@ function AppRoutes() {
         user ? (
           <Navigate to={user.role === 'customer' ? '/customer' : user.role === 'hotel' ? '/hotel' : '/admin'} replace />
         ) : (
-          <Navigate to="/customer_login" replace />
+          <Navigate to="/customer" replace />
         )
       } />
     </Routes>
