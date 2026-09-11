@@ -32,7 +32,10 @@ import {
   X,
   CreditCard,
   Zap,
-  ArrowRight
+  ArrowRight,
+  Lock,
+  Maximize2,
+  Info
 } from 'lucide-react';
 
 export default function HotelDetail() {
@@ -68,6 +71,18 @@ export default function HotelDetail() {
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [selectRoomModal, setSelectRoomModal] = useState({ show: false, room: null });
   const [viewRoomModal, setViewRoomModal] = useState({ show: false, room: null, imgIdx: 0 });
+  const [editingModalField, setEditingModalField] = useState(null); // 'dates' | 'guests' | 'rooms' | null
+
+  const formatDateNice = (dStr) => {
+    if (!dStr) return '';
+    try {
+      const d = new Date(dStr);
+      if (isNaN(d.getTime())) return dStr;
+      return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch {
+      return dStr;
+    }
+  };
 
   // Reviews carousel index
   const [activeReviewIdx, setActiveReviewIdx] = useState(0);
@@ -864,50 +879,198 @@ export default function HotelDetail() {
 
 
 
-        {/* 4. Room Confirmation Modal */}
+        {/* 4. Room Confirmation Modal (Luxury Bottom-Sheet & Centered Modal) */}
         {selectRoomModal.show && selectRoomModal.room && (
-          <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.7)', backdropFilter: 'blur(6px)', zIndex: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-            <div style={{ background: '#FFFFFF', borderRadius: 20, width: '100%', maxWidth: 500, padding: 24, boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <h3 style={{ margin: 0, fontSize: '1.25rem', color: '#0F172A', fontWeight: 800 }}>Confirm Room Selection</h3>
-                <button type="button" onClick={() => setSelectRoomModal({ show: false, room: null })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748B' }}>
-                  <X size={20} />
+          <div className="room-modal-backdrop" onClick={() => setSelectRoomModal({ show: false, room: null })}>
+            <div className="room-modal-card" onClick={(e) => e.stopPropagation()}>
+              {/* Top Handle Bar for Mobile Bottom-Sheet */}
+              <div className="room-modal-drag-handle" />
+
+              {/* Modal Header */}
+              <div className="room-modal-header">
+                <h3 className="room-modal-title">Confirm Room Selection</h3>
+                <button 
+                  type="button" 
+                  className="room-modal-close-btn"
+                  onClick={() => setSelectRoomModal({ show: false, room: null })}
+                  aria-label="Close"
+                >
+                  <X size={18} />
                 </button>
               </div>
 
-              <div style={{ background: '#F8FAFC', borderRadius: 12, padding: 16, marginBottom: 20 }}>
-                <h4 style={{ margin: '0 0 6px', color: '#0F172A' }}>{selectRoomModal.room.type}</h4>
-                <div style={{ fontSize: '0.85rem', color: '#64748B', marginBottom: 8 }}>
-                  📅 {checkIn} to {checkOut} ({nights} {nights === 1 ? 'night' : 'nights'})
-                </div>
-                <div style={{ fontSize: '0.85rem', color: '#64748B', marginBottom: 12 }}>
-                  👥 {guests} Guests • 🛏️ {roomsCount} Room
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid #E2E8F0' }}>
-                  <span style={{ fontWeight: 600, color: '#475569' }}>Total Estimated Quote:</span>
-                  <span style={{ fontSize: '1.3rem', fontWeight: 800, color: '#EA580C' }}>
-                    ₹{((selectRoomModal.room.price || startingPrice) * nights * roomsCount).toLocaleString()}
-                  </span>
+              {/* 1. Room Summary Card */}
+              <div className="room-modal-room-card">
+                <img 
+                  src={selectRoomModal.room.images?.[0]?.url || allPhotos[0]} 
+                  alt={selectRoomModal.room.type} 
+                  className="room-modal-room-img"
+                />
+                <div className="room-modal-room-info">
+                  <h4 className="room-modal-room-name">{selectRoomModal.room.type}</h4>
+                  <p className="room-modal-room-desc">
+                    {selectRoomModal.room.description || 'Spacious room with city view and modern amenities.'}
+                  </p>
+                  <div className="room-modal-room-specs">
+                    <span className="room-modal-spec-pill">
+                      <Bed size={12} /> {selectRoomModal.room.bedType || '1 King Bed'}
+                    </span>
+                    <span className="room-modal-spec-pill">
+                      <Maximize2 size={12} /> {selectRoomModal.room.roomSize || '350 sq.ft'}
+                    </span>
+                  </div>
+                  <div className="room-modal-room-tags">
+                    <span><Wifi size={11} /> Free Wi-Fi</span>
+                    <span>•</span>
+                    <span><Sparkles size={11} /> AC</span>
+                    <span>•</span>
+                    <span><Coffee size={11} /> Minibar</span>
+                  </div>
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: 12 }}>
+              {/* 2. Booking Configuration Details Card */}
+              <div className="room-modal-details-card">
+                {/* Row 1: Dates */}
+                <div className="room-modal-detail-row">
+                  <div className="room-modal-detail-left">
+                    <Calendar size={18} className="room-modal-detail-icon" />
+                    <div>
+                      <div className="room-modal-detail-label">Dates</div>
+                      <div className="room-modal-detail-value">
+                        {formatDateNice(checkIn)} - {formatDateNice(checkOut)}
+                        <span className="room-modal-detail-sub"> ({nights} {nights === 1 ? 'night' : 'nights'})</span>
+                      </div>
+                    </div>
+                  </div>
+                  <button 
+                    type="button" 
+                    className="room-modal-edit-btn"
+                    onClick={() => setEditingModalField(editingModalField === 'dates' ? null : 'dates')}
+                  >
+                    <span>Edit</span>
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+                {editingModalField === 'dates' && (
+                  <div className="room-modal-inline-edit">
+                    <div className="room-modal-edit-inputs">
+                      <div>
+                        <label>Check-in</label>
+                        <input type="date" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} />
+                      </div>
+                      <div>
+                        <label>Check-out</label>
+                        <input type="date" value={checkOut} onChange={(e) => setCheckOut(e.target.value)} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Row 2: Guests */}
+                <div className="room-modal-detail-row divider">
+                  <div className="room-modal-detail-left">
+                    <Users size={18} className="room-modal-detail-icon" />
+                    <div>
+                      <div className="room-modal-detail-label">Guests</div>
+                      <div className="room-modal-detail-value">
+                        {guests} {guests === 1 ? 'Guest' : 'Guests'}
+                      </div>
+                    </div>
+                  </div>
+                  <button 
+                    type="button" 
+                    className="room-modal-edit-btn"
+                    onClick={() => setEditingModalField(editingModalField === 'guests' ? null : 'guests')}
+                  >
+                    <span>Edit</span>
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+                {editingModalField === 'guests' && (
+                  <div className="room-modal-inline-edit">
+                    <div className="room-modal-stepper">
+                      <span>Number of guests:</span>
+                      <div className="room-modal-counter-box">
+                        <button type="button" onClick={() => setGuests(Math.max(1, guests - 1))}>-</button>
+                        <span>{guests}</span>
+                        <button type="button" onClick={() => setGuests(Math.min(10, guests + 1))}>+</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Row 3: Rooms */}
+                <div className="room-modal-detail-row divider">
+                  <div className="room-modal-detail-left">
+                    <Bed size={18} className="room-modal-detail-icon" />
+                    <div>
+                      <div className="room-modal-detail-label">Rooms</div>
+                      <div className="room-modal-detail-value">
+                        {roomsCount} {roomsCount === 1 ? 'Room' : 'Rooms'}
+                      </div>
+                    </div>
+                  </div>
+                  <button 
+                    type="button" 
+                    className="room-modal-edit-btn"
+                    onClick={() => setEditingModalField(editingModalField === 'rooms' ? null : 'rooms')}
+                  >
+                    <span>Edit</span>
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+                {editingModalField === 'rooms' && (
+                  <div className="room-modal-inline-edit">
+                    <div className="room-modal-stepper">
+                      <span>Number of rooms:</span>
+                      <div className="room-modal-counter-box">
+                        <button type="button" onClick={() => setRoomsCount(Math.max(1, roomsCount - 1))}>-</button>
+                        <span>{roomsCount}</span>
+                        <button type="button" onClick={() => setRoomsCount(Math.min(5, roomsCount + 1))}>+</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 3. Total Estimated Quote Banner */}
+              <div className="room-modal-quote-banner">
+                <div>
+                  <div className="room-modal-quote-title">Total Estimated Quote</div>
+                  <div className="room-modal-quote-sub">
+                    ₹{(selectRoomModal.room.price || startingPrice).toLocaleString()} per night (approx.)
+                    <Info size={12} style={{ display: 'inline', marginLeft: 4, verticalAlign: 'middle' }} />
+                  </div>
+                </div>
+                <div className="room-modal-quote-price">
+                  ₹{((selectRoomModal.room.price || startingPrice) * nights * roomsCount).toLocaleString()}
+                </div>
+              </div>
+
+              {/* 4. Action Buttons */}
+              <div className="room-modal-actions">
                 <button 
                   type="button" 
                   onClick={() => setSelectRoomModal({ show: false, room: null })}
-                  className="btn btn-outline" 
-                  style={{ flex: 1, padding: '12px' }}
+                  className="room-modal-btn-cancel"
                 >
                   Cancel
                 </button>
                 <button 
                   type="button" 
                   onClick={() => handleSelectRoomSubmit(selectRoomModal.room)}
-                  className="btn btn-accent" 
-                  style={{ flex: 1.5, padding: '12px', background: '#EA580C' }}
+                  className="room-modal-btn-proceed"
                 >
-                  Proceed with Request →
+                  <span>Proceed with Request</span>
+                  <ArrowRight size={16} />
                 </button>
+              </div>
+
+              {/* 5. Security Note */}
+              <div className="room-modal-security">
+                <Lock size={12} />
+                <span>Your details are secure with HotelIQ</span>
               </div>
             </div>
           </div>

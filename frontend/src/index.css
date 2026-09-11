@@ -4168,3 +4168,411 @@ tr:hover td { background: rgba(0,0,0,0.015); }
 
 /* Dark Footer */
 [data-theme="dark"] footer { background: #020617 !important; }
+
+/* ===================================================
+   ROOM CONFIRMATION MODAL & LUXURY BOTTOM SHEET
+=================================================== */
+.room-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fadeIn 0.2s ease-out;
+  box-sizing: border-box;
+}
+
+.room-modal-card {
+  background: #FFFFFF;
+  border-radius: 24px;
+  width: 100%;
+  max-width: 440px;
+  padding: 20px 22px 18px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.18), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  box-sizing: border-box;
+  animation: modalScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  max-height: 90vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.room-modal-drag-handle {
+  display: none;
+}
+
+.room-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.room-modal-title {
+  margin: 0;
+  font-family: var(--font-serif, Georgia, serif);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0F172A;
+  letter-spacing: -0.01em;
+}
+
+.room-modal-close-btn {
+  background: #F1F5F9;
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748B;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.room-modal-close-btn:hover {
+  background: #E2E8F0;
+  color: #0F172A;
+}
+
+/* 1. Room Summary Box */
+.room-modal-room-card {
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  padding: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+  background: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+
+.room-modal-room-img {
+  width: 90px;
+  height: 84px;
+  border-radius: 12px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.room-modal-room-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.room-modal-room-name {
+  margin: 0 0 2px;
+  font-family: var(--font-serif, Georgia, serif);
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: #0F172A;
+}
+
+.room-modal-room-desc {
+  font-size: 0.74rem;
+  color: #64748B;
+  line-height: 1.35;
+  margin: 0 0 6px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.room-modal-room-specs {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.room-modal-spec-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #F1F5F9;
+  color: #334155;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.room-modal-room-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.66rem;
+  color: #64748B;
+  flex-wrap: wrap;
+}
+
+.room-modal-room-tags span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+/* 2. Configuration Details Card */
+.room-modal-details-card {
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  background: #FFFFFF;
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.room-modal-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 14px;
+}
+
+.room-modal-detail-row.divider {
+  border-top: 1px solid #F1F5F9;
+}
+
+.room-modal-detail-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.room-modal-detail-icon {
+  color: #475569;
+  flex-shrink: 0;
+}
+
+.room-modal-detail-label {
+  font-size: 0.68rem;
+  color: #64748B;
+  font-weight: 500;
+}
+
+.room-modal-detail-value {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0F172A;
+  margin-top: 1px;
+}
+
+.room-modal-detail-sub {
+  font-size: 0.74rem;
+  color: #64748B;
+  font-weight: 500;
+}
+
+.room-modal-edit-btn {
+  background: none;
+  border: none;
+  color: #EA580C;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.room-modal-edit-btn:hover {
+  background: #FFF7ED;
+}
+
+/* Inline Edit Area */
+.room-modal-inline-edit {
+  background: #F8FAFC;
+  border-top: 1px solid #E2E8F0;
+  padding: 10px 14px;
+  animation: fadeIn 0.15s ease-in;
+}
+
+.room-modal-edit-inputs {
+  display: flex;
+  gap: 10px;
+}
+
+.room-modal-edit-inputs > div {
+  flex: 1;
+}
+
+.room-modal-edit-inputs label {
+  display: block;
+  font-size: 0.68rem;
+  color: #64748B;
+  margin-bottom: 2px;
+  font-weight: 600;
+}
+
+.room-modal-edit-inputs input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  box-sizing: border-box;
+}
+
+.room-modal-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: #334155;
+  font-weight: 600;
+}
+
+.room-modal-counter-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 8px;
+  padding: 3px 8px;
+}
+
+.room-modal-counter-box button {
+  background: #F1F5F9;
+  border: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.room-modal-counter-box span {
+  font-weight: 800;
+  min-width: 16px;
+  text-align: center;
+}
+
+/* 3. Quote Banner */
+.room-modal-quote-banner {
+  background: #FFF7ED;
+  border: 1px solid #FFEDD5;
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.room-modal-quote-title {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #0F172A;
+}
+
+.room-modal-quote-sub {
+  font-size: 0.68rem;
+  color: #64748B;
+  margin-top: 2px;
+}
+
+.room-modal-quote-price {
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: #EA580C;
+  letter-spacing: -0.02em;
+}
+
+/* 4. Modal Buttons */
+.room-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.room-modal-btn-cancel {
+  flex: 1;
+  background: #FFFFFF;
+  border: 1.5px solid #E2E8F0;
+  border-radius: 9999px;
+  padding: 11px 16px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #0F172A;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.room-modal-btn-cancel:hover {
+  background: #F8FAFC;
+  border-color: #CBD5E1;
+}
+
+.room-modal-btn-proceed {
+  flex: 1.7;
+  background: #EA580C;
+  border: none;
+  border-radius: 9999px;
+  padding: 11px 18px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #FFFFFF;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 4px 14px rgba(234, 88, 12, 0.3);
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.room-modal-btn-proceed:hover {
+  background: #C2410C;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(234, 88, 12, 0.4);
+}
+
+/* 5. Security Text */
+.room-modal-security {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  color: #64748B;
+  margin-top: 12px;
+}
+
+/* Mobile Bottom-Sheet Viewport */
+@media (max-width: 640px) {
+  .room-modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .room-modal-card {
+    max-width: 100%;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
+    padding: 12px 18px 24px;
+    animation: slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .room-modal-drag-handle {
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: #CBD5E1;
+    border-radius: 9999px;
+    margin: 0 auto 10px;
+  }
+}
+
