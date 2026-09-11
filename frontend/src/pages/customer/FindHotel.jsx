@@ -212,17 +212,33 @@ export default function FindHotel() {
     return null;
   }, [filteredHotels]);
 
-  // Sort hotels
-  const sortedHotels = useMemo(() => {
-    return [...filteredHotels].sort((a, b) => {
+  const isPlaceSearched = Boolean(destination && destination.trim() && destination.toLowerCase() !== 'all india');
+
+  // Displayed hotels: If no specific place is searched, show TOP 5 highest rating hotels across India.
+  // When a place is searched, show ALL hotels for that place.
+  const displayedHotels = useMemo(() => {
+    let list = [...filteredHotels];
+    
+    // Sort
+    list.sort((a, b) => {
       const priceA = getHotelPrice(a);
       const priceB = getHotelPrice(b);
+      const ratingA = Number(a.rating) || 4.8;
+      const ratingB = Number(b.rating) || 4.8;
+
       if (sortBy === 'price_asc') return priceA - priceB;
       if (sortBy === 'price_desc') return priceB - priceA;
-      if (sortBy === 'rating') return (b.rating || 4.8) - (a.rating || 4.8);
-      return 0; // recommended
+      if (sortBy === 'rating') return ratingB - ratingA;
+      
+      // Default: sort highest rating first
+      return ratingB - ratingA;
     });
-  }, [filteredHotels, sortBy]);
+
+    if (!isPlaceSearched) {
+      return list.slice(0, 5);
+    }
+    return list;
+  }, [filteredHotels, sortBy, isPlaceSearched]);
 
   // Handle City Chip Click
   const handleCitySelect = (cityName) => {
@@ -555,9 +571,11 @@ export default function FindHotel() {
           <div className="find-list-header">
             <div className="find-list-title-wrap">
               <h2 className="find-list-title">
-                🏢 Featured Hotels
+                {isPlaceSearched ? `🏢 Hotels in ${destination}` : '⭐ Top 5 Rated Hotels'}
               </h2>
-              <span className="find-list-count">{sortedHotels.length} Results</span>
+              <span className="find-list-count">
+                {isPlaceSearched ? `${displayedHotels.length} Results` : `Top 5 of ${filteredHotels.length}`}
+              </span>
             </div>
 
             {/* Sort Dropdown */}
@@ -566,16 +584,16 @@ export default function FindHotel() {
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
             >
-              <option value="recommended">Sort by: Recommended</option>
+              <option value="recommended">Sort: Recommended</option>
+              <option value="rating">Highest Rated</option>
               <option value="price_asc">Price: Low to High</option>
               <option value="price_desc">Price: High to Low</option>
-              <option value="rating">Guest Rating</option>
             </select>
           </div>
 
           {/* Scrollable Hotel Cards */}
           <div className="find-hotel-cards-scroll">
-            {sortedHotels.map((hotel, idx) => {
+            {displayedHotels.map((hotel, idx) => {
               const badge = getBadgeInfo(idx);
               const price = getHotelPrice(hotel);
               const photoUrl = getHotelPhoto(hotel);

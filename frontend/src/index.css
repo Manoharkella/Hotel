@@ -2102,6 +2102,26 @@ tr:hover td { background: rgba(0,0,0,0.015); }
   .find-list-column {
     height: auto !important;
   }
+  .find-list-header {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    margin-bottom: 12px !important;
+  }
+  .find-list-title-wrap {
+    gap: 6px !important;
+  }
+  .find-list-title {
+    font-size: 1.05rem !important;
+  }
+  .find-list-count {
+    font-size: 0.75rem !important;
+  }
+  .find-sort-select {
+    font-size: 0.75rem !important;
+    padding: 4px 10px !important;
+  }
   .hotel-horizontal-card {
     flex-direction: column !important;
   }
