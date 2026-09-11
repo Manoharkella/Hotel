@@ -1,7 +1,16 @@
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useToast } from '../../context/ToastContext';
-import { Heart, Trash2, ArrowRight, MapPin, Star, Compass } from 'lucide-react';
+import { 
+  Heart, 
+  Trash2, 
+  ArrowRight, 
+  MapPin, 
+  Star, 
+  Compass, 
+  Bed, 
+  Sparkles 
+} from 'lucide-react';
 
 export default function Wishlist() {
   const { wishlist, hotels, toggleWishlist } = useApp();
@@ -17,202 +26,163 @@ export default function Wishlist() {
   };
 
   return (
-    <div className="fade-in" style={{ padding: '40px 0 80px', minHeight: '80vh' }}>
-      <div className="container">
-        
-        {/* Header */}
-        <div className="flex-between" style={{ marginBottom: 40, flexWrap: 'wrap', gap: 16, alignItems: 'flex-end' }}>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <span style={{ 
-                background: '#FFF1F2', 
-                color: '#E11D48', 
-                border: '1px solid #FECDD3', 
-                padding: '4px 12px', 
-                borderRadius: '9999px', 
-                fontSize: '0.75rem', 
-                fontWeight: 800, 
-                letterSpacing: '0.08em', 
-                textTransform: 'uppercase' 
-              }}>
-                ❤️ Saved Properties
-              </span>
-              <span style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                {wishlistedHotels.length} {wishlistedHotels.length === 1 ? 'Stay' : 'Stays'}
-              </span>
-            </div>
-            <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: '2.4rem', margin: 0, color: 'var(--primary)' }}>
-              My Wishlist
-            </h1>
-            <p style={{ color: 'var(--text-secondary)', margin: '6px 0 0', fontSize: '1rem' }}>
-              Your private collection of favorite properties and dream getaways.
-            </p>
-          </div>
-
-          {wishlistedHotels.length > 0 && (
-            <button 
-              className="btn btn-outline" 
-              onClick={() => navigate('/customer/find')}
-              style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.88rem', padding: '10px 20px' }}
-            >
-              <Compass size={16} />
-              Explore More Stays
-            </button>
-          )}
+    <div className="wishlist-page-container fade-in">
+      
+      {/* Header Row with Stay count & Explore button */}
+      <div className="wishlist-header-row">
+        <div className="wishlist-title-group">
+          <span className="wishlist-pill-badge">
+            <Heart size={11} fill="#E11D48" />
+            <span>Saved Properties ({wishlistedHotels.length})</span>
+          </span>
+          <h1 className="wishlist-main-title">My Wishlist</h1>
+          <p className="wishlist-subtitle">
+            Your private collection of favorite properties & dream stays.
+          </p>
         </div>
 
-        {/* Empty State */}
-        {wishlistedHotels.length === 0 ? (
-          <div 
-            className="card fade-up" 
-            style={{ 
-              padding: '64px 32px', 
-              textAlign: 'center', 
-              maxWidth: 580, 
-              margin: '40px auto 0',
-              borderRadius: 20,
-              background: 'white',
-              boxShadow: 'var(--shadow-md)'
-            }}
+        {wishlistedHotels.length > 0 && (
+          <button 
+            type="button"
+            className="wishlist-explore-btn"
+            onClick={() => navigate('/customer/find')}
           >
-            <div style={{ 
-              width: 80, 
-              height: 80, 
-              borderRadius: '50%', 
-              background: '#FFF1F2', 
-              color: '#E11D48', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'center', 
-              margin: '0 auto 20px',
-              fontSize: '2.2rem'
-            }}>
-              <Heart size={40} color="#E11D48" fill="#FFF1F2" />
-            </div>
+            <Compass size={14} color="#EA580C" />
+            <span>Explore Stays</span>
+          </button>
+        )}
+      </div>
 
-            <h2 style={{ fontSize: '1.6rem', marginBottom: 10, color: 'var(--primary)' }}>
-              Your wishlist is empty
-            </h2>
-            <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: '0.96rem', marginBottom: 28 }}>
-              Explore our curated stays, click the heart icon on any hotel card, and save your dream destinations here for easy booking and rate negotiations.
-            </p>
-
-            <button 
-              className="btn btn-primary" 
-              onClick={() => navigate('/customer/find')}
-              style={{ padding: '14px 32px', fontSize: '0.92rem', borderRadius: 10 }}
-            >
-              Discover Hotels
-            </button>
+      {/* Empty State */}
+      {wishlistedHotels.length === 0 ? (
+        <div 
+          className="card fade-up" 
+          style={{ 
+            padding: '48px 24px', 
+            textAlign: 'center', 
+            maxWidth: 480, 
+            margin: '20px auto 0',
+            borderRadius: 20,
+            background: 'white',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.04)',
+            border: '1px solid #E2E8F0'
+          }}
+        >
+          <div style={{ 
+            width: 64, 
+            height: 64, 
+            borderRadius: '50%', 
+            background: '#FFF1F2', 
+            color: '#E11D48', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            margin: '0 auto 16px' 
+          }}>
+            <Heart size={32} color="#E11D48" fill="#FFF1F2" />
           </div>
-        ) : (
-          /* Wishlist Grid */
-          <div className="grid-3" style={{ gap: 32 }}>
-            {wishlistedHotels.map((hotel, i) => (
+
+          <h2 style={{ fontSize: '1.3rem', marginBottom: 8, color: '#0F172A', fontWeight: 800 }}>
+            Your wishlist is empty
+          </h2>
+          <p style={{ color: '#64748B', lineHeight: 1.5, fontSize: '0.86rem', marginBottom: 22 }}>
+            Explore luxury stays, tap the heart icon on any hotel card, and save your dream destinations here.
+          </p>
+
+          <button 
+            className="btn btn-primary" 
+            onClick={() => navigate('/customer/find')}
+            style={{ padding: '10px 24px', fontSize: '0.84rem', borderRadius: 9999 }}
+          >
+            Discover Hotels
+          </button>
+        </div>
+      ) : (
+        /* Compact Luxury Wishlist List / Grid */
+        <div className="wishlist-cards-list">
+          {wishlistedHotels.map((hotel, i) => {
+            const price = hotel.rooms?.[0]?.price_per_night || hotel.roomTypes?.[0]?.price || 3000;
+            const roomType = hotel.roomTypes?.[0]?.type || 'Deluxe Room Available';
+            const locationName = hotel.city || hotel.location || 'Mumbai';
+
+            return (
               <div 
                 key={hotel.id} 
-                className="premium-hotel-card fade-up"
-                style={{ animationDelay: `${i * 0.08}s` }}
+                className="wishlist-card fade-up"
+                style={{ animationDelay: `${i * 0.05}s` }}
                 onClick={() => navigate(`/customer/hotel/${hotel.id}`)}
               >
-                {/* Image & Top Badges */}
-                <div className="img-wrapper">
+                {/* Thumbnail */}
+                <div className="wishlist-thumb-wrapper">
                   <img 
-                    src={hotel.photos?.[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600'} 
+                    src={hotel.photos?.[0] || 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400'} 
                     alt={hotel.name} 
+                    className="wishlist-thumb-img"
                     loading="lazy" 
                   />
-                  <div className="overlay">
-                    <span className="badge badge-primary" style={{ background: 'var(--accent)', color: 'white' }}>
-                      {hotel.category || 'Luxury'}
-                    </span>
-                  </div>
-
-                  {/* Wishlist Remove Button */}
-                  <button 
-                    className="wishlist-btn active"
-                    title="Remove from wishlist"
-                    onClick={(e) => handleRemove(hotel, e)}
-                    style={{
-                      background: '#FFF1F2',
-                      borderColor: '#FECDD3'
-                    }}
-                  >
-                    <Heart size={20} color="#E11D48" fill="#E11D48" className="wishlist-heart-pulse" />
-                  </button>
+                  <span className="wishlist-thumb-badge">
+                    {hotel.category || 'Premium'}
+                  </span>
                 </div>
 
                 {/* Content */}
-                <div className="content">
-                  <div>
-                    <div className="location" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <MapPin size={14} color="var(--accent)" />
-                      {hotel.location}
-                    </div>
-                    <h3 style={{ fontSize: '1.45rem', marginBottom: 8 }}>{hotel.name}</h3>
-                    
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      <Star size={14} color="var(--warning)" fill="var(--warning)" />
-                      <span style={{ fontWeight: 700, color: 'var(--text)' }}>{hotel.rating || '4.8'}</span>
-                      <span style={{ opacity: 0.6 }}>({hotel.reviewCount || '98'} reviews)</span>
+                <div className="wishlist-card-content">
+                  <div className="wishlist-card-loc-rating">
+                    <div className="wishlist-card-location">
+                      <MapPin size={11} color="#EA580C" />
+                      <span>{locationName}</span>
                     </div>
 
-                    {/* Room Type Tag */}
-                    <div style={{ marginBottom: 16 }}>
-                      <span style={{ 
-                        fontSize: '0.75rem', 
-                        padding: '4px 10px', 
-                        background: 'var(--bg)', 
-                        border: '1px solid var(--border-light)', 
-                        borderRadius: 6,
-                        color: 'var(--text-secondary)'
-                      }}>
-                        🛏️ {hotel.roomTypes?.[0]?.type || 'Deluxe Room'} Available
-                      </span>
+                    <div className="wishlist-card-rating">
+                      <Star size={12} color="#F59E0B" fill="#F59E0B" />
+                      <span>{hotel.rating || '4.8'}</span>
                     </div>
                   </div>
 
-                  {/* Price & Action Buttons */}
-                  <div>
-                    <div className="price" style={{ marginBottom: 16 }}>
-                      <span>Starting from</span>
-                      <strong style={{ fontSize: '1.3rem', color: 'var(--primary)' }}>
-                        ₹{(hotel.rooms?.[0]?.price_per_night || hotel.roomTypes?.[0]?.price || 3000).toLocaleString()}
-                        <small style={{ fontSize: '0.78rem', fontWeight: 500, color: 'var(--text-muted)' }}> / night</small>
-                      </strong>
+                  <h3 className="wishlist-card-title">{hotel.name}</h3>
+                  <div className="wishlist-card-room-tag">🛏️ {roomType}</div>
+
+                  {/* Bottom Row: Price & Actions */}
+                  <div className="wishlist-card-bottom">
+                    <div className="wishlist-card-price">
+                      <span className="wishlist-card-price-label">Starting</span>
+                      <span className="wishlist-card-price-val">
+                        ₹{Number(price).toLocaleString()}
+                        <small> /nt</small>
+                      </span>
                     </div>
 
-                    <div style={{ display: 'flex', gap: 10 }}>
+                    <div className="wishlist-card-actions">
                       <button 
-                        className="btn btn-primary" 
-                        style={{ flex: 1, padding: '10px 16px', fontSize: '0.84rem', borderRadius: 8, gap: 6 }}
+                        type="button" 
+                        className="wishlist-btn-book"
                         onClick={(e) => {
                           e.stopPropagation();
                           navigate(`/customer/hotel/${hotel.id}`);
                         }}
                       >
-                        Book & Negotiate
-                        <ArrowRight size={14} />
+                        <span>Book</span>
+                        <ArrowRight size={12} />
                       </button>
 
                       <button 
-                        className="btn btn-outline" 
+                        type="button" 
+                        className="wishlist-btn-remove"
                         title="Remove from wishlist"
-                        style={{ padding: '10px 12px', borderRadius: 8, color: '#DC2626' }}
                         onClick={(e) => handleRemove(hotel, e)}
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </div>
 
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
+      )}
 
-      </div>
     </div>
   );
 }
