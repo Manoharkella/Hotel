@@ -73,9 +73,6 @@ export default function CustomerLayout() {
           }} className="nav-link-item">
             How It Works
           </a>
-          <Link to="/hotel_login" className="nav-link-item">
-            For Hotels
-          </Link>
           <a href="#about" onClick={(e) => {
             if (location.pathname !== '/customer') {
               e.preventDefault();
@@ -263,7 +260,6 @@ export default function CustomerLayout() {
             <Link to="/customer" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 700, fontSize: '1.05rem' }}>Home</Link>
             <Link to="/customer/find" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 700, fontSize: '1.05rem' }}>Find a Stay</Link>
             <a href="#how-it-works" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 700, fontSize: '1.05rem' }}>How It Works</a>
-            <Link to="/hotel_login" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 700, fontSize: '1.05rem' }}>For Hotels</Link>
             <a href="#about" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 700, fontSize: '1.05rem' }}>About</a>
             
             {/* Mobile Drawer Language Row */}
