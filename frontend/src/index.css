@@ -1102,6 +1102,9 @@ tr:hover td { background: rgba(0,0,0,0.015); }
 @media (max-width: 768px) {
   /* Layout & Navigation */
   .customer-nav {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
     padding: 10px 16px !important;
   }
   .customer-nav.scrolled {
@@ -1110,11 +1113,13 @@ tr:hover td { background: rgba(0,0,0,0.015); }
   .customer-nav .nav-center-links, .customer-nav .nav-links {
     display: none !important;
   }
-  .customer-nav .nav-btn-signin, .customer-nav .nav-btn-signup, .desktop-header-auth {
+  .customer-nav .nav-btn-signin, .customer-nav .nav-btn-signup, .desktop-header-auth, .desktop-header-lang {
     display: none !important;
   }
   .mobile-header-controls {
     display: flex !important;
+    align-items: center !important;
+    gap: 12px !important;
   }
   .mobile-menu-btn {
     display: inline-flex !important;

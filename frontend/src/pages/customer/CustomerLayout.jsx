@@ -108,8 +108,8 @@ export default function CustomerLayout() {
 
         {/* Right Actions: Language + Sign In + Sign Up / User Profile */}
         <div className="nav-actions-right">
-          {/* Language Selector */}
-          <div style={{ position: 'relative' }}>
+          {/* Language Selector (Desktop) */}
+          <div className="desktop-header-lang" style={{ position: 'relative' }}>
             <button 
               onClick={() => setLangDropdown(!langDropdown)}
               style={{
@@ -266,7 +266,36 @@ export default function CustomerLayout() {
             <Link to="/hotel_login" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 700, fontSize: '1.05rem' }}>For Hotels</Link>
             <a href="#about" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 700, fontSize: '1.05rem' }}>About</a>
             
-            <div style={{ paddingTop: 14, borderTop: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {/* Mobile Drawer Language Row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0 6px', borderTop: '1px solid #E2E8F0' }}>
+              <span style={{ fontSize: '0.88rem', fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Globe size={16} color="#EA580C" /> Language
+              </span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {Object.entries(LANG_NAMES).map(([code, name]) => (
+                  <button 
+                    key={code} 
+                    type="button"
+                    onClick={() => setLang(code)}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: 8,
+                      border: `1px solid ${lang === code ? '#EA580C' : '#E2E8F0'}`,
+                      background: lang === code ? '#EA580C' : '#F8FAFC',
+                      color: lang === code ? '#FFFFFF' : '#334155',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {code.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ paddingTop: 10, borderTop: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 10 }}>
               {!user ? (
                 <>
                   <Link to="/customer_login" onClick={() => setMenuOpen(false)} className="btn btn-outline" style={{ width: '100%', textAlign: 'center', justifyContent: 'center' }}>
