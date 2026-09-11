@@ -58,9 +58,9 @@ export default function CustomerLayout() {
         </Link>
 
         {/* Right Side: Desktop Nav Links + Language + User Profile / Auth */}
-        <div className="nav-actions-right" style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+        <div className="nav-actions-right">
           {/* Desktop Navigation Links */}
-          <div className="nav-center-links" style={{ display: 'flex', alignItems: 'center', gap: 22, marginRight: 8 }}>
+          <div className="nav-center-links">
             <Link to="/customer" className={`nav-link-item ${location.pathname === '/customer' ? 'active' : ''}`}>
               Home
             </Link>

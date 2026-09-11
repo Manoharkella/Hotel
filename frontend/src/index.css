@@ -3832,41 +3832,67 @@ tr:hover td { background: rgba(0,0,0,0.015); }
     position: static !important;
   }
   
-  /* Mobile Bottom Floating Booking Card */
+  /* Mobile Bottom Floating Booking Card Matching Reference */
   .hotel-mobile-bottom-bar {
     display: flex !important;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: rgba(255, 255, 255, 0.98);
-    backdrop-filter: blur(16px);
-    border-top: 1px solid #E2E8F0;
-    padding: 10px 16px;
-    align-items: center;
-    justify-content: space-between;
-    z-index: 100;
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
+    flex-direction: column !important;
+    gap: 8px !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    background: rgba(255, 255, 255, 0.98) !important;
+    backdrop-filter: blur(16px) !important;
+    border-top: 1px solid #E2E8F0 !important;
+    padding: 12px 16px !important;
+    z-index: 100 !important;
+    box-shadow: 0 -6px 24px rgba(0,0,0,0.12) !important;
+    box-sizing: border-box !important;
+  }
+  .hotel-mobile-bottom-top-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
   }
   .hotel-mobile-bottom-price {
-    font-size: 1.25rem;
-    font-weight: 900;
-    color: #0F172A;
-    line-height: 1;
+    font-size: 1.25rem !important;
+    font-weight: 900 !important;
+    color: #0F172A !important;
+    line-height: 1 !important;
   }
   .hotel-mobile-bottom-sub {
-    font-size: 0.7rem;
-    color: #64748B;
+    font-size: 0.72rem !important;
+    color: #64748B !important;
+    margin-top: 2px !important;
   }
   .hotel-mobile-bottom-btn {
-    background: #EA580C;
-    color: #FFFFFF;
-    border: none;
-    border-radius: 10px;
-    padding: 10px 20px;
-    font-size: 0.88rem;
-    font-weight: 700;
-    cursor: pointer;
+    background: #EA580C !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: 10px !important;
+    padding: 10px 18px !important;
+    font-size: 0.85rem !important;
+    font-weight: 700 !important;
+    cursor: pointer !important;
+  }
+  .hotel-mobile-bottom-dates-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    background: #F8FAFC !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 8px !important;
+    padding: 6px 10px !important;
+    font-size: 0.72rem !important;
+    color: #475569 !important;
+    font-weight: 600 !important;
+  }
+  .hotel-mobile-bottom-guarantees {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    font-size: 0.68rem !important;
+    color: #64748B !important;
   }
 }
 

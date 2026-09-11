@@ -369,6 +369,18 @@ export default function HotelDetail() {
                 <span>{hotel.address || `${hotel.location}, Maharashtra, India`}</span>
               </div>
 
+              {/* Rating & Verified Badge */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 12px', flexWrap: 'wrap' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700, fontSize: '0.9rem', color: '#0F172A' }}>
+                  <Star size={15} fill="#F59E0B" color="#F59E0B" />
+                  <span>{hotel.rating || '4.8'}</span>
+                  <span style={{ color: '#64748B', fontWeight: 500, fontSize: '0.82rem' }}>({hotel.reviews_count || '1,230'} reviews)</span>
+                </span>
+                <span style={{ background: '#EFF6FF', color: '#2563EB', border: '1px solid #BFDBFE', padding: '2px 8px', borderRadius: 9999, fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <ShieldCheck size={12} /> Verified Hotel
+                </span>
+              </div>
+
               <p className="hotel-desc-snippet">
                 {hotel.description || 'A world of refined elegance and impeccable service. Experience unmatched luxury, world-class dining, and personalized hospitality tailored to your discerning tastes.'}
               </p>
@@ -817,19 +829,37 @@ export default function HotelDetail() {
 
         </div>
 
-        {/* 3. Mobile Floating Bottom Bar */}
+        {/* 3. Mobile Floating Bottom Bar Matching Reference */}
         <div className="hotel-mobile-bottom-bar">
-          <div>
-            <div className="hotel-mobile-bottom-price">₹{startingPrice.toLocaleString()}</div>
-            <div className="hotel-mobile-bottom-sub">Taxes included / night</div>
+          <div className="hotel-mobile-bottom-top-row">
+            <div>
+              <div className="hotel-mobile-bottom-price">
+                ₹{startingPrice.toLocaleString()} <span style={{ fontSize: '0.78rem', fontWeight: 500, color: '#64748B' }}>/ night</span>
+              </div>
+              <div className="hotel-mobile-bottom-sub">Taxes included</div>
+            </div>
+            <button 
+              type="button" 
+              className="hotel-mobile-bottom-btn"
+              onClick={scrollToRooms}
+            >
+              Select Rooms →
+            </button>
           </div>
-          <button 
-            type="button" 
-            className="hotel-mobile-bottom-btn"
-            onClick={scrollToRooms}
-          >
-            Select Rooms →
-          </button>
+
+          <div className="hotel-mobile-bottom-dates-row">
+            <span>📅 {checkIn} → {checkOut}</span>
+            <span>•</span>
+            <span>👥 {guests} Guests</span>
+            <span>•</span>
+            <span>🛏️ {roomsCount} Room</span>
+          </div>
+
+          <div className="hotel-mobile-bottom-guarantees">
+            <span>✓ Free cancellation</span>
+            <span>💳 Pay at hotel</span>
+            <span>⚡ Instant confirmation</span>
+          </div>
         </div>
 
         {/* 4. Room Confirmation Modal */}
