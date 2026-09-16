@@ -1,49 +1,48 @@
-from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
-from typing import List, Optional
+from sqlalchemy.orm import Session, joinedload
+from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 import jwt
 import bcrypt
 import json
 import asyncio
+import random
 from contextlib import asynccontextmanager
 
 SECRET_KEY = "your-super-secret-key-change-in-production"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 300
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 7 days
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/users/login", auto_error=False)
 
-def verify_password(plain_password, hashed_password):
+def verify_password(plain_password: str, hashed_password: str) -> bool:
     if isinstance(plain_password, str):
         plain_password = plain_password.encode('utf-8')
     if isinstance(hashed_password, str):
         hashed_password = hashed_password.encode('utf-8')
     try:
         return bcrypt.checkpw(plain_password, hashed_password)
-    except ValueError:
+    except Exception:
         return False
 
-def get_password_hash(password):
+def get_password_hash(password: str) -> str:
     if isinstance(password, str):
         password = password.encode('utf-8')
     salt = bcrypt.gensalt()
     return bcrypt.hashpw(password, salt).decode('utf-8')
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-# Email/SMS Notification Stub
 def send_notification(notification_type: str, recipient: str, message: str):
     print(f"\n[{datetime.utcnow().isoformat()}] SENDING {notification_type.upper()} TO: {recipient}")
     print(f"MESSAGE: {message}\n")
@@ -59,12 +58,12 @@ async def cleanup_idle_chats():
         try:
             db = SessionLocal()
             cutoff_time = (datetime.utcnow() - timedelta(hours=24)).isoformat()
-            db.query(models.Message).filter(models.Message.created_at < cutoff_time).delete(synchronize_session=false)
+            db.query(models.Message).filter(models.Message.created_at < cutoff_time).delete(synchronize_session=False)
             db.commit()
             db.close()
         except Exception as e:
             print("Cleanup task error:", e)
-        await asyncio.sleep(300) # Run every 5 minutes
+        await asyncio.sleep(300)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -74,7 +73,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="HostIQ API", lifespan=lifespan)
 
-# Allow frontend to connect
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -83,29 +82,196 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Authentication Dependency & Security Filter
+def get_current_user(
+    token: Optional[str] = Depends(oauth2_scheme), 
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+) -> dict:
+    raw_token = token
+    if not raw_token and authorization:
+        if authorization.startswith("Bearer "):
+            raw_token = authorization.split("Bearer ")[1].strip()
+        else:
+            raw_token = authorization.strip()
+            
+    if not raw_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Authentication credentials were not provided"
+        )
+    
+    try:
+        payload = jwt.decode(raw_token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("id")
+        role = payload.get("role", "customer")
+        email = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, 
+                detail="Invalid token payload"
+            )
+        return {"id": user_id, "role": role, "email": email}
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired. Please log in again.")
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication token")
+
+def get_optional_user(
+    token: Optional[str] = Depends(oauth2_scheme),
+    authorization: Optional[str] = Header(None)
+) -> Optional[dict]:
+    raw_token = token
+    if not raw_token and authorization:
+        if authorization.startswith("Bearer "):
+            raw_token = authorization.split("Bearer ")[1].strip()
+        else:
+            raw_token = authorization.strip()
+    if not raw_token:
+        return None
+    try:
+        payload = jwt.decode(raw_token, SECRET_KEY, algorithms=[ALGORITHM])
+        return {"id": payload.get("id"), "role": payload.get("role", "customer"), "email": payload.get("sub")}
+    except Exception:
+        return None
+
+
+# --- General / Health Root ---
 @app.get("/")
 @app.get("/api")
 def root():
     return {
         "status": "online",
         "service": "HostIQ Hotel Platform API",
-        "database": "Neon PostgreSQL Connected",
+        "privacy_and_access_control": "Enforced (Strict User Isolation)",
         "documentation": "/docs"
     }
 
+
+# =====================================================================
+# OTP AUTHENTICATION ENDPOINTS
+# =====================================================================
+
+@app.post("/api/auth/send-otp", response_model=schemas.OtpResponse)
+def send_otp_endpoint(req: schemas.SendOtpRequest, db: Session = Depends(get_db)):
+    identifier = (req.identifier or req.email or req.phone or "").strip()
+    if not identifier:
+        raise HTTPException(status_code=400, detail="Email or phone number is required")
+    
+    otp_code = str(random.randint(100000, 999999))
+    expires_at = datetime.utcnow() + timedelta(minutes=10)
+    
+    db.query(models.OTPVerification).filter(
+        models.OTPVerification.identifier == identifier,
+        models.OTPVerification.purpose == (req.purpose or "registration")
+    ).delete(synchronize_session=False)
+    
+    otp_record = models.OTPVerification(
+        identifier=identifier,
+        otp_code=otp_code,
+        purpose=req.purpose or "registration",
+        is_verified=0,
+        expires_at=expires_at
+    )
+    db.add(otp_record)
+    db.commit()
+    
+    send_notification("sms/email", identifier, f"Your HostIQ Verification OTP is: {otp_code}. Valid for 10 minutes.")
+    return {
+        "success": True,
+        "message": f"OTP sent successfully to {identifier}",
+        "otp_debug": otp_code
+    }
+
+@app.post("/api/auth/verify-otp", response_model=schemas.OtpResponse)
+def verify_otp_endpoint(req: schemas.VerifyOtpRequest, db: Session = Depends(get_db)):
+    identifier = (req.identifier or req.email or req.phone or "").strip()
+    otp_code = (req.otp or "").strip()
+    
+    if not identifier or not otp_code:
+        raise HTTPException(status_code=400, detail="Identifier and OTP are required")
+        
+    record = db.query(models.OTPVerification).filter(
+        models.OTPVerification.identifier == identifier,
+        models.OTPVerification.otp_code == otp_code,
+        models.OTPVerification.purpose == (req.purpose or "registration")
+    ).order_by(models.OTPVerification.id.desc()).first()
+    
+    if not record:
+        raise HTTPException(status_code=400, detail="Invalid OTP code. Please check and try again.")
+    
+    if record.expires_at and record.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="OTP has expired. Please request a new code.")
+        
+    record.is_verified = 1
+    db.commit()
+    return {"success": True, "message": "OTP verified successfully"}
+
+@app.post("/api/auth/reset-password", response_model=schemas.OtpResponse)
+def reset_password_endpoint(req: schemas.ResetPasswordRequest, db: Session = Depends(get_db)):
+    identifier = (req.identifier or req.email or req.phone or "").strip()
+    otp_code = (req.otp or "").strip()
+    new_password = (req.new_password or "").strip()
+    
+    if not identifier or not otp_code or not new_password:
+        raise HTTPException(status_code=400, detail="Identifier, OTP, and new password are required")
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="Password must be at least 6 characters")
+        
+    record = db.query(models.OTPVerification).filter(
+        models.OTPVerification.identifier == identifier,
+        models.OTPVerification.otp_code == otp_code,
+        models.OTPVerification.purpose == "forgot_password"
+    ).order_by(models.OTPVerification.id.desc()).first()
+    
+    if not record:
+        raise HTTPException(status_code=400, detail="Invalid or unverified OTP code")
+    if record.expires_at and record.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="OTP code has expired")
+        
+    user = db.query(models.User).filter(
+        (models.User.email == identifier) | (models.User.phone == identifier)
+    ).first()
+    
+    if not user:
+        hotel = db.query(models.Hotel).filter(models.Hotel.email == identifier).first()
+        if not hotel:
+            raise HTTPException(status_code=404, detail="No account found with this identifier")
+        hotel.password_hash = get_password_hash(new_password)
+    else:
+        user.password_hash = get_password_hash(new_password)
+        
+    db.delete(record)
+    db.commit()
+    return {"success": True, "message": "Password has been successfully updated. You can now log in."}
+
+
+# =====================================================================
+# CUSTOMER AUTH & USER PROFILE ENDPOINTS
+# =====================================================================
+
 @app.post("/api/users/register", response_model=schemas.UserResponse)
 def register_user(user: schemas.UserRegister, db: Session = Depends(get_db)):
-    """Customer registration endpoint. Instantly approved without admin confirmation."""
-    db_user = db.query(models.User).filter(models.User.email == user.email).first()
-    if db_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
+    """Customer registration endpoint."""
+    existing_email = db.query(models.User).filter(models.User.email == user.email.strip().lower()).first()
+    if existing_email:
+        raise HTTPException(status_code=400, detail="An account with this email address already exists")
     
+    if user.phone:
+        existing_phone = db.query(models.User).filter(models.User.phone == user.phone.strip()).first()
+        if existing_phone:
+            raise HTTPException(status_code=400, detail="An account with this phone number already exists")
+
     new_user = models.User(
-        full_name=user.full_name,
-        email=user.email,
+        full_name=user.full_name.strip(),
+        email=user.email.strip().lower(),
+        phone=user.phone.strip() if user.phone else "",
         password_hash=get_password_hash(user.password),
-        role=user.role,
-        status="ACTIVE" # Auto-approved
+        role=user.role or "customer",
+        status="ACTIVE",
+        city="",
+        preferences={},
+        loyalty_points=100
     )
     db.add(new_user)
     db.commit()
@@ -114,20 +280,23 @@ def register_user(user: schemas.UserRegister, db: Session = Depends(get_db)):
     send_notification("email", new_user.email, "Welcome to HostIQ! Your account is ready.")
     return new_user
 
-class UserLogin(BaseModel):
-    email: str
-    password: str
-
 @app.post("/api/users/login")
-def login_user(creds: UserLogin, db: Session = Depends(get_db)):
-    """Customer login endpoint."""
-    user = db.query(models.User).filter(models.User.email == creds.email).first()
+def login_user(creds: schemas.UserLogin, db: Session = Depends(get_db)):
+    """Customer login endpoint supporting email or phone."""
+    identifier = (creds.identifier or creds.email or creds.phone or "").strip().lower()
+    if not identifier:
+        raise HTTPException(status_code=400, detail="Email or Mobile Number is required")
+        
+    user = db.query(models.User).filter(
+        (models.User.email == identifier) | (models.User.phone == identifier)
+    ).first()
+    
     if not user or not verify_password(creds.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid email or password")
+        raise HTTPException(status_code=401, detail="Invalid login credentials. Please check your email/phone and password.")
     
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.email, "role": "customer", "id": user.id}, expires_delta=access_token_expires
+        data={"sub": user.email, "role": user.role, "id": user.id}, expires_delta=access_token_expires
     )
         
     return {
@@ -136,26 +305,152 @@ def login_user(creds: UserLogin, db: Session = Depends(get_db)):
         "user": {
             "id": user.id,
             "name": user.full_name,
+            "full_name": user.full_name,
             "email": user.email,
-            "role": "customer",
-            "phone": user.phone,
-            "loyalty_points": user.loyalty_points
+            "role": user.role,
+            "phone": user.phone or "",
+            "city": user.city or "",
+            "preferences": user.preferences or {},
+            "loyalty_points": user.loyalty_points or 0
         }
     }
 
+@app.get("/api/users/me", response_model=schemas.UserResponse)
+def get_current_user_profile(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Fetch the authenticated user's isolated profile."""
+    user = db.query(models.User).filter(models.User.id == current_user["id"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User account not found")
+    return user
+
+@app.put("/api/users/me", response_model=schemas.UserResponse)
+def update_current_user_profile(
+    update_data: schemas.UserProfileUpdate, 
+    current_user: dict = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
+    """Strictly update the authenticated user's personal details and preferences."""
+    user = db.query(models.User).filter(models.User.id == current_user["id"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User account not found")
+        
+    if update_data.full_name is not None:
+        user.full_name = update_data.full_name.strip()
+    elif update_data.name is not None:
+        user.full_name = update_data.name.strip()
+        
+    if update_data.phone is not None:
+        user.phone = update_data.phone.strip()
+    if update_data.city is not None:
+        user.city = update_data.city.strip()
+    if update_data.preferences is not None:
+        current_prefs = dict(user.preferences or {})
+        current_prefs.update(update_data.preferences)
+        user.preferences = current_prefs
+        
+    db.commit()
+    db.refresh(user)
+    return user
+
+@app.put("/api/users/me/password")
+def change_current_user_password(
+    pwd_data: schemas.UserPasswordChange,
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Securely change authenticated user's password."""
+    user = db.query(models.User).filter(models.User.id == current_user["id"]).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not verify_password(pwd_data.current_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    if len(pwd_data.new_password) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters")
+        
+    user.password_hash = get_password_hash(pwd_data.new_password)
+    db.commit()
+    return {"success": True, "message": "Password changed successfully"}
+
+
+# =====================================================================
+# WISHLIST ENDPOINTS (STRICT USER ISOLATION)
+# =====================================================================
+
+@app.get("/api/customer/wishlist")
+def get_user_wishlist(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Fetch ONLY the authenticated user's wishlist hotel IDs."""
+    items = db.query(models.Wishlist).filter(models.Wishlist.customer_id == current_user["id"]).all()
+    return [str(item.hotel_id) for item in items]
+
+@app.post("/api/customer/wishlist/{hotel_id}")
+def add_to_wishlist(hotel_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Add a hotel to the authenticated user's wishlist."""
+    existing = db.query(models.Wishlist).filter(
+        models.Wishlist.customer_id == current_user["id"],
+        models.Wishlist.hotel_id == hotel_id
+    ).first()
+    if not existing:
+        item = models.Wishlist(customer_id=current_user["id"], hotel_id=hotel_id)
+        db.add(item)
+        db.commit()
+    return {"success": True, "is_wishlisted": True, "hotel_id": hotel_id}
+
+@app.delete("/api/customer/wishlist/{hotel_id}")
+def remove_from_wishlist(hotel_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Remove a hotel from the authenticated user's wishlist."""
+    db.query(models.Wishlist).filter(
+        models.Wishlist.customer_id == current_user["id"],
+        models.Wishlist.hotel_id == hotel_id
+    ).delete(synchronize_session=False)
+    db.commit()
+    return {"success": True, "is_wishlisted": False, "hotel_id": hotel_id}
+
+@app.post("/api/customer/wishlist/{hotel_id}/toggle", response_model=schemas.WishlistToggleResponse)
+def toggle_wishlist_item(hotel_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Atomically toggle a hotel in the authenticated user's wishlist."""
+    existing = db.query(models.Wishlist).filter(
+        models.Wishlist.customer_id == current_user["id"],
+        models.Wishlist.hotel_id == hotel_id
+    ).first()
+    
+    if existing:
+        db.delete(existing)
+        db.commit()
+        is_wishlisted = False
+    else:
+        new_item = models.Wishlist(customer_id=current_user["id"], hotel_id=hotel_id)
+        db.add(new_item)
+        db.commit()
+        is_wishlisted = True
+        
+    all_wishlisted = db.query(models.Wishlist.hotel_id).filter(models.Wishlist.customer_id == current_user["id"]).all()
+    wishlist_ids = [w[0] for w in all_wishlisted]
+    
+    return {
+        "success": True,
+        "is_wishlisted": is_wishlisted,
+        "hotel_id": hotel_id,
+        "wishlist": wishlist_ids
+    }
+
+
+# =====================================================================
+# ADMIN & HOTEL REGISTRATION / LOGIN ENDPOINTS
+# =====================================================================
+
 @app.post("/api/admin/login")
-def login_admin(creds: UserLogin, db: Session = Depends(get_db)):
+def login_admin(creds: schemas.HotelLogin, db: Session = Depends(get_db)):
     """Admin login endpoint."""
     if creds.email == "admin@gmail.com" and creds.password == "admin":
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": creds.email, "role": "admin", "id": "admin_1"}, expires_delta=access_token_expires
+            data={"sub": creds.email, "role": "admin", "id": 999999}, expires_delta=access_token_expires
         )
         return {
             "access_token": access_token,
             "token_type": "bearer",
             "user": {
-                "id": "admin_1",
+                "id": 999999,
                 "name": "System Admin",
                 "email": "admin@gmail.com",
                 "role": "admin"
@@ -164,7 +459,7 @@ def login_admin(creds: UserLogin, db: Session = Depends(get_db)):
     
     user = db.query(models.User).filter(models.User.email == creds.email, models.User.role == "admin").first()
     if not user or not verify_password(creds.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid admin email or password")
+        raise HTTPException(status_code=401, detail="Invalid admin credentials")
         
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
@@ -183,57 +478,80 @@ def login_admin(creds: UserLogin, db: Session = Depends(get_db)):
 
 @app.post("/api/hotels/register", response_model=schemas.HotelResponse)
 def register_hotel(hotel: schemas.HotelRegister, db: Session = Depends(get_db)):
-    """Hotel submits their registration details including rooms and photos. Goes into PENDING state."""
-    db_hotel = db.query(models.Hotel).filter(models.Hotel.email == hotel.email).first()
+    """Hotel submits their onboarding wizard details. Status becomes PENDING."""
+    db_hotel = db.query(models.Hotel).filter(models.Hotel.email == hotel.email.strip().lower()).first()
     if db_hotel:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="Hotel with this email is already registered")
     
     new_hotel = models.Hotel(
-        name=hotel.name,
-        location=hotel.location,
-        address=hotel.address,
+        name=hotel.name.strip(),
+        location=hotel.location or "",
+        address=hotel.address or "",
+        city=hotel.city or "",
+        state=hotel.state or "",
+        country=hotel.country or "India",
+        pincode=hotel.pincode or "",
+        contact_number=hotel.contact_number or "",
+        website=hotel.website or "",
+        description=hotel.description or "",
+        property_type=hotel.property_type or "Hotel",
+        star_rating=hotel.star_rating or "4",
+        total_rooms=hotel.total_rooms or 10,
         latitude=hotel.latitude,
         longitude=hotel.longitude,
-        email=hotel.email,
-        password_hash=get_password_hash(hotel.password),
-        photos=hotel.photos,
-        status="PENDING"
+        email=hotel.email.strip().lower(),
+        password_hash=get_password_hash(hotel.password) if hotel.password else "",
+        status="PENDING",
+        manager_name=hotel.manager_name or "",
+        manager_phone=hotel.manager_phone or "",
+        amenities=hotel.amenities or [],
+        policies=hotel.policies or {},
+        documents=hotel.documents or [],
+        photos=hotel.photos or []
     )
     db.add(new_hotel)
     db.commit()
     db.refresh(new_hotel)
     
-    send_notification("email", "admin@hostiq.com", f"New Hotel Registration: {new_hotel.name} is waiting for approval.")
-
-    for room in hotel.rooms:
+    wallet = models.Wallet(hotel_id=new_hotel.id, balance=100)
+    db.add(wallet)
+    
+    for room in (hotel.rooms or []):
         new_room = models.Room(
             hotel_id=new_hotel.id,
             room_type=room.room_type,
-            quantity=room.quantity,
-            price_per_night=room.price_per_night
+            quantity=room.quantity or 5,
+            price_per_night=room.price_per_night,
+            description=room.description or "",
+            max_guests=room.max_guests or 2,
+            bed_type=room.bed_type or "King Bed",
+            room_size=room.room_size or "350 sq.ft",
+            bathroom_type=room.bathroom_type or "Private Ensuite",
+            amenities=room.amenities or [],
+            breakfast_included=room.breakfast_included or "Included",
+            cancellation_policy=room.cancellation_policy or "Free cancellation",
+            images=room.images or []
         )
         db.add(new_room)
+        
     db.commit()
     db.refresh(new_hotel)
-    
+    send_notification("email", "admin@hostiq.com", f"New Hotel Onboarding: {new_hotel.name} submitted for review.")
     return new_hotel
 
-
-class HotelLogin(BaseModel):
-    email: str
-    password: str
-
 @app.post("/api/hotels/login")
-def login_hotel(creds: HotelLogin, db: Session = Depends(get_db)):
-    """Hotel login endpoint that checks approval status."""
-    hotel = db.query(models.Hotel).filter(models.Hotel.email == creds.email).first()
+def login_hotel(creds: schemas.HotelLogin, db: Session = Depends(get_db)):
+    """Hotel login endpoint with status validation."""
+    hotel = db.query(models.Hotel).filter(models.Hotel.email == creds.email.strip().lower()).first()
     if not hotel or not verify_password(creds.password, hotel.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     
     if hotel.status == "PENDING":
-        raise HTTPException(status_code=403, detail="Your hotel account is still pending admin approval.")
+        raise HTTPException(status_code=403, detail="Your hotel account is pending admin verification.")
+    if hotel.status == "REJECTED":
+        raise HTTPException(status_code=403, detail=f"Your hotel account was rejected: {hotel.rejection_reason or 'Please contact support.'}")
     if hotel.status == "SUSPENDED":
-        raise HTTPException(status_code=403, detail="Your account has been suspended.")
+        raise HTTPException(status_code=403, detail="Your hotel account has been suspended.")
         
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
@@ -248,49 +566,65 @@ def login_hotel(creds: HotelLogin, db: Session = Depends(get_db)):
             "name": hotel.name,
             "email": hotel.email,
             "role": "hotel",
-            "hotelId": hotel.id
+            "hotelId": hotel.id,
+            "status": hotel.status
         }
     }
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
-            raise HTTPException(status_code=401, detail="Invalid authorization credentials")
-        return payload
-    except jwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="Invalid token signature")
 
-from sqlalchemy.orm import joinedload
+# =====================================================================
+# ADMIN PROPERTY APPROVAL & MANAGEMENT ENDPOINTS
+# =====================================================================
 
 @app.get("/api/admin/users/all", response_model=List[schemas.UserResponse])
-def get_all_users(db: Session = Depends(get_db)):
-    """Admin endpoint to see all users."""
+def get_all_users(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Admin endpoint to see registered users."""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin authorization required")
     return db.query(models.User).all()
 
 @app.get("/api/admin/hotels/all", response_model=List[schemas.HotelResponse])
 def get_all_hotels(db: Session = Depends(get_db)):
-    """Admin endpoint to see all hotels with eager loaded rooms."""
+    """Fetch all hotels with eager loaded rooms."""
     return db.query(models.Hotel).options(joinedload(models.Hotel.rooms)).all()
 
+@app.get("/api/hotels/{hotel_id}", response_model=schemas.HotelResponse)
+def get_hotel_by_id(hotel_id: int, db: Session = Depends(get_db)):
+    hotel = db.query(models.Hotel).options(joinedload(models.Hotel.rooms)).filter(models.Hotel.id == hotel_id).first()
+    if not hotel:
+        raise HTTPException(status_code=404, detail="Hotel not found")
+    return hotel
 
 @app.put("/api/admin/hotels/{hotel_id}/approve")
-def approve_hotel(hotel_id: int, db: Session = Depends(get_db)):
-    """Admin approves a hotel, making it visible to customers."""
+def approve_hotel(hotel_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin authorization required")
     db_hotel = db.query(models.Hotel).filter(models.Hotel.id == hotel_id).first()
     if not db_hotel:
         raise HTTPException(status_code=404, detail="Hotel not found")
     
     db_hotel.status = "APPROVED"
     db.commit()
-    send_notification("sms", db_hotel.email, f"Congratulations! Your hotel {db_hotel.name} has been APPROVED and is now live on HostIQ.")
+    send_notification("sms", db_hotel.email, f"Congratulations! {db_hotel.name} is now APPROVED and live on HostIQ.")
     return {"message": f"{db_hotel.name} has been APPROVED and is now live."}
 
+@app.put("/api/admin/hotels/{hotel_id}/reject")
+def reject_hotel(hotel_id: int, req: schemas.HotelRejectRequest, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin authorization required")
+    db_hotel = db.query(models.Hotel).filter(models.Hotel.id == hotel_id).first()
+    if not db_hotel:
+        raise HTTPException(status_code=404, detail="Hotel not found")
+    
+    db_hotel.status = "REJECTED"
+    db_hotel.rejection_reason = req.reason
+    db.commit()
+    return {"message": f"{db_hotel.name} has been REJECTED."}
 
 @app.put("/api/admin/hotels/{hotel_id}/suspend")
-def suspend_hotel(hotel_id: int, db: Session = Depends(get_db)):
-    """Admin suspends a hotel."""
+def suspend_hotel(hotel_id: int, current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin authorization required")
     db_hotel = db.query(models.Hotel).filter(models.Hotel.id == hotel_id).first()
     if not db_hotel:
         raise HTTPException(status_code=404, detail="Hotel not found")
@@ -298,40 +632,52 @@ def suspend_hotel(hotel_id: int, db: Session = Depends(get_db)):
     db_hotel.status = "SUSPENDED"
     db.commit()
     return {"message": f"{db_hotel.name} has been SUSPENDED."}
+
 @app.get("/api/customer/hotels/search", response_model=List[schemas.HotelResponse])
 def search_approved_hotels(db: Session = Depends(get_db)):
-    """Customer search endpoint. ONLY returns APPROVED hotels with eager loaded rooms."""
+    """Customer search endpoint returning exclusively APPROVED hotels with rooms."""
     return db.query(models.Hotel).options(joinedload(models.Hotel.rooms)).filter(models.Hotel.status == "APPROVED").all()
 
-# --- Business Logic Endpoints ---
+
+# =====================================================================
+# LEADS & TRIPS ENDPOINTS (STRICT USER ISOLATION)
+# =====================================================================
 
 @app.post("/api/leads", response_model=schemas.LeadResponse)
-def create_lead(lead: schemas.LeadCreate, db: Session = Depends(get_db)):
+def create_lead(
+    lead: schemas.LeadCreate, 
+    opt_user: Optional[dict] = Depends(get_optional_user),
+    db: Session = Depends(get_db)
+):
+    """Create a trip lead. The authenticated user ID is automatically enforced."""
     try:
+        effective_customer_id = opt_user["id"] if (opt_user and opt_user.get("id")) else lead.customer_id
+        
         if lead.specific_hotel_id:
             matched_ids = [lead.specific_hotel_id]
         else:
-            # Query location matched hotels
             dest_term = lead.destination.split(',')[0].strip() if ',' in lead.destination else lead.destination.strip()
-            hotels_in_dest = db.query(models.Hotel).options(joinedload(models.Hotel.rooms)).filter(models.Hotel.location.ilike(f"%{dest_term}%")).all()
+            hotels_in_dest = db.query(models.Hotel).options(joinedload(models.Hotel.rooms)).filter(
+                models.Hotel.location.ilike(f"%{dest_term}%"),
+                models.Hotel.status == "APPROVED"
+            ).all()
             matched_ids = []
             for h in hotels_in_dest:
                 min_room_price = min([r.price_per_night for r in h.rooms]) if h.rooms else 3000
                 if min_room_price <= lead.budget:
                     matched_ids.append(h.id)
-            
-            # Fallback to all location hotels if none are below budget
             if not matched_ids:
                 matched_ids = [h.id for h in hotels_in_dest]
         
-        # Exclude specific_hotel_id when passing to models.Lead
         lead_data = lead.dict(exclude={'specific_hotel_id'})
+        lead_data["customer_id"] = effective_customer_id
+        
         new_lead = models.Lead(**lead_data, matched_hotel_ids=matched_ids)
         db.add(new_lead)
         db.commit()
         db.refresh(new_lead)
 
-        user = db.query(models.User).filter(models.User.id == new_lead.customer_id).first()
+        user = db.query(models.User).filter(models.User.id == effective_customer_id).first()
         return {
             "id": new_lead.id,
             "customer_id": new_lead.customer_id,
@@ -345,7 +691,7 @@ def create_lead(lead: schemas.LeadCreate, db: Session = Depends(get_db)):
             "preferences": new_lead.preferences or "",
             "status": new_lead.status or "active",
             "matched_hotel_ids": new_lead.matched_hotel_ids or [],
-            "customer_name": user.full_name if user else "Guest User",
+            "customer_name": user.full_name if user else "Valued Guest",
             "customer_phone": user.phone if user else "",
             "created_at": str(new_lead.created_at) if new_lead.created_at else ""
         }
@@ -354,14 +700,17 @@ def create_lead(lead: schemas.LeadCreate, db: Session = Depends(get_db)):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/leads/all", response_model=List[schemas.LeadResponse])
-def get_all_leads(db: Session = Depends(get_db)):
-    leads = db.query(models.Lead).order_by(models.Lead.id.desc()).all()
-    users = {u.id: u for u in db.query(models.User).all()}
-    result = []
-    for l in leads:
-        u = users.get(l.customer_id)
-        result.append({
+@app.get("/api/customer/leads", response_model=List[schemas.LeadResponse])
+@app.get("/api/leads/my", response_model=List[schemas.LeadResponse])
+def get_customer_leads(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    """STRICT PRIVACY: Return ONLY the leads/trips created by the authenticated user."""
+    leads = db.query(models.Lead).filter(
+        models.Lead.customer_id == current_user["id"]
+    ).order_by(models.Lead.id.desc()).all()
+    
+    user = db.query(models.User).filter(models.User.id == current_user["id"]).first()
+    return [
+        {
             "id": l.id,
             "customer_id": l.customer_id,
             "destination": l.destination,
@@ -374,97 +723,145 @@ def get_all_leads(db: Session = Depends(get_db)):
             "preferences": l.preferences or "",
             "status": l.status or "active",
             "matched_hotel_ids": l.matched_hotel_ids or [],
-            "customer_name": u.full_name if u else "Guest User",
-            "customer_phone": u.phone if u else "",
+            "customer_name": user.full_name if user else "Valued Guest",
+            "customer_phone": user.phone if user else "",
             "created_at": str(l.created_at) if l.created_at else ""
-        })
-    return result
+        }
+        for l in leads
+    ]
+
+@app.get("/api/leads/all", response_model=List[schemas.LeadResponse])
+def get_all_leads(
+    opt_user: Optional[dict] = Depends(get_optional_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Access controlled leads fetch:
+    - If hotel partner is calling: returns only leads matched to that hotel.
+    - If customer is calling: returns strictly their own leads.
+    - If admin: returns all leads.
+    """
+    if opt_user:
+        if opt_user.get("role") == "customer":
+            leads = db.query(models.Lead).filter(models.Lead.customer_id == opt_user["id"]).order_by(models.Lead.id.desc()).all()
+        elif opt_user.get("role") == "hotel":
+            hotel_id = int(opt_user["id"])
+            leads = db.query(models.Lead).order_by(models.Lead.id.desc()).all()
+            leads = [l for l in leads if hotel_id in (l.matched_hotel_ids or [])]
+        else:
+            leads = db.query(models.Lead).order_by(models.Lead.id.desc()).all()
+    else:
+        leads = db.query(models.Lead).order_by(models.Lead.id.desc()).all()
+
+    users = {u.id: u for u in db.query(models.User).all()}
+    return [
+        {
+            "id": l.id,
+            "customer_id": l.customer_id,
+            "destination": l.destination,
+            "check_in": l.check_in,
+            "check_out": l.check_out,
+            "guests": l.guests,
+            "room_type": l.room_type,
+            "budget": l.budget,
+            "purpose": l.purpose or "Leisure",
+            "preferences": l.preferences or "",
+            "status": l.status or "active",
+            "matched_hotel_ids": l.matched_hotel_ids or [],
+            "customer_name": users.get(l.customer_id).full_name if users.get(l.customer_id) else "Valued Guest",
+            "customer_phone": users.get(l.customer_id).phone if users.get(l.customer_id) else "",
+            "created_at": str(l.created_at) if l.created_at else ""
+        }
+        for l in leads
+    ]
+
+@app.get("/api/leads/{lead_id}", response_model=schemas.LeadResponse)
+def get_lead_by_id(
+    lead_id: int, 
+    current_user: dict = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
+    """Retrieve specific lead with access authorization check."""
+    lead = db.query(models.Lead).filter(models.Lead.id == lead_id).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+        
+    if current_user["role"] == "customer" and lead.customer_id != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Access denied: You do not have permission to view this trip.")
+        
+    user = db.query(models.User).filter(models.User.id == lead.customer_id).first()
+    return {
+        "id": lead.id,
+        "customer_id": lead.customer_id,
+        "destination": lead.destination,
+        "check_in": lead.check_in,
+        "check_out": lead.check_out,
+        "guests": lead.guests,
+        "room_type": lead.room_type,
+        "budget": lead.budget,
+        "purpose": lead.purpose or "Leisure",
+        "preferences": lead.preferences or "",
+        "status": lead.status or "active",
+        "matched_hotel_ids": lead.matched_hotel_ids or [],
+        "customer_name": user.full_name if user else "Valued Guest",
+        "customer_phone": user.phone if user else "",
+        "created_at": str(lead.created_at) if lead.created_at else ""
+    }
 
 class LeadDateUpdate(BaseModel):
     check_in: str
     check_out: str
 
 @app.put("/api/leads/{lead_id}/dates")
-def update_lead_dates(lead_id: int, dates: LeadDateUpdate, db: Session = Depends(get_db)):
+def update_lead_dates(
+    lead_id: int, 
+    dates: LeadDateUpdate, 
+    current_user: dict = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
+    """Update trip dates. Validates caller is the owner."""
     lead = db.query(models.Lead).filter(models.Lead.id == lead_id).first()
     if not lead:
         raise HTTPException(status_code=404, detail="Lead not found")
+        
+    if current_user["role"] == "customer" and lead.customer_id != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Forbidden: You cannot modify another user's trip.")
+        
     lead.check_in = dates.check_in
     lead.check_out = dates.check_out
     db.commit()
     db.refresh(lead)
     return lead
 
+
+# =====================================================================
+# QUOTES & OFFERS ENDPOINTS
+# =====================================================================
+
+@app.get("/api/quotes/my", response_model=List[schemas.QuoteResponse])
+def get_my_quotes(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Return quotes isolated strictly to the authenticated caller."""
+    if current_user["role"] == "customer":
+        user_lead_ids = [l.id for l in db.query(models.Lead.id).filter(models.Lead.customer_id == current_user["id"]).all()]
+        if not user_lead_ids:
+            return []
+        return db.query(models.Quote).filter(models.Quote.lead_id.in_(user_lead_ids)).all()
+    elif current_user["role"] == "hotel":
+        return db.query(models.Quote).filter(models.Quote.hotel_id == current_user["id"]).all()
+    else:
+        return db.query(models.Quote).all()
+
 @app.get("/api/quotes/all", response_model=List[schemas.QuoteResponse])
-def get_all_quotes(db: Session = Depends(get_db)):
+def get_all_quotes(
+    opt_user: Optional[dict] = Depends(get_optional_user),
+    db: Session = Depends(get_db)
+):
+    if opt_user and opt_user.get("role") == "customer":
+        user_lead_ids = [l.id for l in db.query(models.Lead.id).filter(models.Lead.customer_id == opt_user["id"]).all()]
+        if not user_lead_ids:
+            return []
+        return db.query(models.Quote).filter(models.Quote.lead_id.in_(user_lead_ids)).all()
     return db.query(models.Quote).all()
-
-@app.get("/api/bookings/all", response_model=List[schemas.BookingResponse])
-def get_all_bookings(db: Session = Depends(get_db)):
-    return db.query(models.Booking).all()
-
-@app.get("/api/wallets/hotel/{hotel_id}", response_model=schemas.WalletResponse)
-def get_wallet(hotel_id: int, db: Session = Depends(get_db)):
-    wallet = db.query(models.Wallet).filter(models.Wallet.hotel_id == hotel_id).first()
-    if not wallet:
-        wallet = models.Wallet(hotel_id=hotel_id, balance=100)
-        db.add(wallet)
-        db.commit()
-        db.refresh(wallet)
-    return wallet
-
-@app.post("/api/leads/unlock")
-def unlock_lead(req: schemas.LeadUnlockCreate, db: Session = Depends(get_db)):
-    wallet = db.query(models.Wallet).filter(models.Wallet.hotel_id == req.hotel_id).first()
-    if not wallet:
-        wallet = models.Wallet(hotel_id=req.hotel_id, balance=100)
-        db.add(wallet)
-    
-    existing_unlock = db.query(models.LeadUnlock).filter(
-        models.LeadUnlock.lead_id == req.lead_id,
-        models.LeadUnlock.hotel_id == req.hotel_id
-    ).first()
-
-    if not existing_unlock:
-        # Free unlock for initial chat & negotiation phase (0 credits)
-        unlock = models.LeadUnlock(
-            lead_id=req.lead_id, 
-            hotel_id=req.hotel_id, 
-            credits_spent=0, 
-            unlocked_at=datetime.utcnow().isoformat()
-        )
-        db.add(unlock)
-        db.commit()
-    
-    return {"status": "success", "balance": wallet.balance, "commission_mode": False}
-
-@app.get("/api/wallets/hotel/{hotel_id}/transactions")
-def get_transactions(hotel_id: int, db: Session = Depends(get_db)):
-    txs = db.query(models.WalletTransaction).filter(models.WalletTransaction.hotel_id == hotel_id).order_by(models.WalletTransaction.id.desc()).all()
-    return txs
-
-@app.get("/api/admin/transactions")
-def get_all_transactions(db: Session = Depends(get_db)):
-    txs = db.query(models.WalletTransaction).order_by(models.WalletTransaction.id.desc()).all()
-    results = []
-    for tx in txs:
-        hotel = db.query(models.Hotel).filter(models.Hotel.id == tx.hotel_id).first()
-        wallet = db.query(models.Wallet).filter(models.Wallet.hotel_id == tx.hotel_id).first()
-        results.append({
-            "id": tx.id,
-            "hotel_id": tx.hotel_id,
-            "hotel_name": hotel.name if hotel else f"Hotel #{tx.hotel_id}",
-            "amount": tx.amount,
-            "description": tx.description,
-            "created_at": tx.created_at,
-            "current_balance": wallet.balance if wallet else 0
-        })
-    return results
-
-@app.get("/api/leads/unlocked/{hotel_id}")
-def get_unlocked_leads(hotel_id: int, db: Session = Depends(get_db)):
-    unlocks = db.query(models.LeadUnlock).filter(models.LeadUnlock.hotel_id == hotel_id).all()
-    return [u.lead_id for u in unlocks]
 
 @app.post("/api/quotes", response_model=schemas.QuoteResponse)
 def create_quote(quote: schemas.QuoteCreate, db: Session = Depends(get_db)):
@@ -476,22 +873,18 @@ def create_quote(quote: schemas.QuoteCreate, db: Session = Depends(get_db)):
     lead = db.query(models.Lead).filter(models.Lead.id == quote.lead_id).first()
     dest = lead.destination if lead else "Unknown"
     
-    # Check if this hotel has already paid credits for this lead
     existing_unlock = db.query(models.LeadUnlock).filter(
         models.LeadUnlock.lead_id == quote.lead_id,
         models.LeadUnlock.hotel_id == quote.hotel_id
     ).first()
 
-    # OPTION A: If credits have not yet been charged for this lead
     if not existing_unlock or not existing_unlock.credits_spent or existing_unlock.credits_spent == 0:
         if wallet.balance >= 10:
-            # Hotel has credits -> spend 10 credits -> 0% commission on booking!
             wallet.balance -= 10
             credits_spent = 10
             desc = f"Quotation issued for Lead #{quote.lead_id} ({dest}) (-10 credits, 0% commission on booking)"
             tx_type = "QUOTE_FEE"
         else:
-            # Hotel has 0 credits -> 10% commission mode applied on customer payment!
             credits_spent = 0
             desc = f"Quotation issued for Lead #{quote.lead_id} ({dest}) (Zero credits: 10% commission applies on booking)"
             tx_type = "COMMISSION_LEAD"
@@ -534,12 +927,24 @@ def counter_quote(quote_id: int, counter: schemas.QuoteCounter, db: Session = De
     db.refresh(quote)
     return quote
 
+
+# =====================================================================
+# BOOKINGS ENDPOINTS (STRICT USER ISOLATION)
+# =====================================================================
+
 @app.post("/api/bookings", response_model=schemas.BookingResponse)
-def create_booking(booking: schemas.BookingCreate, db: Session = Depends(get_db)):
-    qr = f"BK-{booking.hotel_id}-{booking.customer_id}-{datetime.utcnow().timestamp()}"
+def create_booking(
+    booking: schemas.BookingCreate, 
+    opt_user: Optional[dict] = Depends(get_optional_user),
+    db: Session = Depends(get_db)
+):
+    """Create a booking. Enforces customer_id from authenticated token."""
+    effective_customer_id = opt_user["id"] if (opt_user and opt_user.get("id")) else booking.customer_id
+    qr = f"BK-{booking.hotel_id}-{effective_customer_id}-{int(datetime.utcnow().timestamp())}"
     lead = db.query(models.Lead).filter(models.Lead.id == booking.lead_id).first()
     
     booking_dict = booking.dict()
+    booking_dict["customer_id"] = effective_customer_id
     if not booking_dict.get("check_in") and lead:
         booking_dict["check_in"] = lead.check_in
     if not booking_dict.get("check_out") and lead:
@@ -550,24 +955,22 @@ def create_booking(booking: schemas.BookingCreate, db: Session = Depends(get_db)
     new_booking = models.Booking(**booking_dict, qr_code=qr, created_at=datetime.utcnow().isoformat())
     db.add(new_booking)
     
-    db.query(models.Quote).filter(models.Quote.lead_id == booking.lead_id, models.Quote.hotel_id == booking.hotel_id).update({"status": "accepted"})
-    db.query(models.Quote).filter(models.Quote.lead_id == booking.lead_id, models.Quote.hotel_id != booking.hotel_id).update({"status": "rejected"})
-    db.query(models.Lead).filter(models.Lead.id == booking.lead_id).update({"status": "won"})
+    if booking.lead_id:
+        db.query(models.Quote).filter(models.Quote.lead_id == booking.lead_id, models.Quote.hotel_id == booking.hotel_id).update({"status": "accepted"})
+        db.query(models.Quote).filter(models.Quote.lead_id == booking.lead_id, models.Quote.hotel_id != booking.hotel_id).update({"status": "rejected"})
+        db.query(models.Lead).filter(models.Lead.id == booking.lead_id).update({"status": "won"})
     
-    # OPTION A: Check commission eligibility
     unlock = db.query(models.LeadUnlock).filter(
         models.LeadUnlock.lead_id == booking.lead_id, 
         models.LeadUnlock.hotel_id == booking.hotel_id
     ).first()
     
     if unlock and unlock.credits_spent and unlock.credits_spent >= 10:
-        # Hotel spent credits -> 0% commission! Hotel gets 100% of customer pay.
         commission_amount = 0
         payout_amount = booking.total_price
         tx_desc = f"Booking confirmed! Full payout of ₹{payout_amount:,} (0% commission - Paid with 10 credits)"
         tx_type = "BOOKING_PAYOUT"
     else:
-        # Hotel had 0 credits -> 10% commission applied on customer payment!
         commission_amount = int(booking.total_price * 0.10)
         payout_amount = booking.total_price - commission_amount
         tx_desc = f"Booking confirmed! 10% Commission fee ₹{commission_amount:,} deducted from customer payment ₹{booking.total_price:,}. Net Hotel Payout: ₹{payout_amount:,}"
@@ -576,7 +979,6 @@ def create_booking(booking: schemas.BookingCreate, db: Session = Depends(get_db)
     new_booking.commission_amount = commission_amount
     new_booking.payout_amount = payout_amount
 
-    # Record transaction log (amount=0 credits so credit wallet balance is not corrupted by rupee amounts)
     commission_tx = models.WalletTransaction(
         hotel_id=booking.hotel_id,
         amount=0,
@@ -589,6 +991,66 @@ def create_booking(booking: schemas.BookingCreate, db: Session = Depends(get_db)
     db.commit()
     db.refresh(new_booking)
     return new_booking
+
+@app.get("/api/customer/bookings", response_model=List[schemas.BookingResponse])
+@app.get("/api/bookings/my", response_model=List[schemas.BookingResponse])
+def get_customer_bookings(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    """STRICT PRIVACY: Return ONLY the bookings belonging to the authenticated customer."""
+    return db.query(models.Booking).filter(
+        models.Booking.customer_id == current_user["id"]
+    ).order_by(models.Booking.id.desc()).all()
+
+@app.get("/api/bookings/all", response_model=List[schemas.BookingResponse])
+def get_all_bookings(
+    opt_user: Optional[dict] = Depends(get_optional_user),
+    db: Session = Depends(get_db)
+):
+    """Access controlled bookings query."""
+    if opt_user:
+        if opt_user.get("role") == "customer":
+            return db.query(models.Booking).filter(models.Booking.customer_id == opt_user["id"]).order_by(models.Booking.id.desc()).all()
+        elif opt_user.get("role") == "hotel":
+            return db.query(models.Booking).filter(models.Booking.hotel_id == opt_user["id"]).order_by(models.Booking.id.desc()).all()
+    return db.query(models.Booking).all()
+
+@app.get("/api/bookings/{booking_id}", response_model=schemas.BookingResponse)
+def get_booking_by_id(
+    booking_id: int, 
+    current_user: dict = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
+    """Retrieve booking by ID with ownership access validation."""
+    booking = db.query(models.Booking).filter(models.Booking.id == booking_id).first()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+        
+    if current_user["role"] == "customer" and booking.customer_id != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not have access to this booking.")
+    if current_user["role"] == "hotel" and booking.hotel_id != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Forbidden: You do not have access to this booking.")
+        
+    return booking
+
+@app.put("/api/bookings/{booking_id}/cancel")
+def cancel_booking(
+    booking_id: int, 
+    current_user: dict = Depends(get_current_user), 
+    db: Session = Depends(get_db)
+):
+    """Cancel booking with ownership verification."""
+    booking = db.query(models.Booking).filter(models.Booking.id == booking_id).first()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+        
+    if current_user["role"] == "customer" and booking.customer_id != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Forbidden: You cannot cancel another user's booking.")
+        
+    booking.status = "cancelled"
+    if booking.lead_id:
+        db.query(models.Lead).filter(models.Lead.id == booking.lead_id).update({"status": "cancelled"})
+    db.commit()
+    db.refresh(booking)
+    return {"success": True, "booking": booking}
 
 @app.post("/api/bookings/scan")
 def scan_booking(scan: schemas.BookingScan, db: Session = Depends(get_db)):
@@ -604,8 +1066,6 @@ def scan_booking(scan: schemas.BookingScan, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Booking is already checked-in")
     
     booking.status = "checked-in"
-    
-    # Award loyalty points for checking in
     user = db.query(models.User).filter(models.User.id == booking.customer_id).first()
     if user:
         user.loyalty_points = (user.loyalty_points or 0) + 100
@@ -638,17 +1098,101 @@ def checkout_booking(booking_id: int, db: Session = Depends(get_db)):
     db.refresh(booking)
     return {"success": True, "booking": booking}
 
-@app.put("/api/bookings/{booking_id}/cancel")
-def cancel_booking(booking_id: int, db: Session = Depends(get_db)):
-    booking = db.query(models.Booking).filter(models.Booking.id == booking_id).first()
-    if not booking:
-        raise HTTPException(status_code=404, detail="Booking not found")
-    booking.status = "cancelled"
-    if booking.lead_id:
-        db.query(models.Lead).filter(models.Lead.id == booking.lead_id).update({"status": "cancelled"})
+
+# =====================================================================
+# WALLETS, UNLOCKS & CREDITS ENDPOINTS
+# =====================================================================
+
+@app.get("/api/wallets/hotel/{hotel_id}", response_model=schemas.WalletResponse)
+def get_wallet(hotel_id: int, db: Session = Depends(get_db)):
+    wallet = db.query(models.Wallet).filter(models.Wallet.hotel_id == hotel_id).first()
+    if not wallet:
+        wallet = models.Wallet(hotel_id=hotel_id, balance=100)
+        db.add(wallet)
+        db.commit()
+        db.refresh(wallet)
+    return wallet
+
+@app.post("/api/leads/unlock")
+def unlock_lead(req: schemas.LeadUnlockCreate, db: Session = Depends(get_db)):
+    wallet = db.query(models.Wallet).filter(models.Wallet.hotel_id == req.hotel_id).first()
+    if not wallet:
+        wallet = models.Wallet(hotel_id=req.hotel_id, balance=100)
+        db.add(wallet)
+    
+    existing_unlock = db.query(models.LeadUnlock).filter(
+        models.LeadUnlock.lead_id == req.lead_id,
+        models.LeadUnlock.hotel_id == req.hotel_id
+    ).first()
+
+    if not existing_unlock:
+        unlock = models.LeadUnlock(
+            lead_id=req.lead_id, 
+            hotel_id=req.hotel_id, 
+            credits_spent=0, 
+            unlocked_at=datetime.utcnow().isoformat()
+        )
+        db.add(unlock)
+        db.commit()
+    
+    return {"status": "success", "balance": wallet.balance, "commission_mode": False}
+
+@app.get("/api/wallets/hotel/{hotel_id}/transactions")
+def get_transactions(hotel_id: int, db: Session = Depends(get_db)):
+    return db.query(models.WalletTransaction).filter(models.WalletTransaction.hotel_id == hotel_id).order_by(models.WalletTransaction.id.desc()).all()
+
+@app.get("/api/admin/transactions")
+def get_all_transactions(db: Session = Depends(get_db)):
+    txs = db.query(models.WalletTransaction).order_by(models.WalletTransaction.id.desc()).all()
+    results = []
+    for tx in txs:
+        hotel = db.query(models.Hotel).filter(models.Hotel.id == tx.hotel_id).first()
+        wallet = db.query(models.Wallet).filter(models.Wallet.hotel_id == tx.hotel_id).first()
+        results.append({
+            "id": tx.id,
+            "hotel_id": tx.hotel_id,
+            "hotel_name": hotel.name if hotel else f"Hotel #{tx.hotel_id}",
+            "amount": tx.amount,
+            "description": tx.description,
+            "created_at": tx.created_at,
+            "current_balance": wallet.balance if wallet else 0
+        })
+    return results
+
+@app.get("/api/leads/unlocked/{hotel_id}")
+def get_unlocked_leads(hotel_id: int, db: Session = Depends(get_db)):
+    unlocks = db.query(models.LeadUnlock).filter(models.LeadUnlock.hotel_id == hotel_id).all()
+    return [u.lead_id for u in unlocks]
+
+@app.post("/api/wallets/purchase")
+def purchase_credits(req: dict, db: Session = Depends(get_db)):
+    hotel_id = req.get("hotel_id")
+    amount = req.get("amount", 100)
+    package_name = req.get("package", "Credit Package")
+    if not hotel_id:
+        raise HTTPException(status_code=400, detail="hotel_id required")
+    
+    wallet = db.query(models.Wallet).filter(models.Wallet.hotel_id == hotel_id).first()
+    if not wallet:
+        wallet = models.Wallet(hotel_id=hotel_id, balance=100)
+        db.add(wallet)
+    
+    wallet.balance += amount
+    tx = models.WalletTransaction(
+        hotel_id=hotel_id,
+        amount=amount,
+        description=f"Purchased {package_name} (+{amount} credits)",
+        transaction_type="CREDIT_PURCHASE",
+        created_at=datetime.utcnow().isoformat()
+    )
+    db.add(tx)
     db.commit()
-    db.refresh(booking)
-    return {"success": True, "booking": booking}
+    return {"status": "success", "balance": wallet.balance}
+
+
+# =====================================================================
+# HOTEL PROPERTY & ROOM MANAGEMENT ENDPOINTS
+# =====================================================================
 
 class HotelUpdate(BaseModel):
     name: Optional[str] = None
@@ -723,6 +1267,10 @@ def delete_room(room_id: int, db: Session = Depends(get_db)):
     return {"message": "Room deleted successfully", "id": room_id}
 
 
+# =====================================================================
+# MESSAGING & WEBSOCKET REAL-TIME CHAT
+# =====================================================================
+
 @app.post("/api/messages", response_model=schemas.MessageResponse)
 def create_message(msg: schemas.MessageCreate, db: Session = Depends(get_db)):
     new_msg = models.Message(**msg.dict(), created_at=datetime.utcnow().isoformat())
@@ -732,8 +1280,18 @@ def create_message(msg: schemas.MessageCreate, db: Session = Depends(get_db)):
     return new_msg
 
 @app.get("/api/messages/{lead_id}/{hotel_id}", response_model=List[schemas.MessageResponse])
-def get_messages(lead_id: int, hotel_id: int, db: Session = Depends(get_db)):
-    # We keep the GET messages endpoint for initial load
+def get_messages(
+    lead_id: int, 
+    hotel_id: int, 
+    opt_user: Optional[dict] = Depends(get_optional_user),
+    db: Session = Depends(get_db)
+):
+    """Retrieve chat history with access validation."""
+    if opt_user and opt_user.get("role") == "customer":
+        lead = db.query(models.Lead).filter(models.Lead.id == lead_id).first()
+        if lead and lead.customer_id != opt_user["id"]:
+            raise HTTPException(status_code=403, detail="Forbidden: You cannot view messages for another customer's lead.")
+            
     msgs = db.query(models.Message).filter(
         models.Message.lead_id == lead_id, 
         models.Message.hotel_id == hotel_id
@@ -745,15 +1303,16 @@ def get_recent_messages(
     hotel_id: Optional[int] = None, 
     customer_id: Optional[int] = None, 
     since: Optional[str] = None, 
+    opt_user: Optional[dict] = Depends(get_optional_user),
     db: Session = Depends(get_db)
 ):
     query = db.query(models.Message)
+    effective_customer_id = opt_user["id"] if (opt_user and opt_user.get("role") == "customer") else customer_id
+    
     if hotel_id is not None:
         query = query.filter(models.Message.hotel_id == hotel_id)
-    elif customer_id is not None:
-        customer_leads = db.query(models.Lead.id).filter(
-            (models.Lead.customer_id == customer_id) | (models.Lead.customer_id == None) | (models.Lead.customer_id == 1)
-        ).all()
+    elif effective_customer_id is not None:
+        customer_leads = db.query(models.Lead.id).filter(models.Lead.customer_id == effective_customer_id).all()
         lead_ids = [l[0] for l in customer_leads]
         if not lead_ids:
             return []
@@ -764,7 +1323,6 @@ def get_recent_messages(
         
     return query.order_by(models.Message.id.desc()).limit(30).all()
 
-# --- WebSocket Chat ---
 class ConnectionManager:
     def __init__(self):
         self.active_connections = {}
@@ -787,7 +1345,7 @@ class ConnectionManager:
             for connection in self.active_connections[key]:
                 try:
                     await connection.send_json(message)
-                except:
+                except Exception:
                     pass
 
 manager = ConnectionManager()
@@ -821,17 +1379,26 @@ async def websocket_endpoint(websocket: WebSocket, lead_id: int, hotel_id: int, 
     except WebSocketDisconnect:
         manager.disconnect(websocket, lead_id, hotel_id)
 
-# --- Reviews ---
+
+# =====================================================================
+# REVIEWS & RATINGS ENDPOINTS
+# =====================================================================
+
 @app.post("/api/reviews", response_model=schemas.ReviewResponse)
-def create_review(review: schemas.ReviewCreate, db: Session = Depends(get_db)):
+def create_review(
+    review: schemas.ReviewCreate, 
+    opt_user: Optional[dict] = Depends(get_optional_user),
+    db: Session = Depends(get_db)
+):
+    effective_customer_id = opt_user["id"] if (opt_user and opt_user.get("id")) else review.customer_id
     existing = db.query(models.Review).filter(models.Review.booking_id == review.booking_id).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Booking already reviewed")
+        raise HTTPException(status_code=400, detail="This stay has already been reviewed")
     
-    new_rev = models.Review(**review.dict(), created_at=datetime.utcnow().isoformat())
+    rev_data = review.dict()
+    rev_data["customer_id"] = effective_customer_id
+    new_rev = models.Review(**rev_data, created_at=datetime.utcnow().isoformat())
     db.add(new_rev)
-    
-    # Update booking rating internally if needed, or just rely on reviews table
     db.commit()
     db.refresh(new_rev)
     return new_rev
@@ -844,31 +1411,6 @@ def get_hotel_reviews(hotel_id: int, db: Session = Depends(get_db)):
 def get_all_reviews(db: Session = Depends(get_db)):
     return db.query(models.Review).all()
 
-@app.post("/api/wallets/purchase")
-def purchase_credits(req: dict, db: Session = Depends(get_db)):
-    hotel_id = req.get("hotel_id")
-    amount = req.get("amount", 100)
-    package_name = req.get("package", "Credit Package")
-    if not hotel_id:
-        raise HTTPException(status_code=400, detail="hotel_id required")
-    
-    wallet = db.query(models.Wallet).filter(models.Wallet.hotel_id == hotel_id).first()
-    if not wallet:
-        wallet = models.Wallet(hotel_id=hotel_id, balance=100)
-        db.add(wallet)
-    
-    wallet.balance += amount
-    tx = models.WalletTransaction(
-        hotel_id=hotel_id,
-        amount=amount,
-        description=f"Purchased {package_name} (+{amount} credits)",
-        transaction_type="CREDIT_PURCHASE",
-        created_at=datetime.utcnow().isoformat()
-    )
-    db.add(tx)
-    db.commit()
-    return {"status": "success", "balance": wallet.balance}
-
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

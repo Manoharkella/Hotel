@@ -5,7 +5,7 @@ import { useApp } from '../../context/AppContext';
 import { useLanguage } from '../../context/LanguageContext';
 import NotificationDropdown from '../../components/NotificationDropdown';
 import HotelLogo from '../../components/HotelLogo';
-import { Compass, Search, Briefcase, Heart, Gift, User as UserIcon, Globe, Menu, X, LogOut, ChevronDown } from 'lucide-react';
+import { Compass, Search, Briefcase, Heart, Gift, User as UserIcon, Globe, Menu, X, LogOut, ChevronDown, Crown, MapPin, ChevronRight, Home, Map, Info } from 'lucide-react';
 
 export default function CustomerLayout() {
   const { user, logout } = useAuth();
@@ -242,74 +242,175 @@ export default function CustomerLayout() {
       {/* Mobile Drawer Menu */}
       {menuOpen && (
         <>
-          <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 98 }} />
-          <div style={{ 
-            position: 'fixed', 
-            top: 68, 
-            left: 0, 
-            width: '100%', 
-            background: '#FFFFFF', 
-            padding: '24px 20px', 
-            borderBottom: '1px solid #E2E8F0', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: 16, 
-            zIndex: 99, 
-            boxShadow: '0 20px 40px rgba(0,0,0,0.15)' 
-          }}>
-            <Link to="/customer" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 700, fontSize: '1.05rem' }}>Home</Link>
-            <Link to="/customer/find" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 700, fontSize: '1.05rem' }}>Find a Stay</Link>
-            <a href="#how-it-works" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 700, fontSize: '1.05rem' }}>How It Works</a>
-            <a href="#about" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 700, fontSize: '1.05rem' }}>About</a>
-            
-            {/* Mobile Drawer Language Row */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0 6px', borderTop: '1px solid #E2E8F0' }}>
-              <span style={{ fontSize: '0.88rem', fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Globe size={16} color="#EA580C" /> Language
-              </span>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {Object.entries(LANG_NAMES).map(([code, name]) => (
-                  <button 
-                    key={code} 
-                    type="button"
-                    onClick={() => setLang(code)}
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: 8,
-                      border: `1px solid ${lang === code ? '#EA580C' : '#E2E8F0'}`,
-                      background: lang === code ? '#EA580C' : '#F8FAFC',
-                      color: lang === code ? '#FFFFFF' : '#334155',
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease'
-                    }}
+          <div className="mobile-drawer-overlay" onClick={() => setMenuOpen(false)} />
+          <div className="mobile-drawer-sheet">
+            <div>
+              {/* Header */}
+              <div className="mobile-drawer-header">
+                <div className="mobile-drawer-logo-group">
+                  <div className="mobile-drawer-logo-title">
+                    <HotelLogo size={24} />
+                    <span>Hotel<span style={{ color: '#EA580C' }}>IQ</span></span>
+                  </div>
+                  <span className="mobile-drawer-logo-sub">Smarter Stays, Better Journeys</span>
+                </div>
+
+                <button 
+                  type="button" 
+                  className="mobile-drawer-close-btn"
+                  onClick={() => setMenuOpen(false)}
+                  aria-label="Close menu"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* User Profile Card (if logged in) */}
+              {user ? (
+                <div 
+                  className="mobile-drawer-user-card"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    navigate('/customer/profile');
+                  }}
+                >
+                  <div className="mobile-drawer-avatar">
+                    {(user.name ? (user.name.toLowerCase() === 'arjun' ? 'Arjun Kumar' : user.name) : 'Arjun Kumar')[0]?.toUpperCase()}
+                  </div>
+                  <div className="mobile-drawer-user-info">
+                    <h3 className="mobile-drawer-user-name">
+                      {user.name ? (user.name.toLowerCase() === 'arjun' ? 'Arjun Kumar' : user.name) : 'Arjun Kumar'}
+                    </h3>
+                    <span className="mobile-drawer-badge">
+                      <Crown size={11} color="#B45309" />
+                      <span>Gold Member</span>
+                    </span>
+                    <div className="mobile-drawer-user-loc">
+                      <MapPin size={11} color="#64748B" />
+                      <span>{user.city || 'Hyderabad, India'}</span>
+                    </div>
+                  </div>
+                  <ChevronRight size={18} className="mobile-drawer-chevron" />
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                  <Link 
+                    to="/customer_login" 
+                    onClick={() => setMenuOpen(false)}
+                    className="btn btn-outline" 
+                    style={{ flex: 1, padding: '8px 12px', fontSize: '0.82rem', borderRadius: 10, justifyContent: 'center' }}
                   >
-                    {code.toUpperCase()}
-                  </button>
-                ))}
+                    Sign In
+                  </Link>
+                  <Link 
+                    to="/customer_login?mode=signup" 
+                    onClick={() => setMenuOpen(false)}
+                    className="btn btn-accent" 
+                    style={{ flex: 1, padding: '8px 12px', fontSize: '0.82rem', borderRadius: 10, justifyContent: 'center', background: '#EA580C' }}
+                  >
+                    Sign Up
+                  </Link>
+                </div>
+              )}
+
+              {/* Nav List */}
+              <div className="mobile-drawer-nav-list">
+                <Link 
+                  to="/customer" 
+                  onClick={() => setMenuOpen(false)}
+                  className={`mobile-drawer-nav-item ${isHomePage ? 'active' : ''}`}
+                >
+                  <div className="mobile-drawer-nav-left">
+                    <span className="mobile-drawer-nav-icon"><Home size={18} /></span>
+                    <span>Home</span>
+                  </div>
+                  <ChevronRight size={16} className="mobile-drawer-chevron" />
+                </Link>
+
+                <Link 
+                  to="/customer/find" 
+                  onClick={() => setMenuOpen(false)}
+                  className={`mobile-drawer-nav-item ${location.pathname.includes('/customer/find') ? 'active' : ''}`}
+                >
+                  <div className="mobile-drawer-nav-left">
+                    <span className="mobile-drawer-nav-icon"><Search size={18} /></span>
+                    <span>Find a Stay</span>
+                  </div>
+                  <ChevronRight size={16} className="mobile-drawer-chevron" />
+                </Link>
+
+                <a 
+                  href="/customer#how-it-works" 
+                  onClick={() => setMenuOpen(false)}
+                  className="mobile-drawer-nav-item"
+                >
+                  <div className="mobile-drawer-nav-left">
+                    <span className="mobile-drawer-nav-icon"><Map size={18} /></span>
+                    <span>How It Works</span>
+                  </div>
+                  <ChevronRight size={16} className="mobile-drawer-chevron" />
+                </a>
+
+                <a 
+                  href="/customer#about" 
+                  onClick={() => setMenuOpen(false)}
+                  className="mobile-drawer-nav-item"
+                >
+                  <div className="mobile-drawer-nav-left">
+                    <span className="mobile-drawer-nav-icon"><Info size={18} /></span>
+                    <span>About</span>
+                  </div>
+                  <ChevronRight size={16} className="mobile-drawer-chevron" />
+                </a>
+              </div>
+
+              {/* Mobile Drawer Language Row */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 6px 4px', marginTop: 10, borderTop: '1px solid #F1F5F9' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#64748B', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Globe size={14} color="#EA580C" /> Language
+                </span>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  {Object.entries(LANG_NAMES).map(([code, name]) => (
+                    <button 
+                      key={code} 
+                      type="button"
+                      onClick={() => setLang(code)}
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: 6,
+                        border: `1px solid ${lang === code ? '#EA580C' : '#E2E8F0'}`,
+                        background: lang === code ? '#EA580C' : '#F8FAFC',
+                        color: lang === code ? '#FFFFFF' : '#334155',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {code.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div style={{ paddingTop: 10, borderTop: '1px solid #E2E8F0', display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {!user ? (
-                <>
-                  <Link to="/customer_login" onClick={() => setMenuOpen(false)} className="btn btn-outline" style={{ width: '100%', textAlign: 'center', justifyContent: 'center' }}>
-                    Sign In
-                  </Link>
-                  <Link to="/customer_login?mode=signup" onClick={() => setMenuOpen(false)} className="btn btn-accent" style={{ width: '100%', textAlign: 'center', justifyContent: 'center', background: '#EA580C' }}>
-                    Sign Up
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <Link to="/customer/trips" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 600 }}>My Trips ({unreadQuotesCount})</Link>
-                  <Link to="/customer/wishlist" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 600 }}>Saved Hotels ({wishlist.length})</Link>
-                  <Link to="/customer/profile" onClick={() => setMenuOpen(false)} style={{ textDecoration: 'none', color: '#0F172A', fontWeight: 600 }}>My Profile</Link>
-                  <button onClick={handleLogout} className="btn btn-outline" style={{ width: '100%', marginTop: 8 }}>Logout</button>
-                </>
-              )}
-            </div>
+            {/* Bottom Logout Button */}
+            {user && (
+              <div className="mobile-drawer-bottom">
+                <button 
+                  type="button" 
+                  className="mobile-drawer-logout-btn"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    handleLogout();
+                  }}
+                >
+                  <LogOut size={16} />
+                  <span>Logout</span>
+                </button>
+              </div>
+            )}
+
           </div>
         </>
       )}

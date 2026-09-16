@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, JSON, Float, DateTime, func, CheckConstraint
+from sqlalchemy import Column, Integer, String, ForeignKey, JSON, Float, DateTime, func, CheckConstraint, UniqueConstraint
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -11,9 +11,13 @@ class User(Base):
     role = Column(String, default="customer") # 'customer' or 'admin'
     status = Column(String, default="ACTIVE")
     phone = Column(String, default="")
+    city = Column(String, default="")
+    preferences = Column(JSON, default={})
     loyalty_points = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    wishlist_items = relationship("Wishlist", back_populates="user", cascade="all, delete-orphan")
 
 class Hotel(Base):
     __tablename__ = "hotels"
@@ -21,12 +25,29 @@ class Hotel(Base):
     name = Column(String, index=True)
     location = Column(String, index=True)
     address = Column(String, default="")
+    city = Column(String, default="")
+    state = Column(String, default="")
+    country = Column(String, default="India")
+    pincode = Column(String, default="")
+    contact_number = Column(String, default="")
+    website = Column(String, default="")
+    description = Column(String, default="")
+    property_type = Column(String, default="Hotel") # Hotel, Resort, Boutique Hotel, Villa, Guest House
+    star_rating = Column(String, default="4")
+    total_rooms = Column(Integer, default=10)
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
     email = Column(String, unique=True, index=True)
     password_hash = Column(String) 
-    status = Column(String, default="PENDING")
-    photos = Column(JSON, default=[])
+    status = Column(String, default="PENDING") # DRAFT, PENDING, APPROVED, REJECTED, SUSPENDED
+    rejection_reason = Column(String, default="")
+    manager_name = Column(String, default="")
+    manager_phone = Column(String, default="")
+    manager_id = Column(Integer, nullable=True)
+    amenities = Column(JSON, default=[]) # Hotel facilities list
+    policies = Column(JSON, default={}) # Check-in/out, cancellation, pet, child, payment methods
+    documents = Column(JSON, default=[]) # Verification docs metadata
+    photos = Column(JSON, default=[]) # Categorized / list of photos
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
@@ -42,8 +63,11 @@ class Room(Base):
     price_per_night = Column(Integer)
     description = Column(String, nullable=True)
     max_guests = Column(Integer, default=2)
+    max_adults = Column(Integer, default=2)
+    max_children = Column(Integer, default=1)
     bed_type = Column(String, default="King Bed")
     room_size = Column(String, default="350 sq.ft")
+    bathroom_type = Column(String, default="Private Ensuite")
     amenities = Column(JSON, default=["Free Wi-Fi", "Breakfast Included", "AC"])
     breakfast_included = Column(String, default="Included")
     cancellation_policy = Column(String, default="Free cancellation up to 24 hours before check-in")
@@ -52,6 +76,7 @@ class Room(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     
     hotel = relationship("Hotel", back_populates="rooms")
+
 
 class Wallet(Base):
     __tablename__ = "wallets"
@@ -152,3 +177,28 @@ class Review(Base):
     rating = Column(Integer)
     comment = Column(String, default="")
     created_at = Column(String)
+
+class OTPVerification(Base):
+    __tablename__ = "otp_verifications"
+    id = Column(Integer, primary_key=True, index=True)
+    identifier = Column(String, index=True) # Email or Phone number
+    otp_code = Column(String, index=True)
+    purpose = Column(String, default="registration") # 'registration', 'forgot_password', 'login'
+    is_verified = Column(Integer, default=0) # 0 = unverified, 1 = verified
+    expires_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class Wishlist(Base):
+    __tablename__ = "wishlists"
+    __table_args__ = (
+        UniqueConstraint("customer_id", "hotel_id", name="uq_customer_hotel_wishlist"),
+    )
+    id = Column(Integer, primary_key=True, index=True)
+    customer_id = Column(Integer, ForeignKey("users.id"), index=True)
+    hotel_id = Column(Integer, ForeignKey("hotels.id"), index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    user = relationship("User", back_populates="wishlist_items")
+    hotel = relationship("Hotel")
+
+

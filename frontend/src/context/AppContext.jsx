@@ -25,43 +25,60 @@ export function AppProvider({ children }) {
   const [walletBalances, setWalletBalances] = useState({});
   const [reviews, setReviews] = useState([]);
 
-  // --- Wishlist State (per-user persistence) ---
-  const [wishlist, setWishlist] = useState(() => {
-    try {
-      const userKey = user?.email ? `hostiq_wishlist_${user.email}` : 'hostiq_wishlist_guest';
-      return JSON.parse(localStorage.getItem(userKey) || '[]');
-    } catch {
-      return [];
-    }
-  });
+  // --- Wishlist State (Backend Synchronized & Strict User Isolation) ---
+  const [wishlist, setWishlist] = useState([]);
 
-  // Sync wishlist when active user changes
+  // Sync wishlist from backend whenever authenticated customer changes
   useEffect(() => {
-    try {
-      const userKey = user?.email ? `hostiq_wishlist_${user.email}` : 'hostiq_wishlist_guest';
-      const saved = JSON.parse(localStorage.getItem(userKey) || '[]');
-      setWishlist(saved);
-    } catch {
+    let isMounted = true;
+    if (user && user.role === 'customer') {
+      api.getWishlist()
+        .then(items => {
+          if (isMounted) {
+            setWishlist(Array.isArray(items) ? items.map(id => id.toString()) : []);
+          }
+        })
+        .catch(() => {
+          if (isMounted) setWishlist([]);
+        });
+    } else {
       setWishlist([]);
     }
-  }, [user?.email]);
+    return () => { isMounted = false; };
+  }, [user?.id, user?.email]);
 
-  const toggleWishlist = useCallback((hotelId) => {
+  // Immediately wipe previous user state when user logs out or switches
+  useEffect(() => {
+    if (!user) {
+      setLeads([]);
+      setBookings([]);
+      setQuotes([]);
+      setWishlist([]);
+    }
+  }, [user?.id, user?.role]);
+
+  const toggleWishlist = useCallback(async (hotelId) => {
     if (!hotelId) return false;
     const strId = hotelId.toString();
-    let isAdded = false;
-    setWishlist(prev => {
-      const exists = prev.includes(strId);
-      isAdded = !exists;
-      const updated = exists ? prev.filter(id => id !== strId) : [...prev, strId];
-      try {
-        const userKey = user?.email ? `hostiq_wishlist_${user.email}` : 'hostiq_wishlist_guest';
-        localStorage.setItem(userKey, JSON.stringify(updated));
-      } catch (e) {}
-      return updated;
-    });
-    return isAdded;
-  }, [user?.email]);
+    const numId = parseInt(hotelId);
+    
+    // Optimistic update
+    const alreadyWishlisted = wishlist.includes(strId);
+    const newIsWishlisted = !alreadyWishlisted;
+    setWishlist(prev => alreadyWishlisted ? prev.filter(id => id !== strId) : [...prev, strId]);
+
+    try {
+      if (user && user.role === 'customer') {
+        const res = await api.toggleWishlist(numId);
+        if (res && res.wishlist) {
+          setWishlist(res.wishlist.map(id => id.toString()));
+        }
+      }
+    } catch (e) {
+      console.error("Failed to toggle wishlist on server:", e);
+    }
+    return newIsWishlisted;
+  }, [wishlist, user]);
 
   const isWishlisted = useCallback((hotelId) => {
     if (!hotelId) return false;
@@ -70,11 +87,31 @@ export function AppProvider({ children }) {
 
   const refreshData = useCallback(async () => {
     try {
+      let leadsPromise, quotesPromise, bookingsPromise;
+
+      if (user?.role === 'customer') {
+        leadsPromise = api.getCustomerLeads().catch(() => []);
+        quotesPromise = api.getMyQuotes().catch(() => []);
+        bookingsPromise = api.getCustomerBookings().catch(() => []);
+      } else if (user?.role === 'hotel') {
+        leadsPromise = api.getAllLeads().catch(() => []);
+        quotesPromise = api.getMyQuotes().catch(() => []);
+        bookingsPromise = api.getAllBookings().catch(() => []);
+      } else if (user?.role === 'admin') {
+        leadsPromise = api.getAllLeads().catch(() => []);
+        quotesPromise = api.getAllQuotes().catch(() => []);
+        bookingsPromise = api.getAllBookings().catch(() => []);
+      } else {
+        leadsPromise = Promise.resolve([]);
+        quotesPromise = Promise.resolve([]);
+        bookingsPromise = Promise.resolve([]);
+      }
+
       const [apiHotels, apiLeads, apiQuotes, apiBookings, apiAllTxs, apiAllReviews] = await Promise.all([
-        api.getAllHotels(),
-        api.getAllLeads(),
-        api.getAllQuotes(),
-        api.getAllBookings(),
+        api.getAllHotels().catch(() => []),
+        leadsPromise,
+        quotesPromise,
+        bookingsPromise,
         api.getAllTransactions().catch(() => []),
         api.getAllReviews().catch(() => [])
       ]);
@@ -142,10 +179,7 @@ export function AppProvider({ children }) {
         }
       ];
 
-      const mappedHotels = apiHotels.map((h, hotelIndex) => {
-        // Generate a unique price scale factor for each hotel based on its ID/index
-        const priceMultiplier = 0.85 + (((h.id * 17) % 75) / 100); // Varied multiplier between 0.85x and 1.60x
-
+      const mappedHotels = apiHotels.map((h) => {
         let roomsList = [];
         if (h.rooms && h.rooms.length > 0) {
           roomsList = h.rooms.map((r, idx) => {
@@ -170,17 +204,14 @@ export function AppProvider({ children }) {
             };
           });
         } else {
-          // Fallback only if property has 0 rooms configured
           roomsList = DEFAULT_ROOM_PRESETS.map((preset) => ({
             ...preset,
             id: `room-${h.id}-${preset.id}`
           }));
         }
 
-        // Compute average rating from bulk fetched reviews
         const hotelRevs = apiAllReviews.filter(r => r.hotel_id === h.id);
         const avg = hotelRevs.length > 0 ? (hotelRevs.reduce((sum, r) => sum + r.rating, 0) / hotelRevs.length).toFixed(1) : 4.8;
-        
         const minPrice = roomsList.length > 0 ? Math.min(...roomsList.map(r => r.price)) : 3000;
 
         return {
@@ -191,14 +222,14 @@ export function AppProvider({ children }) {
           latitude: h.latitude || 20.5937,
           longitude: h.longitude || 78.9629,
           category: 'Premium',
-          amenities: ['WiFi', 'Parking', 'Room Service', 'Swimming Pool', 'Spa'],
+          amenities: h.amenities || ['WiFi', 'Parking', 'Room Service', 'Swimming Pool', 'Spa'],
           photos: h.photos && h.photos.length > 0 ? h.photos : ['https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80'],
           rooms: roomsList,
           roomTypes: roomsList,
           minPrice: minPrice,
           rating: avg,
           reviewCount: hotelRevs.length,
-          description: 'A luxurious property ready to serve you.',
+          description: h.description || 'A luxurious property ready to serve you.',
           email: h.email
         };
       });
@@ -209,14 +240,14 @@ export function AppProvider({ children }) {
       setLeads(apiLeads.map(l => ({
         ...l,
         id: l.id.toString(),
-        customerId: l.customer_id?.toString() || '1',
+        customerId: l.customer_id?.toString() || '',
         checkIn: l.check_in,
         checkOut: l.check_out,
         roomType: l.room_type,
         matchedHotelIds: (l.matched_hotel_ids || []).map(id => id.toString()),
-        customerName: l.customer_name || 'Customer User',
-        customerEmail: l.customer_email || 'customer@hotel.com',
-        customerPhone: l.customer_phone || '+91 9000000000'
+        customerName: l.customer_name || 'Guest User',
+        customerPhone: l.customer_phone || '',
+        created_at: l.created_at
       })));
 
       setQuotes(apiQuotes.map(q => ({
@@ -256,26 +287,43 @@ export function AppProvider({ children }) {
     } catch (err) {
       console.error("Failed to load backend data", err);
     }
-  }, []);
+  }, [user?.id, user?.role]);
 
   const syncLiveUpdates = useCallback(async () => {
     try {
+      if (!user) return;
+
+      let leadsPromise, quotesPromise, bookingsPromise;
+
+      if (user.role === 'customer') {
+        leadsPromise = api.getCustomerLeads().catch(() => []);
+        quotesPromise = api.getMyQuotes().catch(() => []);
+        bookingsPromise = api.getCustomerBookings().catch(() => []);
+      } else if (user.role === 'hotel') {
+        leadsPromise = api.getAllLeads().catch(() => []);
+        quotesPromise = api.getMyQuotes().catch(() => []);
+        bookingsPromise = api.getAllBookings().catch(() => []);
+      } else {
+        leadsPromise = api.getAllLeads().catch(() => []);
+        quotesPromise = api.getAllQuotes().catch(() => []);
+        bookingsPromise = api.getAllBookings().catch(() => []);
+      }
+
       const [apiLeads, apiQuotes, apiBookings] = await Promise.all([
-        api.getAllLeads(),
-        api.getAllQuotes(),
-        api.getAllBookings()
+        leadsPromise,
+        quotesPromise,
+        bookingsPromise
       ]);
 
       setLeads(apiLeads.map(l => ({
         ...l,
         id: l.id.toString(),
-        customerId: l.customer_id?.toString() || '1',
+        customerId: l.customer_id?.toString() || '',
         checkIn: l.check_in,
         checkOut: l.check_out,
         roomType: l.room_type,
         matchedHotelIds: (l.matched_hotel_ids || []).map(id => id.toString()),
         customerName: l.customer_name || 'Guest User',
-        customerEmail: l.customer_email || 'customer@hotel.com',
         customerPhone: l.customer_phone || ''
       })));
 
@@ -303,26 +351,24 @@ export function AppProvider({ children }) {
     } catch (err) {
       // background sync catch
     }
-  }, []);
+  }, [user?.id, user?.role]);
 
   useEffect(() => {
     refreshData();
     
-    // Fast live sync for leads, quotes, and bookings every 3 seconds
     const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'visible' && user) {
         syncLiveUpdates();
       }
-    }, 3000);
+    }, 4000);
     return () => clearInterval(interval);
-  }, [refreshData, syncLiveUpdates]);
+  }, [refreshData, syncLiveUpdates, user]);
 
   const loadWallet = useCallback(async (hotelId) => {
     try {
       const res = await api.getWallet(hotelId);
       setWalletBalances(prev => ({...prev, [hotelId]: res.balance}));
       
-      // Fetch and set transactions
       const txs = await api.getTransactions(hotelId);
       const mappedTxs = txs.map(tx => ({
         id: tx.id.toString(),
@@ -374,8 +420,8 @@ export function AppProvider({ children }) {
         matchedHotelIds: (dbLead.matched_hotel_ids || (specificHotelId ? [specificHotelId] : [])).map(id => id.toString()),
         status: dbLead.status || 'active',
         createdAt: new Date().toISOString(),
-        customerName: dbLead.customer_name || req.customerName || 'Guest User',
-        customerPhone: dbLead.customer_phone || req.customerPhone || ''
+        customerName: dbLead.customer_name || req.customerName || user?.name || 'Guest User',
+        customerPhone: dbLead.customer_phone || req.customerPhone || user?.phone || ''
       };
       
       setLeads(prev => [newLead, ...prev.filter(l => l.id !== newLead.id)]);
@@ -389,7 +435,7 @@ export function AppProvider({ children }) {
 
   const updateLeadDates = useCallback(async (leadId, checkIn, checkOut) => {
     try {
-      const updated = await api.updateLeadDates(leadId, checkIn, checkOut);
+      await api.updateLeadDates(leadId, checkIn, checkOut);
       setLeads(prev => prev.map(l => l.id.toString() === leadId.toString() ? { ...l, checkIn, checkOut } : l));
       setTimeout(() => refreshData(), 300);
       return true;
@@ -451,9 +497,10 @@ export function AppProvider({ children }) {
 
   const acceptQuote = useCallback(async (quoteId, leadId, customerId, customerName, hotelId, hotelName, roomType, checkIn, checkOut, price) => {
     try {
+      const activeCustomerId = user?.id ? parseInt(user.id) : (parseInt(customerId) || 1);
       const b = await api.createBooking({
         lead_id: parseInt(leadId),
-        customer_id: parseInt(customerId) || 1,
+        customer_id: activeCustomerId,
         hotel_id: parseInt(hotelId),
         total_price: parseInt(price)
       });
@@ -461,7 +508,7 @@ export function AppProvider({ children }) {
       setQuotes(prev => prev.map(q => q.id === quoteId.toString() ? { ...q, status: 'accepted' } : q.leadId === leadId.toString() && q.id !== quoteId.toString() ? { ...q, status: 'rejected' } : q));
       setLeads(prev => prev.map(l => l.id === leadId.toString() ? { ...l, status: 'won' } : l));
       
-      const newBooking = { ...b, id: b.id.toString(), leadId: leadId.toString(), hotelId: hotelId.toString(), hotelName, customerId: customerId.toString(), customerName, roomType, checkIn, checkOut, qrCode: b.qr_code, status: b.status };
+      const newBooking = { ...b, id: b.id.toString(), leadId: leadId.toString(), hotelId: hotelId.toString(), hotelName, customerId: activeCustomerId.toString(), customerName: customerName || user?.name || 'Guest', roomType, checkIn, checkOut, qrCode: b.qr_code, status: b.status };
       setBookings(prev => [newBooking, ...prev]);
       if (hotelId) {
         loadWallet(hotelId);
@@ -472,7 +519,7 @@ export function AppProvider({ children }) {
       console.error(err);
       return null;
     }
-  }, [loadWallet, refreshData]);
+  }, [user, loadWallet, refreshData]);
 
   const getWalletBalance = useCallback((hotelId) => {
     return walletBalances[hotelId] !== undefined ? walletBalances[hotelId] : 0;
@@ -587,7 +634,7 @@ export function AppProvider({ children }) {
       const newReview = await api.createReview({
         booking_id: parseInt(bookingId),
         hotel_id: parseInt(booking.hotelId),
-        customer_id: parseInt(booking.customerId),
+        customer_id: parseInt(booking.customerId || (user?.id ? user.id : 1)),
         rating: rating,
         comment: comment
       });
@@ -599,7 +646,7 @@ export function AppProvider({ children }) {
       console.error(err);
       return false;
     }
-  }, [bookings]);
+  }, [bookings, user]);
 
   const purchaseCredits = useCallback(async (hotelId, amount, packageName) => {
     try {
@@ -612,6 +659,7 @@ export function AppProvider({ children }) {
       return false;
     }
   }, [loadWallet]);
+
   const openChat = useCallback((chatData) => {
     setGlobalChat(chatData);
   }, []);
@@ -677,7 +725,7 @@ export function AppProvider({ children }) {
       wishlist, toggleWishlist, isWishlisted,
       submitRequirement, updateLeadDates, unlockLead, isLeadUnlocked, sendQuote, acceptQuote, counterQuote,
       completeCheckIn, scanQrCheckIn, checkOutBooking, cancelBooking, updateHotelProperty, createHotelRoom, updateHotelRoom, deleteHotelRoom, rateBooking, purchaseCredits, getWalletBalance,
-      notifications, addNotification, markNotificationsRead, markSingleNotificationRead, clearNotifications, globalChat, openChat, closeChat,
+      addNotification, markNotificationsRead, markSingleNotificationRead, clearNotifications, globalChat, openChat, closeChat,
       addMockHotel, loadWallet, loadUnlocks, refreshData
     }}>
       {children}

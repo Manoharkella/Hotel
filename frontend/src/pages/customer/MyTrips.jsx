@@ -67,145 +67,28 @@ export default function MyTrips() {
     }
   };
 
-  // Real user bookings
+  // Real user bookings - strictly isolated to authenticated user
   const userBookings = useMemo(() => {
-    return bookings.filter(b => !user || !b.customerId || b.customerId?.toString() === user?.id?.toString() || user?.id === 1);
+    if (!user) return [];
+    return bookings.filter(b => b.customerId?.toString() === user?.id?.toString());
   }, [bookings, user]);
 
   const upcomingBookings = useMemo(() => {
-    const list = userBookings.filter(b => ['confirmed', 'checked-in'].includes(b.status));
-    if (list.length === 0) {
-      return [
-        {
-          id: '1',
-          hotelId: 1,
-          hotelName: 'Radisson Blu Resort Vizag',
-          location: 'Rushikonda Beach, Visakhapatnam',
-          checkIn: '2026-09-08',
-          checkOut: '2026-09-11',
-          guests: 1,
-          roomType: 'Standard Room',
-          totalPrice: 9000,
-          status: 'confirmed',
-          createdAt: '2026-09-08'
-        },
-        {
-          id: '2',
-          hotelId: 2,
-          hotelName: 'The St. Regis Mumbai',
-          location: 'Lower Parel, Mumbai',
-          checkIn: '2026-09-18',
-          checkOut: '2026-09-21',
-          guests: 2,
-          roomType: 'Deluxe King Room',
-          totalPrice: 45000,
-          status: 'confirmed',
-          createdAt: '2026-09-11'
-        },
-        {
-          id: '3',
-          hotelId: 3,
-          hotelName: 'Novotel Visakhapatnam',
-          location: 'Beach Road, Vizag',
-          checkIn: '2026-09-25',
-          checkOut: '2026-09-28',
-          guests: 2,
-          roomType: 'Ocean View Suite',
-          totalPrice: 24000,
-          status: 'confirmed',
-          createdAt: '2026-09-11'
-        },
-        {
-          id: '4',
-          hotelId: 4,
-          hotelName: 'Taj Falaknuma Palace',
-          location: 'Falaknuma, Hyderabad',
-          checkIn: '2026-10-02',
-          checkOut: '2026-10-05',
-          guests: 2,
-          roomType: 'Palace Room',
-          totalPrice: 135000,
-          status: 'confirmed',
-          createdAt: '2026-09-11'
-        }
-      ];
-    }
-    return list;
+    return userBookings.filter(b => ['confirmed', 'checked-in'].includes(b.status));
   }, [userBookings]);
 
   const pastBookings = useMemo(() => {
     return userBookings.filter(b => ['checked-out', 'cancelled'].includes(b.status));
   }, [userBookings]);
 
-  // Real user leads / stay requests with fallback to 4 luxury requests matching mockup
+  // Real user leads / stay requests strictly isolated
   const userLeads = useMemo(() => {
-    const real = leads.filter(l => {
-      const isCustomerMatch = !user || !l.customerId || l.customerId?.toString() === user?.id?.toString() || user?.id === 1 || l.customerId === '1';
+    if (!user) return [];
+    return leads.filter(l => {
+      const isCustomerMatch = l.customerId?.toString() === user?.id?.toString();
       const isActive = l.status === 'active' || !l.status;
       return isCustomerMatch && isActive;
     });
-
-    if (real.length === 0) {
-      return [
-        {
-          id: 4,
-          hotelId: 1,
-          hotelName: 'The St. Regis Mumbai',
-          destination: 'Mumbai',
-          location: 'Lower Parel, Mumbai',
-          checkIn: '2026-09-11',
-          checkOut: '2026-09-14',
-          guests: 2,
-          roomType: 'Ultra St. Regis Suite Room',
-          budget: 120360,
-          createdAt: '2026-09-11',
-          status: 'active'
-        },
-        {
-          id: 3,
-          hotelId: 2,
-          hotelName: 'Novotel Visakhapatnam',
-          destination: 'Vizag',
-          location: 'Beach Road, Vizag',
-          checkIn: '2026-09-10',
-          checkOut: '2026-09-13',
-          guests: 2,
-          roomType: 'Deluxe Room',
-          budget: 8000,
-          createdAt: '2026-09-11',
-          status: 'active'
-        },
-        {
-          id: 2,
-          hotelId: 3,
-          hotelName: 'Taj Grand Vizag',
-          destination: 'Vizag',
-          location: 'Rushikonda, Vizag',
-          checkIn: '2026-09-11',
-          checkOut: '2026-09-14',
-          guests: 2,
-          roomType: 'Deluxe Saver Room',
-          budget: 4779,
-          createdAt: '2026-09-11',
-          status: 'active'
-        },
-        {
-          id: 1,
-          hotelId: 4,
-          hotelName: 'ITC Grand Chola',
-          destination: 'Chennai',
-          location: 'Guindy, Chennai',
-          checkIn: '2026-09-15',
-          checkOut: '2026-09-18',
-          guests: 2,
-          roomType: 'Executive Club Room',
-          budget: 18500,
-          createdAt: '2026-09-11',
-          status: 'active'
-        }
-      ];
-    }
-    return real;
   }, [leads, user]);
 
   const tabParam = searchParams.get('tab');

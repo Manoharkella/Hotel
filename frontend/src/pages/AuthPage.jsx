@@ -4,7 +4,24 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import HotelLogo from '../components/HotelLogo';
-import { Eye, EyeOff, Lock, Mail, User, Building, MapPin } from 'lucide-react';
+import { 
+  Eye, 
+  EyeOff, 
+  Lock, 
+  Mail, 
+  User, 
+  Phone, 
+  CheckCircle2, 
+  ShieldCheck, 
+  ArrowRight, 
+  ArrowLeft, 
+  RotateCcw, 
+  Building, 
+  MapPin, 
+  Sparkles,
+  KeyRound,
+  AlertCircle
+} from 'lucide-react';
 
 export default function AuthPage({ initialRole }) {
   const { addToast } = useToast();
@@ -21,149 +38,525 @@ export default function AuthPage({ initialRole }) {
   };
 
   const [role, setRole] = useState(getRoleFromPath);
-  
-  // Check if ?mode=signup or ?signup=true in URL
+
+  // Authentication Mode: 'login' | 'register' | 'otp_verify' | 'register_success' | 'forgot_password'
   const queryParams = new URLSearchParams(routerLocation.search);
   const isSignupQuery = queryParams.get('mode') === 'signup' || queryParams.get('signup') === 'true';
-  const [isLogin, setIsLogin] = useState(!isSignupQuery);
+  const [authMode, setAuthMode] = useState(isSignupQuery ? 'register' : 'login');
 
   const [isLoading, setIsLoading] = useState(false);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [agreeTerms, setAgreeTerms] = useState(true);
   const [error, setError] = useState('');
 
-  // Hotel registration specific state
-  const [step, setStep] = useState(1);
-  const [location, setLocation] = useState('');
-  const [address, setAddress] = useState('');
-  const [rooms, setRooms] = useState([{ room_type: 'Single', quantity: 10, price_per_night: 2000 }]);
-  const [photos, setPhotos] = useState(['https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=2000&auto=format&fit=crop']);
+  // Login Form Fields
+  const [loginIdentifier, setLoginIdentifier] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
 
-  // Sync role and signup mode when URL route changes
+  // Customer Register Form Fields
+  const [regFullName, setRegFullName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPhone, setRegPhone] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
+  const [agreeTerms, setAgreeTerms] = useState(true);
+
+  // OTP Verification State
+  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
+  const otpRefs = [useRef(null), useRef(null), useRef(null), useRef(null), useRef(null), useRef(null)];
+  const [otpTargetIdentifier, setOtpTargetIdentifier] = useState('');
+  const [otpTimer, setOtpTimer] = useState(60);
+  const [canResendOtp, setCanResendOtp] = useState(false);
+  const [debugOtpCode, setDebugOtpCode] = useState('');
+  const timerRef = useRef(null);
+
+  // Forgot Password State
+  const [fpStep, setFpStep] = useState(1); // 1: enter identifier, 2: enter otp & new pwd, 3: success
+  const [fpIdentifier, setFpIdentifier] = useState('');
+  const [fpOtpDigits, setFpOtpDigits] = useState(['', '', '', '', '', '']);
+  const fpOtpRefs = [useRef(null), useRef(null), useRef(null), useRef(null), useRef(null), useRef(null)];
+  const [fpNewPassword, setFpNewPassword] = useState('');
+  const [fpConfirmPassword, setFpConfirmPassword] = useState('');
+  const [showFpPassword, setShowFpPassword] = useState(false);
+
+  // Hotel registration specific state
+  const [hotelStep, setHotelStep] = useState(1);
+  const [hotelName, setHotelName] = useState('');
+  const [hotelEmail, setHotelEmail] = useState('');
+  const [hotelPassword, setHotelPassword] = useState('');
+  const [hotelLocation, setHotelLocation] = useState('');
+  const [hotelAddress, setHotelAddress] = useState('');
+  const [rooms, setRooms] = useState([{ room_type: 'Single', quantity: 10, price_per_night: 2000 }]);
+  const [photos] = useState(['https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=2000&auto=format&fit=crop']);
+
+  // Success screen auto-redirect countdown
+  const [successCountdown, setSuccessCountdown] = useState(3);
+
+  // Synchronize on route changes
   useEffect(() => {
     const current = getRoleFromPath();
     setRole(current);
     const qp = new URLSearchParams(routerLocation.search);
     const wantsSignup = qp.get('mode') === 'signup' || qp.get('signup') === 'true';
-    setIsLogin(!wantsSignup);
+    setAuthMode(wantsSignup ? 'register' : 'login');
     setError('');
-    setStep(1);
+    setHotelStep(1);
   }, [routerLocation.pathname, routerLocation.search, initialRole]);
 
-  const handleAddRoom = () => setRooms([...rooms, { room_type: 'Deluxe', quantity: 5, price_per_night: 4000 }]);
-
-  // Social login mock handler for Google & Microsoft
-  const handleSocialLogin = (provider) => {
-    setIsLoading(true);
-    setTimeout(() => {
-      const mockEmail = `${provider.toLowerCase()}.user@example.com`;
-      const mockName = `${provider} Traveler`;
-      try {
-        const loggedUser = signup(mockName, mockEmail, 'password123', 'customer', {
-          id: Date.now(),
-          full_name: mockName,
-          email: mockEmail,
-          role: 'customer'
+  // Countdown timer for OTP resend
+  useEffect(() => {
+    if (authMode === 'otp_verify' || (authMode === 'forgot_password' && fpStep === 2)) {
+      setCanResendOtp(false);
+      setOtpTimer(60);
+      if (timerRef.current) clearInterval(timerRef.current);
+      timerRef.current = setInterval(() => {
+        setOtpTimer((prev) => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current);
+            setCanResendOtp(true);
+            return 0;
+          }
+          return prev - 1;
         });
-        addToast(`Signed in with ${provider} successfully!`, 'success');
-        navigate('/customer');
-      } catch (err) {
-        setError(`Failed to sign in with ${provider}.`);
-      } finally {
-        setIsLoading(false);
-      }
-    }, 600);
+      }, 1000);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [authMode, fpStep]);
+
+  // Auto-redirect timer on successful registration
+  useEffect(() => {
+    let interval = null;
+    if (authMode === 'register_success') {
+      setSuccessCountdown(3);
+      interval = setInterval(() => {
+        setSuccessCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            setAuthMode('login');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [authMode]);
+
+  // Handle OTP 6-box input changes
+  const handleOtpChange = (index, value, isFp = false) => {
+    const cleanVal = value.replace(/[^0-9]/g, '').slice(-1);
+    const currentDigits = isFp ? [...fpOtpDigits] : [...otpDigits];
+    const refs = isFp ? fpOtpRefs : otpRefs;
+
+    currentDigits[index] = cleanVal;
+    if (isFp) setFpOtpDigits(currentDigits);
+    else setOtpDigits(currentDigits);
+
+    // Auto-focus next box if digit typed
+    if (cleanVal && index < 5) {
+      refs[index + 1].current?.focus();
+    }
   };
 
-  const handleSubmit = async (e) => {
+  const handleOtpKeyDown = (index, e, isFp = false) => {
+    const currentDigits = isFp ? fpOtpDigits : otpDigits;
+    const refs = isFp ? fpOtpRefs : otpRefs;
+
+    if (e.key === 'Backspace' && !currentDigits[index] && index > 0) {
+      refs[index - 1].current?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e, isFp = false) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').replace(/[^0-9]/g, '').slice(0, 6);
+    if (pastedData) {
+      const newDigits = pastedData.split('').concat(Array(6).fill('')).slice(0, 6);
+      if (isFp) {
+        setFpOtpDigits(newDigits);
+        const nextIndex = Math.min(pastedData.length, 5);
+        fpOtpRefs[nextIndex].current?.focus();
+      } else {
+        setOtpDigits(newDigits);
+        const nextIndex = Math.min(pastedData.length, 5);
+        otpRefs[nextIndex].current?.focus();
+      }
+    }
+  };
+
+  // Quick fill debug OTP helper
+  const handleAutoFillOtp = (code, isFp = false) => {
+    if (!code) return;
+    const digits = code.slice(0, 6).split('');
+    if (isFp) {
+      setFpOtpDigits(digits);
+      fpOtpRefs[5].current?.focus();
+    } else {
+      setOtpDigits(digits);
+      otpRefs[5].current?.focus();
+    }
+  };
+
+  // -------------------------------------------------------------
+  // Customer Registration Flow Step 1: Validate Details & Send OTP
+  // -------------------------------------------------------------
+  const handleCustomerRegisterSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    
-    if (!isLogin && role === 'hotel' && step === 1) {
-      if (!name.trim() || !email.trim() || !password || !location.trim() || !address.trim()) { 
-        setError('Please fill in all basic property details.'); 
-        return; 
-      }
-      setStep(2);
+
+    const cleanName = regFullName.trim();
+    const cleanEmail = regEmail.trim();
+    const cleanPhone = regPhone.trim();
+
+    if (!cleanName) {
+      setError('Please enter your Full Name.');
+      return;
+    }
+    if (cleanName.length < 2) {
+      setError('Please enter a valid Full Name (at least 2 characters).');
       return;
     }
 
-    if (!email.trim()) { 
-      setError('Please enter your email address.'); 
-      return; 
+    if (!cleanEmail) {
+      setError('Please enter your Email Address.');
+      return;
     }
-    if (!password) { 
-      setError('Please enter your password.'); 
-      return; 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(cleanEmail)) {
+      setError('Please enter a valid email address (e.g. name@example.com).');
+      return;
     }
-    if (!isLogin && !name.trim() && role !== 'admin') { 
-      setError('Please enter your full name.'); 
-      return; 
+
+    if (!cleanPhone) {
+      setError('Please enter your Mobile Number.');
+      return;
     }
-    if (!isLogin && role === 'customer' && !agreeTerms) {
-      setError('Please agree to the Terms & Conditions and Privacy Policy.');
+    const phoneDigits = cleanPhone.replace(/[^0-9]/g, '');
+    if (phoneDigits.length < 10) {
+      setError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+
+    if (!regPassword) {
+      setError('Please create a password.');
+      return;
+    }
+    if (regPassword.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (!regConfirmPassword) {
+      setError('Please confirm your password.');
+      return;
+    }
+    if (regPassword !== regConfirmPassword) {
+      setError('Passwords do not match. Please verify your confirm password.');
+      return;
+    }
+
+    if (!agreeTerms) {
+      setError('Please agree to the Terms of Service & Privacy Policy.');
       return;
     }
 
     setIsLoading(true);
-    
+    try {
+      // Dispatch OTP to user's email / mobile number
+      const otpRes = await api.sendOtp({
+        email: cleanEmail,
+        phone: cleanPhone,
+        identifier: cleanEmail,
+        purpose: 'registration'
+      });
+
+      setOtpTargetIdentifier(cleanPhone ? `${cleanEmail} / ${cleanPhone}` : cleanEmail);
+      if (otpRes.otp_debug) {
+        setDebugOtpCode(otpRes.otp_debug);
+      }
+      addToast(`Verification code sent to ${cleanEmail} and ${cleanPhone}`, 'success');
+      setOtpDigits(['', '', '', '', '', '']);
+      setAuthMode('otp_verify');
+      setTimeout(() => otpRefs[0].current?.focus(), 150);
+    } catch (err) {
+      setError(err.message || 'Failed to send OTP. Please check your details.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // -------------------------------------------------------------
+  // Registration Flow Step 2: Verify OTP & Create Account / Start Onboarding
+  // -------------------------------------------------------------
+  const handleVerifyOtpAndCreateAccount = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    const fullOtp = otpDigits.join('').trim();
+    if (fullOtp.length !== 6) {
+      setError('Please enter the complete 6-digit verification code.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // 1. Verify OTP
+      await api.verifyOtp({
+        email: regEmail.trim(),
+        phone: regPhone.trim(),
+        identifier: regEmail.trim(),
+        otp: fullOtp,
+        purpose: 'registration'
+      });
+
+      if (role === 'hotel') {
+        // Hotel Partner Registration: Save credentials & route straight to Hotel Onboarding
+        const partnerData = {
+          name: regFullName.trim(),
+          email: regEmail.trim(),
+          phone: regPhone.trim(),
+          password: regPassword,
+          role: 'hotel'
+        };
+        sessionStorage.setItem('hotel_partner_signup', JSON.stringify(partnerData));
+        
+        // Initialize or update onboarding draft
+        const draft = {
+          manager_name: regFullName.trim(),
+          manager_phone: regPhone.trim(),
+          contact_number: regPhone.trim(),
+          email: regEmail.trim(),
+          password: regPassword
+        };
+        localStorage.setItem('hotel_onboarding_draft', JSON.stringify(draft));
+
+        addToast('Hotel Partner account verified! Starting property onboarding...', 'success');
+        navigate('/hotel/onboarding');
+        return;
+      }
+
+      // 2. Customer: Create User Account
+      await api.registerUser({
+        full_name: regFullName.trim(),
+        email: regEmail.trim(),
+        phone: regPhone.trim(),
+        password: regPassword,
+        role: 'customer'
+      });
+
+      // Pre-populate login identifier with the registered email
+      setLoginIdentifier(regEmail.trim());
+      addToast('Account created successfully!', 'success');
+      setAuthMode('register_success');
+    } catch (err) {
+      setError(err.message || 'Invalid verification code. Please check and try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Resend Registration OTP
+  const handleResendOtp = async () => {
+    if (!canResendOtp || isLoading) return;
+    setIsLoading(true);
+    setError('');
+    try {
+      const otpRes = await api.sendOtp({
+        email: regEmail.trim(),
+        phone: regPhone.trim(),
+        identifier: regEmail.trim(),
+        purpose: 'registration'
+      });
+      if (otpRes.otp_debug) {
+        setDebugOtpCode(otpRes.otp_debug);
+      }
+      addToast('A new 6-digit code has been sent!', 'info');
+      setOtpDigits(['', '', '', '', '', '']);
+      setCanResendOtp(false);
+      setOtpTimer(60);
+      otpRefs[0].current?.focus();
+    } catch (err) {
+      setError(err.message || 'Failed to resend OTP code.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // -------------------------------------------------------------
+  // Login Flow: Email OR Mobile Number + Password -> Redirect
+  // -------------------------------------------------------------
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    const identifier = loginIdentifier.trim();
+    if (!identifier) {
+      setError('Please enter your Email Address or Mobile Number.');
+      return;
+    }
+    if (!loginPassword) {
+      setError('Please enter your password.');
+      return;
+    }
+
+    setIsLoading(true);
     try {
       let loggedUser;
-      if (isLogin || role === 'admin') {
-        if (role === 'hotel') {
-          const hotelData = await api.loginHotel(email.trim(), password);
-          loggedUser = login(email.trim(), password, role, hotelData.user);
-          loggedUser.hotelId = hotelData.user.id.toString();
-          loggedUser.name = hotelData.user.name;
-        } else if (role === 'customer') {
-          const userData = await api.loginUser(email.trim(), password);
-          loggedUser = login(email.trim(), password, role, userData.user);
+      if (role === 'hotel') {
+        const hotelData = await api.loginHotel(identifier, loginPassword);
+        loggedUser = login(identifier, loginPassword, 'hotel', hotelData.user, hotelData.access_token);
+        loggedUser.hotelId = hotelData.user.id.toString();
+        loggedUser.name = hotelData.user.name;
+        
+        const hStatus = hotelData.user.status || 'PENDING';
+        if (hStatus === 'APPROVED') {
+          addToast(`Welcome back, ${loggedUser.name}!`, 'success');
+          navigate('/hotel');
+        } else if (hStatus === 'DRAFT') {
+          addToast('Resuming your hotel onboarding draft...', 'info');
+          navigate('/hotel/onboarding');
         } else {
-          const adminData = await api.loginAdmin(email.trim(), password);
-          loggedUser = login(email.trim(), password, role, adminData.user);
+          addToast(`Hotel Status: ${hStatus}`, 'info');
+          navigate('/hotel/status', {
+            state: {
+              hotelId: hotelData.user.id,
+              status: hStatus,
+              hotelName: hotelData.user.name,
+              rejection_reason: hotelData.user.rejection_reason
+            }
+          });
         }
+      } else if (role === 'admin') {
+        const adminData = await api.loginAdmin(identifier, loginPassword);
+        loggedUser = login(identifier, loginPassword, 'admin', adminData.user, adminData.access_token);
+        addToast('Admin authenticated successfully.', 'success');
+        navigate('/admin');
       } else {
-        if (role === 'hotel') {
-          await api.registerHotel({ 
-            name: name.trim(), 
-            location: location.trim(), 
-            address: address.trim(), 
-            email: email.trim(), 
-            password, 
-            photos, 
-            rooms 
-          });
-          addToast('Hotel registered successfully! Awaiting approval.', 'success');
-          setIsLogin(true);
-          setStep(1);
-          setIsLoading(false);
-          return; 
-        } else {
-          const newUser = await api.registerUser({ 
-            full_name: name.trim(), 
-            email: email.trim(), 
-            password, 
-            role 
-          });
-          loggedUser = signup(name.trim(), email.trim(), password, role, newUser);
-        }
+        // Customer login with Email or Mobile Number
+        const userData = await api.loginUser(identifier, loginPassword);
+        loggedUser = login(identifier, loginPassword, 'customer', userData.user, userData.access_token);
+        addToast(`Welcome back, ${loggedUser.name || 'Traveler'}!`, 'success');
+        // Redirect customer directly to User Dashboard
+        navigate('/customer');
       }
-      
-      if (loggedUser.role === 'customer') navigate('/customer');
-      else if (loggedUser.role === 'hotel') navigate('/hotel');
-      else navigate('/admin');
     } catch (err) {
-      setError(err.message || 'Invalid email or password. Please try again.');
+      setError(err.message || 'Invalid credentials. Please check your Email/Mobile and Password.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+
+  // -------------------------------------------------------------
+  // Forgot Password Flow
+  // -------------------------------------------------------------
+  const handleForgotPasswordRequest = async (e) => {
+    e.preventDefault();
+    setError('');
+    const id = fpIdentifier.trim();
+    if (!id) {
+      setError('Please enter your registered Email or Mobile Number.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await api.sendOtp({
+        identifier: id,
+        email: id.includes('@') ? id : undefined,
+        phone: !id.includes('@') ? id : undefined,
+        purpose: 'forgot_password'
+      });
+      if (res.otp_debug) {
+        setDebugOtpCode(res.otp_debug);
+      }
+      addToast('Reset OTP sent to your registered address.', 'success');
+      setFpStep(2);
+      setTimeout(() => fpOtpRefs[0].current?.focus(), 150);
+    } catch (err) {
+      setError(err.message || 'Could not send reset code. Please check your details.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPasswordReset = async (e) => {
+    e.preventDefault();
+    setError('');
+    const fullOtp = fpOtpDigits.join('').trim();
+    if (fullOtp.length !== 6) {
+      setError('Please enter the complete 6-digit OTP.');
+      return;
+    }
+    if (!fpNewPassword || fpNewPassword.length < 6) {
+      setError('New password must be at least 6 characters.');
+      return;
+    }
+    if (fpNewPassword !== fpConfirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await api.resetPassword({
+        identifier: fpIdentifier.trim(),
+        otp: fullOtp,
+        new_password: fpNewPassword
+      });
+      addToast('Password reset successfully! Please sign in.', 'success');
+      setLoginIdentifier(fpIdentifier.trim());
+      setLoginPassword('');
+      setAuthMode('login');
+      setFpStep(1);
+    } catch (err) {
+      setError(err.message || 'Failed to reset password. Please verify your OTP code.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Hotel Multi-step Registration
+  const handleHotelRegisterSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (hotelStep === 1) {
+      if (!hotelName.trim() || !hotelEmail.trim() || !hotelPassword || !hotelLocation.trim() || !hotelAddress.trim()) {
+        setError('Please fill in all basic property details.');
+        return;
+      }
+      setHotelStep(2);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await api.registerHotel({
+        name: hotelName.trim(),
+        location: hotelLocation.trim(),
+        address: hotelAddress.trim(),
+        email: hotelEmail.trim(),
+        password: hotelPassword,
+        photos,
+        rooms
+      });
+      addToast('Hotel registered successfully! Awaiting approval.', 'success');
+      setAuthMode('login');
+      setHotelStep(1);
+    } catch (err) {
+      setError(err.message || 'Failed to register hotel.');
     } finally {
       setIsLoading(false);
     }
   };
 
   // Banner Content based on Role & Auth Mode
-  const bannerImage = isLogin 
+  const bannerImage = authMode === 'login'
     ? 'https://images.unsplash.com/photo-1590490360182-c33d57733427?q=80&w=1200&auto=format&fit=crop'
     : 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=1200&auto=format&fit=crop';
 
@@ -181,48 +574,60 @@ export default function AuthPage({ initialRole }) {
           {/* Top Banner Text */}
           <div className="auth-banner-top">
             {role === 'customer' ? (
-              isLogin ? (
+              authMode === 'login' ? (
                 <>
                   <h2 className="auth-banner-heading">Good to<br />See You Again</h2>
-                  <p className="auth-banner-sub">Continue your journey with HotelIQ</p>
+                  <p className="auth-banner-sub">Continue your stay journey with HostIQ</p>
+                </>
+              ) : authMode === 'otp_verify' ? (
+                <>
+                  <h2 className="auth-banner-heading">Security<br />Verification</h2>
+                  <p className="auth-banner-sub">Protecting your bookings & traveler profile</p>
+                </>
+              ) : authMode === 'register_success' ? (
+                <>
+                  <h2 className="auth-banner-heading">You're All<br />Set!</h2>
+                  <p className="auth-banner-sub">Unlock exclusive hotel bids and savings</p>
                 </>
               ) : (
                 <>
-                  <h2 className="auth-banner-heading">Join HotelIQ</h2>
-                  <p className="auth-banner-sub">Be part of a smarter way to travel</p>
+                  <h2 className="auth-banner-heading">Join HostIQ</h2>
+                  <p className="auth-banner-sub">Smarter hotel bookings with live negotiation</p>
                 </>
               )
             ) : role === 'hotel' ? (
               <>
                 <h2 className="auth-banner-heading">Hotel Partner<br />Portal</h2>
-                <p className="auth-banner-sub">Receive guest leads and optimize occupancy</p>
+                <p className="auth-banner-sub">Receive guest leads and optimize room occupancy</p>
               </>
             ) : (
               <>
                 <h2 className="auth-banner-heading">Administrator<br />Command</h2>
-                <p className="auth-banner-sub">Secure platform governance & analytics</p>
+                <p className="auth-banner-sub">Platform governance, verification & intelligence</p>
               </>
             )}
           </div>
 
-          {/* Bottom Banner Quote or Taglines */}
+          {/* Bottom Banner Feature Highlights */}
           <div className="auth-banner-bottom">
             {role === 'customer' ? (
-              isLogin ? (
-                <div className="auth-banner-quote">
-                  "Better Stays<br />Create Brighter Journeys"
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.86rem', color: 'rgba(255,255,255,0.95)' }}>
+                  <ShieldCheck size={18} color="#EA580C" />
+                  <span>Instant verified registration</span>
                 </div>
-              ) : (
-                <div className="auth-banner-taglines">
-                  <span className="auth-banner-tagline-item">Explore.</span>
-                  <span className="auth-banner-tagline-item">Negotiate.</span>
-                  <span className="auth-banner-tagline-item">Book.</span>
-                  <span className="auth-banner-tagline-item">Experience More.</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.86rem', color: 'rgba(255,255,255,0.95)' }}>
+                  <Sparkles size={18} color="#EA580C" />
+                  <span>Direct price bidding with hotels</span>
                 </div>
-              )
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.86rem', color: 'rgba(255,255,255,0.95)' }}>
+                  <CheckCircle2 size={18} color="#EA580C" />
+                  <span>Zero spam, 100% verified properties</span>
+                </div>
+              </div>
             ) : (
               <div className="auth-banner-quote">
-                Empowering India's finest hospitality networks with live bidding intelligence.
+                Empowering India's finest hospitality networks with live traveler demand.
               </div>
             )}
           </div>
@@ -230,26 +635,68 @@ export default function AuthPage({ initialRole }) {
 
         {/* Right Form Panel */}
         <div className="auth-split-panel">
-          {/* Header with Logo, Title & Subtitle */}
+          {/* Header with Brand Logo, Title & Subtitle */}
           <div className="auth-form-header">
             <HotelLogo size="default" />
-            <h1 className="auth-form-title">
-              {role === 'customer' 
-                ? (isLogin ? 'Welcome Back' : 'Create an Account') 
-                : role === 'hotel' 
-                ? (isLogin ? 'Hotel Partner Sign In' : 'Register Your Hotel') 
-                : 'Administrator Sign In'}
-            </h1>
-            <p className="auth-form-subtitle">
-              {role === 'customer' 
-                ? (isLogin ? 'Sign in to explore stays and negotiate live rates' : 'Sign up to start your journey with HotelIQ') 
-                : role === 'hotel' 
-                ? (isLogin ? 'Access your leads, guest passes, and bookings' : 'List your property to receive live traveler booking requests') 
-                : 'Enter your administrator credentials to proceed'}
-            </p>
+
+            {role === 'customer' && authMode === 'login' && (
+              <>
+                <h1 className="auth-form-title">Customer Sign In</h1>
+                <p className="auth-form-subtitle">Enter your email or mobile number to access your dashboard</p>
+              </>
+            )}
+
+            {role === 'customer' && authMode === 'register' && (
+              <>
+                <h1 className="auth-form-title">Create an Account</h1>
+                <p className="auth-form-subtitle">Register to discover verified hotels and negotiate live rates</p>
+              </>
+            )}
+
+            {role === 'customer' && authMode === 'otp_verify' && (
+              <>
+                <h1 className="auth-form-title">Verify OTP</h1>
+                <p className="auth-form-subtitle">
+                  Enter the 6-digit verification code sent to <br />
+                  <strong style={{ color: '#0F172A' }}>{otpTargetIdentifier}</strong>
+                </p>
+              </>
+            )}
+
+            {role === 'customer' && authMode === 'register_success' && (
+              <>
+                <h1 className="auth-form-title" style={{ color: '#16A34A' }}>Registration Complete!</h1>
+                <p className="auth-form-subtitle">Your account is ready. Redirecting to Sign In...</p>
+              </>
+            )}
+
+            {role === 'customer' && authMode === 'forgot_password' && (
+              <>
+                <h1 className="auth-form-title">Reset Password</h1>
+                <p className="auth-form-subtitle">
+                  {fpStep === 1 ? 'Enter your registered email or mobile to get a reset code' : 'Enter OTP code and your new password'}
+                </p>
+              </>
+            )}
+
+            {role === 'hotel' && (
+              <>
+                <h1 className="auth-form-title">{authMode === 'login' ? 'Hotel Partner Sign In' : 'Register Your Hotel'}</h1>
+                <p className="auth-form-subtitle">
+                  {authMode === 'login' ? 'Access your guest leads and booking management' : 'List your hotel to start receiving direct traveler requests'}
+                </p>
+              </>
+            )}
+
+            {role === 'admin' && (
+              <>
+                <h1 className="auth-form-title">Administrator Portal</h1>
+                <p className="auth-form-subtitle">Sign in to manage platform users, hotels, and transactions</p>
+              </>
+            )}
           </div>
 
-          {/* Error message alert */}
+          {/* Error Message Alert */}
           {error && (
             <div style={{
               background: '#FEF2F2',
@@ -260,280 +707,578 @@ export default function AuthPage({ initialRole }) {
               fontSize: '0.82rem',
               marginBottom: 16,
               fontWeight: 500,
-              textAlign: 'center'
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8
             }}>
-              {error}
+              <AlertCircle size={16} style={{ flexShrink: 0 }} />
+              <span>{error}</span>
             </div>
           )}
 
-          {/* Form Content */}
-          <form onSubmit={handleSubmit}>
-            {/* Hotel Multi-step Registration Step 2: Room Inventory */}
-            {!isLogin && role === 'hotel' && step === 2 ? (
-              <div>
-                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 10px', color: '#0F172A' }}>Room Types</h3>
-                {rooms.map((r, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                    <select 
-                      className="auth-input-field" 
-                      style={{ flex: 2, padding: '9px 12px' }} 
-                      value={r.room_type} 
-                      onChange={e => { const newRooms = [...rooms]; newRooms[i].room_type = e.target.value; setRooms(newRooms); }}
-                    >
-                      <option value="Single">Single</option>
-                      <option value="Deluxe">Deluxe</option>
-                      <option value="Suite">Suite</option>
-                    </select>
-                    <input 
-                      className="auth-input-field" 
-                      type="number" 
-                      placeholder="Qty" 
-                      style={{ flex: 1, padding: '9px 12px' }} 
-                      value={r.quantity} 
-                      onChange={e => { const newRooms = [...rooms]; newRooms[i].quantity = Number(e.target.value); setRooms(newRooms); }} 
-                    />
-                    <input 
-                      className="auth-input-field" 
-                      type="number" 
-                      placeholder="₹ Rate" 
-                      style={{ flex: 1, padding: '9px 12px' }} 
-                      value={r.price_per_night} 
-                      onChange={e => { const newRooms = [...rooms]; newRooms[i].price_per_night = Number(e.target.value); setRooms(newRooms); }} 
-                    />
+          {/* ========================================================= */}
+          {/* 1. LOGIN VIEW (Customer, Hotel Partner, Admin)            */}
+          {/* ========================================================= */}
+          {authMode === 'login' && (
+            <form onSubmit={handleLoginSubmit}>
+              {/* Email / Mobile Number Input */}
+              <div className="auth-input-group">
+                <label className="auth-input-label">
+                  {role === 'admin' ? 'Admin Email' : 'Email Address or Mobile Number'}
+                </label>
+                <div className="auth-input-wrap">
+                  <div className="auth-input-icon">
+                    <User size={18} />
                   </div>
-                ))}
-                <button 
-                  type="button" 
-                  onClick={handleAddRoom}
-                  style={{
-                    background: 'none', border: '1px dashed #CBD5E1', borderRadius: 8, padding: '6px 12px',
-                    fontSize: '0.78rem', color: '#EA580C', fontWeight: 600, cursor: 'pointer', marginBottom: 14, width: '100%'
-                  }}
-                >
-                  + Add Another Room Type
-                </button>
-
-                <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-                  <button 
-                    type="button" 
-                    onClick={() => setStep(1)}
-                    style={{ flex: 1, padding: '12px', background: '#F1F5F9', border: 'none', borderRadius: 10, fontWeight: 700, cursor: 'pointer' }}
-                  >
-                    Back
-                  </button>
-                  <button 
-                    type="submit" 
-                    disabled={isLoading}
-                    className="auth-submit-btn" 
-                    style={{ flex: 2 }}
-                  >
-                    {isLoading ? 'Registering...' : 'Complete Registration'}
-                  </button>
+                  <input 
+                    type="text"
+                    className="auth-input-field"
+                    placeholder={role === 'hotel' ? 'manager@hotel.com or 9876543210' : role === 'admin' ? 'admin@gmail.com' : 'you@example.com or 9876543210'}
+                    value={loginIdentifier}
+                    onChange={(e) => { setLoginIdentifier(e.target.value); setError(''); }}
+                    autoComplete="username"
+                    required
+                  />
                 </div>
               </div>
-            ) : (
-              <>
-                {/* Full Name / Property Name (When creating account) */}
-                {!isLogin && (
-                  <div className="auth-input-group">
-                    <label className="auth-input-label">
-                      {role === 'hotel' ? 'Property Name' : 'Full Name'}
-                    </label>
-                    <div className="auth-input-wrap">
-                      <div className="auth-input-icon">
-                        {role === 'hotel' ? <Building size={18} /> : <User size={18} />}
-                      </div>
-                      <input 
-                        type="text"
-                        className="auth-input-field"
-                        placeholder={role === 'hotel' ? 'e.g. The Grand Palace Resort' : 'Enter your full name'}
-                        value={name}
-                        onChange={(e) => { setName(e.target.value); setError(''); }}
-                        required
-                      />
-                    </div>
-                  </div>
-                )}
 
-                {/* Hotel Location & Address (Sign up only) */}
-                {!isLogin && role === 'hotel' && (
-                  <>
-                    <div className="auth-input-group">
-                      <label className="auth-input-label">City / Destination</label>
-                      <div className="auth-input-wrap">
-                        <div className="auth-input-icon"><MapPin size={18} /></div>
-                        <input 
-                          type="text" 
-                          className="auth-input-field" 
-                          placeholder="e.g. Goa, India" 
-                          value={location} 
-                          onChange={(e) => setLocation(e.target.value)} 
-                          required 
-                        />
-                      </div>
-                    </div>
-                    <div className="auth-input-group">
-                      <label className="auth-input-label">Address</label>
-                      <input 
-                        type="text" 
-                        className="auth-input-field" 
-                        style={{ paddingLeft: 14 }}
-                        placeholder="e.g. 123 Beach Road, Candolim" 
-                        value={address} 
-                        onChange={(e) => setAddress(e.target.value)} 
-                        required 
-                      />
-                    </div>
-                  </>
-                )}
-
-                {/* Email Address */}
-                <div className="auth-input-group">
-                  <label className="auth-input-label">Email Address</label>
-                  <div className="auth-input-wrap">
-                    <div className="auth-input-icon">
-                      <Mail size={18} />
-                    </div>
-                    <input 
-                      type="email"
-                      className="auth-input-field"
-                      placeholder="you@example.com"
-                      value={email}
-                      onChange={(e) => { setEmail(e.target.value); setError(''); }}
-                      required
-                    />
-                  </div>
-                </div>
-
-                {/* Password */}
-                <div className="auth-input-group">
-                  <label className="auth-input-label">Password</label>
-                  <div className="auth-input-wrap">
-                    <div className="auth-input-icon">
-                      <Lock size={18} />
-                    </div>
-                    <input 
-                      type={showPassword ? 'text' : 'password'}
-                      className="auth-input-field"
-                      placeholder={isLogin ? 'Enter your password' : 'Create a password'}
-                      value={password}
-                      onChange={(e) => { setPassword(e.target.value); setError(''); }}
-                      required
-                    />
+              {/* Password Input */}
+              <div className="auth-input-group">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                  <label className="auth-input-label" style={{ margin: 0 }}>Password</label>
+                  {role !== 'admin' && (
                     <button 
                       type="button" 
-                      className="auth-toggle-pwd"
-                      onClick={() => setShowPassword(!showPassword)}
-                      title={showPassword ? 'Hide password' : 'Show password'}
+                      className="auth-forgot-link"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                      onClick={() => {
+                        setFpIdentifier(loginIdentifier);
+                        setFpStep(1);
+                        setAuthMode('forgot_password');
+                        setError('');
+                      }}
                     >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      Forgot Password?
                     </button>
-                  </div>
+                  )}
                 </div>
-
-                {/* Forgot Password Link (Sign In only) */}
-                {isLogin && role === 'customer' && (
-                  <span 
-                    className="auth-forgot-link"
-                    onClick={() => addToast('Password reset link sent to your email!', 'info')}
+                <div className="auth-input-wrap">
+                  <div className="auth-input-icon">
+                    <Lock size={18} />
+                  </div>
+                  <input 
+                    type={showLoginPassword ? 'text' : 'password'}
+                    className="auth-input-field"
+                    placeholder="Enter your password"
+                    value={loginPassword}
+                    onChange={(e) => { setLoginPassword(e.target.value); setError(''); }}
+                    autoComplete="current-password"
+                    required
+                  />
+                  <button 
+                    type="button" 
+                    className="auth-toggle-pwd"
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    title={showLoginPassword ? 'Hide password' : 'Show password'}
                   >
-                    Forgot Password?
-                  </span>
-                )}
-
-                {/* Terms and Conditions Checkbox (Sign Up only) */}
-                {!isLogin && role === 'customer' && (
-                  <label className="auth-terms-checkbox">
-                    <input 
-                      type="checkbox" 
-                      checked={agreeTerms} 
-                      onChange={(e) => setAgreeTerms(e.target.checked)} 
-                    />
-                    <span>
-                      I agree to the <a href="#terms" onClick={(e) => e.preventDefault()}>Terms & Conditions</a> and <a href="#privacy" onClick={(e) => e.preventDefault()}>Privacy Policy</a>
-                    </span>
-                  </label>
-                )}
-
-                {/* Primary Submit Button */}
-                <button 
-                  type="submit" 
-                  className="auth-submit-btn" 
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Processing...' : isLogin ? 'Sign In' : role === 'hotel' ? 'Next: Add Rooms' : 'Sign Up'}
-                </button>
-              </>
-            )}
-          </form>
-
-          {/* Social Logins (Google & Microsoft) for Customer Auth */}
-          {role === 'customer' && (
-            <>
-              <div className="auth-divider">
-                <span>OR CONTINUE WITH</span>
+                    {showLoginPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
 
-              <div className="auth-social-grid">
-                {/* Google Button */}
-                <button 
-                  type="button" 
-                  className="auth-social-btn" 
-                  onClick={() => handleSocialLogin('Google')}
-                  disabled={isLoading}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24">
-                    <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.7l3.1-3.1C17.3 1.8 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 8.9 5 12 5z"/>
-                    <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/>
-                    <path fill="#FBBC05" d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.8s.2-2.1.4-2.8L1.9 6.3C.7 8.7 0 10.3 0 12s.7 3.3 1.9 5.7l3.7-2.9z"/>
-                    <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.5-2.4-6.4-5.2L1.9 16c1.8 3.7 5.6 7 10.1 7z"/>
-                  </svg>
-                  <span>Google</span>
-                </button>
-
-                {/* Microsoft Button */}
-                <button 
-                  type="button" 
-                  className="auth-social-btn" 
-                  onClick={() => handleSocialLogin('Microsoft')}
-                  disabled={isLoading}
-                >
-                  <svg width="18" height="18" viewBox="0 0 21 21">
-                    <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
-                    <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
-                    <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
-                    <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
-                  </svg>
-                  <span>Microsoft</span>
-                </button>
-              </div>
-            </>
+              {/* Login Button */}
+              <button 
+                type="submit" 
+                className="auth-submit-btn" 
+                disabled={isLoading}
+              >
+                {isLoading ? 'Signing In...' : role === 'hotel' ? 'Sign In to Partner Portal' : role === 'admin' ? 'Sign In to Admin Command' : 'Sign In to Dashboard'}
+              </button>
+            </form>
           )}
 
-          {/* Footer Switcher (Sign In <-> Sign Up) */}
-          {role !== 'admin' && (
-            <div className="auth-footer-switch">
-              <span>{isLogin ? "Don't have an account?" : "Already have an account?"}</span>
+          {/* ========================================================= */}
+          {/* 2. REGISTRATION VIEW (Customer & Hotel Partner)           */}
+          {/* ========================================================= */}
+          {authMode === 'register' && role !== 'admin' && (
+            <form onSubmit={handleCustomerRegisterSubmit}>
+              {/* Full Name / Manager Name */}
+              <div className="auth-input-group">
+                <label className="auth-input-label">
+                  {role === 'hotel' ? 'Manager / Partner Full Name' : 'Full Name'}
+                </label>
+                <div className="auth-input-wrap">
+                  <div className="auth-input-icon">
+                    <User size={18} />
+                  </div>
+                  <input 
+                    type="text"
+                    className="auth-input-field"
+                    placeholder={role === 'hotel' ? 'Enter hotel owner/manager name' : 'Enter your full name'}
+                    value={regFullName}
+                    onChange={(e) => { setRegFullName(e.target.value); setError(''); }}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Email Address */}
+              <div className="auth-input-group">
+                <label className="auth-input-label">Email Address</label>
+                <div className="auth-input-wrap">
+                  <div className="auth-input-icon">
+                    <Mail size={18} />
+                  </div>
+                  <input 
+                    type="email"
+                    className="auth-input-field"
+                    placeholder={role === 'hotel' ? 'manager@hotel.com' : 'name@example.com'}
+                    value={regEmail}
+                    onChange={(e) => { setRegEmail(e.target.value); setError(''); }}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Mobile Number */}
+              <div className="auth-input-group">
+                <label className="auth-input-label">Mobile Number</label>
+                <div className="auth-input-wrap">
+                  <div className="auth-input-icon">
+                    <Phone size={18} />
+                  </div>
+                  <input 
+                    type="tel"
+                    className="auth-input-field"
+                    placeholder="10-digit mobile number (e.g. 9876543210)"
+                    value={regPhone}
+                    onChange={(e) => { setRegPhone(e.target.value); setError(''); }}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
+              <div className="auth-input-group">
+                <label className="auth-input-label">Password</label>
+                <div className="auth-input-wrap">
+                  <div className="auth-input-icon">
+                    <Lock size={18} />
+                  </div>
+                  <input 
+                    type={showRegPassword ? 'text' : 'password'}
+                    className="auth-input-field"
+                    placeholder="Create a secure password (min. 6 characters)"
+                    value={regPassword}
+                    onChange={(e) => { setRegPassword(e.target.value); setError(''); }}
+                    required
+                  />
+                  <button 
+                    type="button" 
+                    className="auth-toggle-pwd"
+                    onClick={() => setShowRegPassword(!showRegPassword)}
+                    title={showRegPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showRegPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirm Password */}
+              <div className="auth-input-group">
+                <label className="auth-input-label">Confirm Password</label>
+                <div className="auth-input-wrap">
+                  <div className="auth-input-icon">
+                    <Lock size={18} />
+                  </div>
+                  <input 
+                    type={showRegConfirmPassword ? 'text' : 'password'}
+                    className="auth-input-field"
+                    placeholder="Re-enter password to confirm"
+                    value={regConfirmPassword}
+                    onChange={(e) => { setRegConfirmPassword(e.target.value); setError(''); }}
+                    required
+                  />
+                  <button 
+                    type="button" 
+                    className="auth-toggle-pwd"
+                    onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
+                    title={showRegConfirmPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showRegConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Terms and conditions */}
+              <label className="auth-terms-checkbox" style={{ marginTop: 6, marginBottom: 16 }}>
+                <input 
+                  type="checkbox" 
+                  checked={agreeTerms} 
+                  onChange={(e) => setAgreeTerms(e.target.checked)} 
+                />
+                <span>
+                  I agree to the <a href="#terms" onClick={(e) => e.preventDefault()}>Terms & Conditions</a> and <a href="#privacy" onClick={(e) => e.preventDefault()}>Privacy Policy</a>
+                </span>
+              </label>
+
+              {/* Submit Button */}
               <button 
-                type="button" 
-                className="auth-footer-switch-btn"
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setError('');
-                  setStep(1);
-                }}
+                type="submit" 
+                className="auth-submit-btn" 
+                disabled={isLoading}
               >
-                {isLogin ? 'Sign Up' : 'Sign In'}
+                {isLoading ? 'Sending Verification Code...' : role === 'hotel' ? 'Verify OTP & Start Onboarding' : 'Send OTP & Continue'}
+              </button>
+            </form>
+          )}
+
+          {/* ========================================================= */}
+          {/* 3. OTP VERIFICATION VIEW (Customer & Hotel Partner)        */}
+          {/* ========================================================= */}
+          {authMode === 'otp_verify' && (
+            <form onSubmit={handleVerifyOtpAndCreateAccount}>
+              {/* Back / Edit Details Link */}
+              <div style={{ marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => setAuthMode('register')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#64748B',
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: 0
+                  }}
+                >
+                  <ArrowLeft size={15} /> Back to details
+                </button>
+
+                <span style={{ fontSize: '0.78rem', color: '#94A3B8' }}>
+                  {role === 'hotel' ? 'Step 1: Account Verification' : 'Step 2 of 2'}
+                </span>
+              </div>
+
+              {/* Demo Helper Pill */}
+              {debugOtpCode && (
+                <div style={{
+                  background: '#F0FDF4',
+                  border: '1px solid #BBF7D0',
+                  borderRadius: 10,
+                  padding: '10px 14px',
+                  marginBottom: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontSize: '0.82rem',
+                  color: '#166534'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <KeyRound size={16} />
+                    <span>Demo OTP: <strong>{debugOtpCode}</strong></span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleAutoFillOtp(debugOtpCode, false)}
+                    style={{
+                      background: '#16A34A',
+                      color: '#FFF',
+                      border: 'none',
+                      borderRadius: 6,
+                      padding: '3px 8px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Auto-Fill
+                  </button>
+                </div>
+              )}
+
+              {/* 6 Digit Input Boxes */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'center',
+                gap: 8,
+                margin: '20px 0 24px'
+              }}>
+                {otpDigits.map((digit, idx) => (
+                  <input
+                    key={idx}
+                    ref={otpRefs[idx]}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(idx, e.target.value, false)}
+                    onKeyDown={(e) => handleOtpKeyDown(idx, e, false)}
+                    onPaste={(e) => handleOtpPaste(e, false)}
+                    style={{
+                      width: 46,
+                      height: 52,
+                      textAlign: 'center',
+                      fontSize: '1.35rem',
+                      fontWeight: 700,
+                      borderRadius: 12,
+                      border: digit ? '2px solid #EA580C' : '1.5px solid #CBD5E1',
+                      background: digit ? '#FFF' : '#F8FAFC',
+                      color: '#0F172A',
+                      outline: 'none',
+                      transition: 'all 0.15s ease'
+                    }}
+                  />
+                ))}
+              </div>
+
+              {/* Resend OTP Timer & Button */}
+              <div style={{
+                textAlign: 'center',
+                fontSize: '0.84rem',
+                color: '#64748B',
+                marginBottom: 20
+              }}>
+                {canResendOtp ? (
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={isLoading}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#EA580C',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4
+                    }}
+                  >
+                    <RotateCcw size={14} /> Resend OTP Code
+                  </button>
+                ) : (
+                  <span>Resend code in <strong style={{ color: '#0F172A' }}>{otpTimer}s</strong></span>
+                )}
+              </div>
+
+              {/* Verify & Create Account Button */}
+              <button 
+                type="submit" 
+                className="auth-submit-btn" 
+                disabled={isLoading}
+              >
+                {isLoading ? 'Verifying...' : role === 'hotel' ? 'Verify OTP & Launch Onboarding Wizard' : 'Verify OTP & Create Account'}
+              </button>
+            </form>
+          )}
+
+          {/* ========================================================= */}
+          {/* 4. REGISTRATION SUCCESS VIEW (Customer)                   */}
+          {/* ========================================================= */}
+          {role === 'customer' && authMode === 'register_success' && (
+            <div style={{ textAlign: 'center', padding: '10px 0' }}>
+              <div style={{
+                width: 72,
+                height: 72,
+                borderRadius: '50%',
+                background: '#DCFCE7',
+                color: '#16A34A',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px',
+                boxShadow: '0 8px 24px rgba(22, 163, 74, 0.2)'
+              }}>
+                <CheckCircle2 size={40} />
+              </div>
+
+              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0F172A', marginBottom: 8 }}>
+                Account Verified & Created!
+              </h3>
+              <p style={{ fontSize: '0.86rem', color: '#64748B', lineHeight: 1.5, marginBottom: 20 }}>
+                Welcome to HostIQ, <strong>{regFullName}</strong>. Your mobile and email have been verified. You can now sign in and explore hotel deals.
+              </p>
+
+              <button
+                type="button"
+                className="auth-submit-btn"
+                onClick={() => setAuthMode('login')}
+              >
+                Proceed to Sign In ({successCountdown}s)
               </button>
             </div>
           )}
 
-          {/* Portal Switcher (Hotel / Traveler / Admin) */}
+          {/* ========================================================= */}
+          {/* 5. FORGOT PASSWORD VIEW                                   */}
+          {/* ========================================================= */}
+          {authMode === 'forgot_password' && (
+            <div>
+              {fpStep === 1 ? (
+                <form onSubmit={handleForgotPasswordRequest}>
+                  <div className="auth-input-group">
+                    <label className="auth-input-label">Registered Email or Mobile</label>
+                    <div className="auth-input-wrap">
+                      <div className="auth-input-icon"><User size={18} /></div>
+                      <input 
+                        type="text" 
+                        className="auth-input-field" 
+                        placeholder="Enter email or 10-digit mobile" 
+                        value={fpIdentifier} 
+                        onChange={(e) => { setFpIdentifier(e.target.value); setError(''); }}
+                        required 
+                      />
+                    </div>
+                  </div>
+
+                  <button type="submit" className="auth-submit-btn" disabled={isLoading}>
+                    {isLoading ? 'Sending OTP...' : 'Send Password Reset Code'}
+                  </button>
+
+                  <div style={{ textAlign: 'center', marginTop: 14 }}>
+                    <button
+                      type="button"
+                      onClick={() => setAuthMode('login')}
+                      style={{ background: 'none', border: 'none', color: '#64748B', fontSize: '0.82rem', cursor: 'pointer' }}
+                    >
+                      ← Back to Login
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <form onSubmit={handleForgotPasswordReset}>
+                  {debugOtpCode && (
+                    <div style={{
+                      background: '#F0FDF4',
+                      border: '1px solid #BBF7D0',
+                      borderRadius: 10,
+                      padding: '8px 12px',
+                      marginBottom: 14,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      fontSize: '0.82rem',
+                      color: '#166534'
+                    }}>
+                      <span>Demo Reset OTP: <strong>{debugOtpCode}</strong></span>
+                      <button
+                        type="button"
+                        onClick={() => handleAutoFillOtp(debugOtpCode, true)}
+                        style={{ background: '#16A34A', color: '#FFF', border: 'none', borderRadius: 6, padding: '2px 8px', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        Auto-Fill
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 6 Digit Input Boxes */}
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 8, margin: '14px 0 16px' }}>
+                    {fpOtpDigits.map((digit, idx) => (
+                      <input
+                        key={idx}
+                        ref={fpOtpRefs[idx]}
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) => handleOtpChange(idx, e.target.value, true)}
+                        onKeyDown={(e) => handleOtpKeyDown(idx, e, true)}
+                        onPaste={(e) => handleOtpPaste(e, true)}
+                        style={{
+                          width: 44,
+                          height: 48,
+                          textAlign: 'center',
+                          fontSize: '1.25rem',
+                          fontWeight: 700,
+                          borderRadius: 10,
+                          border: digit ? '2px solid #EA580C' : '1.5px solid #CBD5E1',
+                          background: digit ? '#FFF' : '#F8FAFC',
+                          color: '#0F172A',
+                          outline: 'none'
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  <div className="auth-input-group">
+                    <label className="auth-input-label">New Password</label>
+                    <div className="auth-input-wrap">
+                      <div className="auth-input-icon"><Lock size={18} /></div>
+                      <input 
+                        type={showFpPassword ? 'text' : 'password'}
+                        className="auth-input-field" 
+                        placeholder="Create new password (min. 6 chars)" 
+                        value={fpNewPassword} 
+                        onChange={(e) => { setFpNewPassword(e.target.value); setError(''); }}
+                        required 
+                      />
+                      <button 
+                        type="button" 
+                        className="auth-toggle-pwd" 
+                        onClick={() => setShowFpPassword(!showFpPassword)}
+                      >
+                        {showFpPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="auth-input-group">
+                    <label className="auth-input-label">Confirm New Password</label>
+                    <div className="auth-input-wrap">
+                      <div className="auth-input-icon"><Lock size={18} /></div>
+                      <input 
+                        type={showFpPassword ? 'text' : 'password'}
+                        className="auth-input-field" 
+                        placeholder="Re-enter new password" 
+                        value={fpConfirmPassword} 
+                        onChange={(e) => { setFpConfirmPassword(e.target.value); setError(''); }}
+                        required 
+                      />
+                    </div>
+                  </div>
+
+                  <button type="submit" className="auth-submit-btn" disabled={isLoading}>
+                    {isLoading ? 'Resetting Password...' : 'Save New Password & Log In'}
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
+
+
+          {/* ========================================================= */}
+          {/* Bottom Switcher: Sign In <-> Sign Up                      */}
+          {/* ========================================================= */}
+          {role !== 'admin' && authMode !== 'register_success' && (
+            <div className="auth-footer-switch" style={{ marginTop: 18 }}>
+              <span>
+                {authMode === 'login' ? "Don't have an account?" : "Already have an account?"}
+              </span>
+              <button 
+                type="button" 
+                className="auth-footer-switch-btn"
+                onClick={() => {
+                  setAuthMode(authMode === 'login' ? 'register' : 'login');
+                  setError('');
+                  setHotelStep(1);
+                  setFpStep(1);
+                }}
+              >
+                {authMode === 'login' ? 'Register / Sign Up' : 'Sign In'}
+              </button>
+            </div>
+          )}
+
+          {/* Portal Switcher (Hotel Partner vs Customer) */}
           <div style={{ marginTop: 14, paddingTop: 10, borderTop: '1px solid #F1F5F9', textAlign: 'center', fontSize: '0.78rem', color: '#94A3B8' }}>
             {role === 'customer' ? (
               <span>Are you a hotel partner? <a href="/hotel_login" onClick={(e) => { e.preventDefault(); navigate('/hotel_login'); }} style={{ color: '#EA580C', fontWeight: 700, textDecoration: 'none' }}>Hotel Partner Login →</a></span>
             ) : (
-              <span>Looking to book a stay? <a href="/customer_login" onClick={(e) => { e.preventDefault(); navigate('/customer_login'); }} style={{ color: '#EA580C', fontWeight: 700, textDecoration: 'none' }}>← Traveler Login</a></span>
+              <span>Looking to book a stay? <a href="/customer_login" onClick={(e) => { e.preventDefault(); navigate('/customer_login'); }} style={{ color: '#EA580C', fontWeight: 700, textDecoration: 'none' }}>← Customer / Traveler Login</a></span>
             )}
           </div>
         </div>

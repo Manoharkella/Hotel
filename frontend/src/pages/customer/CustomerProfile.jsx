@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useApp } from '../../context/AppContext';
 import { useToast } from '../../context/ToastContext';
+import { api } from '../../services/api';
 import { 
   ShieldCheck, 
   Mail, 
@@ -39,12 +40,12 @@ export default function CustomerProfile() {
   const [isSaving, setIsSaving] = useState(false);
 
   // Form states
-  const displayName = user?.name ? (user.name.toLowerCase() === 'arjun' ? 'Arjun Kumar' : user.name) : 'Arjun Kumar';
+  const displayName = user?.full_name || user?.name || '';
   const [personalForm, setPersonalForm] = useState({
     name: displayName,
-    email: user?.email || 'arjun@gmail.com',
-    phone: user?.phone || '+91 98765 43210',
-    city: user?.city || 'Hyderabad, India'
+    email: user?.email || '',
+    phone: user?.phone || '',
+    city: user?.city || ''
   });
 
   const [prefForm, setPrefForm] = useState({
@@ -63,47 +64,79 @@ export default function CustomerProfile() {
     emailAlerts: true
   });
 
-  const handleSavePersonal = (e) => {
+  const handleSavePersonal = async (e) => {
     e.preventDefault();
     setIsSaving(true);
-    setTimeout(() => {
-      updateProfile({
-        name: personalForm.name,
-        email: personalForm.email,
+    try {
+      const updated = await api.updateUserProfile({
+        full_name: personalForm.name,
         phone: personalForm.phone,
         city: personalForm.city
       });
-      setIsSaving(false);
-      setActiveModal(null);
-      addToast('Profile information updated successfully!', 'success');
-    }, 400);
-  };
-
-  const handleSavePreferences = (e) => {
-    e.preventDefault();
-    setIsSaving(true);
-    setTimeout(() => {
       updateProfile({
-        preferences: { ...prefForm }
+        name: updated.full_name || personalForm.name,
+        full_name: updated.full_name || personalForm.name,
+        phone: updated.phone || personalForm.phone,
+        city: updated.city || personalForm.city
       });
-      setIsSaving(false);
       setActiveModal(null);
-      addToast('Stay preferences saved for future stays!', 'success');
-    }, 400);
+      addToast('Profile information updated successfully in your account!', 'success');
+    } catch (err) {
+      addToast(err.message || 'Failed to update profile', 'error');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleSaveSecurity = (e) => {
+  const handleSavePreferences = async (e) => {
     e.preventDefault();
-    if (securityForm.newPassword && securityForm.newPassword !== securityForm.confirmPassword) {
-      addToast('New passwords do not match', 'error');
-      return;
-    }
     setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
+    try {
+      const updated = await api.updateUserProfile({
+        preferences: prefForm
+      });
+      updateProfile({
+        preferences: updated.preferences || prefForm
+      });
       setActiveModal(null);
-      addToast('Security & notification settings updated!', 'success');
-    }, 400);
+      addToast('Stay preferences saved to your account!', 'success');
+    } catch (err) {
+      addToast(err.message || 'Failed to save preferences', 'error');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveSecurity = async (e) => {
+    e.preventDefault();
+    if (securityForm.newPassword) {
+      if (!securityForm.currentPassword) {
+        addToast('Please enter your current password', 'error');
+        return;
+      }
+      if (securityForm.newPassword !== securityForm.confirmPassword) {
+        addToast('New passwords do not match', 'error');
+        return;
+      }
+      if (securityForm.newPassword.length < 6) {
+        addToast('New password must be at least 6 characters', 'error');
+        return;
+      }
+    }
+
+    setIsSaving(true);
+    try {
+      if (securityForm.newPassword) {
+        await api.changeUserPassword(securityForm.currentPassword, securityForm.newPassword);
+      }
+      setActiveModal(null);
+      setSecurityForm(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
+      addToast('Security settings updated successfully!', 'success');
+    } catch (err) {
+      addToast(err.message || 'Failed to update security settings', 'error');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleClaimVoucher = () => {

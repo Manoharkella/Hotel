@@ -30,6 +30,9 @@ import HotelRoomCalendar from './pages/hotel/HotelRoomCalendar';
 import AdminCalendar from './pages/admin/AdminCalendar';
 import QRScanner from './pages/hotel/QRScanner';
 import HotelProperty from './pages/hotel/HotelProperty';
+import HotelOnboarding from './pages/hotel/HotelOnboarding';
+import HotelStatus from './pages/hotel/HotelStatus';
+
 
 // Admin
 import AdminLayout from './pages/admin/AdminLayout';
@@ -63,6 +66,13 @@ function AppRoutes() {
       <Route path="/admin_login" element={<AuthPage initialRole="admin" />} />
       <Route path="/admin-login" element={<Navigate to="/admin_login" replace />} />
       <Route path="/auth" element={<Navigate to="/customer_login" replace />} />
+
+      {/* Hotel Onboarding & Approval Lifecycle Routes */}
+      <Route path="/hotel/onboarding" element={<HotelOnboarding />} />
+      <Route path="/hotel-onboarding" element={<Navigate to="/hotel/onboarding" replace />} />
+      <Route path="/hotel/status" element={<HotelStatus />} />
+      <Route path="/hotel-status" element={<Navigate to="/hotel/status" replace />} />
+
 
       {/* Customer Routes */}
       <Route path="/customer" element={<CustomerLayout />}>
