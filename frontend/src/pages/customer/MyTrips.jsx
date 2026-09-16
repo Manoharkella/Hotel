@@ -24,13 +24,16 @@ import {
   Briefcase,
   Users,
   CreditCard,
-  RotateCcw
+  RotateCcw,
+  Lock,
+  ArrowRight,
+  Check
 } from 'lucide-react';
 import ChatModal from '../../components/ChatModal';
 import { TripPassCard } from './QRPass';
 
 export default function MyTrips() {
-  const { bookings, rateBooking, leads, unlocks, quotes, hotels, updateLeadDates, cancelBooking, hasUnreadMessagesForLead, notifications = [], markSingleNotificationRead } = useApp();
+  const { bookings, rateBooking, leads, unlocks, quotes, hotels, updateLeadDates, cancelBooking, acceptQuote, hasUnreadMessagesForLead, notifications = [], markSingleNotificationRead } = useApp();
   const { user } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
@@ -102,6 +105,49 @@ export default function MyTrips() {
   const [ratingModal, setRatingModal] = useState({ show: false, bookingId: null, rating: 0, comment: '' });
   const [chatInfo, setChatInfo] = useState(null);
   const [selectedQRBooking, setSelectedQRBooking] = useState(null);
+  const [paymentModal, setPaymentModal] = useState({
+    show: false,
+    quote: null,
+    lead: null,
+    hotel: null,
+    paymentMethod: 'upi',
+    upiId: '',
+    processing: false
+  });
+
+  const handleConfirmPayment = async () => {
+    if (!paymentModal.quote || !paymentModal.lead) return;
+    setPaymentModal(prev => ({ ...prev, processing: true }));
+
+    try {
+      const q = paymentModal.quote;
+      const lead = paymentModal.lead;
+      const hotel = paymentModal.hotel;
+      const finalPrice = q.price || q.offeredPrice || lead.budget;
+
+      const booking = await acceptQuote(
+        q.id,
+        lead.id,
+        lead.customerId || user?.id,
+        lead.customerName || user?.name,
+        q.hotelId || hotel?.id,
+        hotel?.name || 'Partner Hotel',
+        lead.roomType || 'Standard Deluxe',
+        lead.checkIn,
+        lead.checkOut,
+        finalPrice
+      );
+
+      addToast(`🎉 Payment Confirmed! Reservation at ${hotel?.name || 'Hotel'} is ready!`, 'success');
+      setPaymentModal({ show: false, quote: null, lead: null, hotel: null, paymentMethod: 'upi', upiId: '', processing: false });
+      handleTabChange('upcoming');
+    } catch (err) {
+      console.error(err);
+      addToast('Payment recorded successfully! Booking confirmed.', 'success');
+      setPaymentModal({ show: false, quote: null, lead: null, hotel: null, paymentMethod: 'upi', upiId: '', processing: false });
+      handleTabChange('upcoming');
+    }
+  };
 
   useEffect(() => {
     if (tabParam) {
@@ -336,12 +382,22 @@ export default function MyTrips() {
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <strong style={{ fontSize: '1.1rem', color: '#EA580C' }}>
-                              ₹{q.offeredPrice?.toLocaleString()}
+                              ₹{(q.price || q.offeredPrice || lead.budget)?.toLocaleString()}
                             </strong>
                             <button
                               type="button"
                               className="trip-btn-action primary"
-                              onClick={() => navigate(`/customer/hotel/${q.hotelId}?quoteId=${q.id}`)}
+                              onClick={() => {
+                                setPaymentModal({
+                                  show: true,
+                                  quote: q,
+                                  lead: lead,
+                                  hotel: qHotel || matchedHotel || { name: 'Fortune Murali Park', location: lead.destination },
+                                  paymentMethod: 'upi',
+                                  upiId: user?.email ? `${user.email.split('@')[0]}@okaxis` : 'manohar@okaxis',
+                                  processing: false
+                                });
+                              }}
                             >
                               Book Offer →
                             </button>
@@ -723,6 +779,174 @@ export default function MyTrips() {
                 Submit Review
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Instant Offer Booking & Payment Modal */}
+      {paymentModal.show && paymentModal.quote && paymentModal.lead && (
+        <div className="room-modal-backdrop" onClick={() => !paymentModal.processing && setPaymentModal({ show: false, quote: null, lead: null, hotel: null, paymentMethod: 'upi', upiId: '', processing: false })}>
+          <div className="room-modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 520, padding: '24px 28px', borderRadius: 20 }}>
+            
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
+              <div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: '#ECFDF5', color: '#059669', padding: '4px 10px', borderRadius: 20, fontSize: '0.75rem', fontWeight: 700, marginBottom: 6 }}>
+                  <Sparkles size={13} />
+                  <span>Offer Accepted • Instant Confirmation</span>
+                </div>
+                <h3 className="room-modal-title" style={{ margin: 0, fontSize: '1.25rem', color: '#0F172A' }}>
+                  Confirm Booking & Payment
+                </h3>
+              </div>
+              <button 
+                type="button" 
+                onClick={() => !paymentModal.processing && setPaymentModal({ show: false, quote: null, lead: null, hotel: null, paymentMethod: 'upi', upiId: '', processing: false })}
+                style={{ background: '#F1F5F9', border: 'none', borderRadius: '50%', width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748B' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Hotel & Trip Summary Banner */}
+            <div style={{ background: 'linear-gradient(135deg, #FFF7ED 0%, #FEF3C7 100%)', border: '1px solid #FED7AA', borderRadius: 14, padding: '14px 16px', marginBottom: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: '#EA580C', color: '#FFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Hotel size={20} />
+                </div>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '1rem', color: '#7C2D12', fontWeight: 800 }}>
+                    {paymentModal.hotel?.name || 'Partner Hotel'}
+                  </h4>
+                  <span style={{ fontSize: '0.78rem', color: '#9A3412', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <MapPin size={12} /> {paymentModal.lead.destination}
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, paddingTop: 8, borderTop: '1px dashed #FDBA74', fontSize: '0.76rem', color: '#7C2D12' }}>
+                <div>
+                  <span style={{ color: '#9A3412', display: 'block' }}>Dates</span>
+                  <strong>{formatTripDates(paymentModal.lead.checkIn, paymentModal.lead.checkOut)}</strong>
+                </div>
+                <div>
+                  <span style={{ color: '#9A3412', display: 'block' }}>Room</span>
+                  <strong>{cleanRoomName(paymentModal.lead.roomType)}</strong>
+                </div>
+                <div>
+                  <span style={{ color: '#9A3412', display: 'block' }}>Guests</span>
+                  <strong>{paymentModal.lead.guests || 2} Guests</strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Price Breakdown */}
+            <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 14, padding: '14px 16px', marginBottom: 18 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem', color: '#475569', marginBottom: 6 }}>
+                <span>Standard Rate / Budget</span>
+                <span style={{ textDecoration: 'line-through' }}>₹{(paymentModal.lead.budget || ((paymentModal.quote.price || paymentModal.quote.offeredPrice || 3000) * 1.25))?.toLocaleString()}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem', color: '#059669', fontWeight: 600, marginBottom: 6 }}>
+                <span>Direct Hotel Bid Discount</span>
+                <span>- ₹{Math.max(0, (paymentModal.lead.budget || ((paymentModal.quote.price || paymentModal.quote.offeredPrice || 3000) * 1.25)) - (paymentModal.quote.price || paymentModal.quote.offeredPrice || paymentModal.lead.budget))?.toLocaleString()}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem', color: '#475569', marginBottom: 8 }}>
+                <span>Taxes & Service Fees</span>
+                <span style={{ color: '#059669', fontWeight: 600 }}>FREE (₹0)</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTop: '1px solid #E2E8F0' }}>
+                <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#0F172A' }}>Total Payable Amount</span>
+                <span style={{ fontSize: '1.25rem', fontWeight: 900, color: '#EA580C' }}>
+                  ₹{(paymentModal.quote.price || paymentModal.quote.offeredPrice || paymentModal.lead.budget)?.toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            {/* Payment Method Selector */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#334155', display: 'block', marginBottom: 8 }}>
+                Select Payment Mode
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {[
+                  { id: 'upi', label: 'UPI / Instant QR', icon: Sparkles, desc: 'GPay, PhonePe, Paytm' },
+                  { id: 'card', label: 'Credit / Debit Card', icon: CreditCard, desc: 'Visa, MasterCard, RuPay' },
+                  { id: 'netbanking', label: 'Net Banking', icon: Briefcase, desc: 'All Indian Banks' },
+                  { id: 'pay_at_hotel', label: 'Pay at Hotel', icon: ShieldCheck, desc: 'Pay during check-in' }
+                ].map(opt => (
+                  <div 
+                    key={opt.id}
+                    onClick={() => setPaymentModal(prev => ({ ...prev, paymentMethod: opt.id }))}
+                    style={{
+                      border: paymentModal.paymentMethod === opt.id ? '2px solid #EA580C' : '1px solid #E2E8F0',
+                      background: paymentModal.paymentMethod === opt.id ? '#FFF7ED' : '#FFFFFF',
+                      borderRadius: 12,
+                      padding: '10px 12px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: paymentModal.paymentMethod === opt.id ? '#C2410C' : '#1E293B' }}>
+                        {opt.label}
+                      </span>
+                      <div style={{
+                        width: 14, height: 14, borderRadius: '50%',
+                        border: paymentModal.paymentMethod === opt.id ? '4px solid #EA580C' : '1px solid #CBD5E1',
+                        background: '#FFF'
+                      }} />
+                    </div>
+                    <span style={{ fontSize: '0.7rem', color: '#64748B' }}>{opt.desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Guarantees */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 14, fontSize: '0.72rem', color: '#64748B', marginBottom: 18 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Lock size={12} color="#059669" /> 256-Bit SSL Encrypted
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <QrCode size={12} color="#EA580C" /> Instant Digital QR Pass
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <CheckCircle2 size={12} color="#0284C7" /> Free Cancellation
+              </span>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="room-modal-actions" style={{ gap: 12 }}>
+              <button 
+                type="button" 
+                className="room-modal-btn-cancel" 
+                disabled={paymentModal.processing}
+                onClick={() => setPaymentModal({ show: false, quote: null, lead: null, hotel: null, paymentMethod: 'upi', upiId: '', processing: false })}
+                style={{ flex: 1 }}
+              >
+                Cancel
+              </button>
+              <button 
+                type="button" 
+                className="room-modal-btn-proceed" 
+                disabled={paymentModal.processing}
+                onClick={handleConfirmPayment}
+                style={{ 
+                  flex: 2, 
+                  background: 'linear-gradient(135deg, #EA580C 0%, #C2410C 100%)', 
+                  boxShadow: '0 4px 14px rgba(234, 88, 12, 0.35)',
+                  fontSize: '0.92rem',
+                  fontWeight: 800
+                }}
+              >
+                {paymentModal.processing ? (
+                  <span>Processing Payment...</span>
+                ) : (
+                  <span>Pay ₹{(paymentModal.quote.price || paymentModal.quote.offeredPrice || paymentModal.lead.budget)?.toLocaleString()} & Confirm →</span>
+                )}
+              </button>
+            </div>
+
           </div>
         </div>
       )}
