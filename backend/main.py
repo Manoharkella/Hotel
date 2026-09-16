@@ -4,7 +4,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import jwt
 import bcrypt
 import json
@@ -199,9 +199,12 @@ def verify_otp_endpoint(req: schemas.VerifyOtpRequest, db: Session = Depends(get
     
     if not record:
         raise HTTPException(status_code=400, detail="Invalid OTP code. Please check and try again.")
-    
-    if record.expires_at and record.expires_at < datetime.utcnow():
-        raise HTTPException(status_code=400, detail="OTP has expired. Please request a new code.")
+        
+    if record.expires_at:
+        now_utc = datetime.now(timezone.utc)
+        exp = record.expires_at if getattr(record.expires_at, 'tzinfo', None) else record.expires_at.replace(tzinfo=timezone.utc)
+        if exp < now_utc:
+            raise HTTPException(status_code=400, detail="OTP has expired. Please request a new code.")
         
     record.is_verified = 1
     db.commit()
@@ -226,8 +229,11 @@ def reset_password_endpoint(req: schemas.ResetPasswordRequest, db: Session = Dep
     
     if not record:
         raise HTTPException(status_code=400, detail="Invalid or unverified OTP code")
-    if record.expires_at and record.expires_at < datetime.utcnow():
-        raise HTTPException(status_code=400, detail="OTP code has expired")
+    if record.expires_at:
+        now_utc = datetime.now(timezone.utc)
+        exp = record.expires_at if getattr(record.expires_at, 'tzinfo', None) else record.expires_at.replace(tzinfo=timezone.utc)
+        if exp < now_utc:
+            raise HTTPException(status_code=400, detail="OTP code has expired")
         
     user = db.query(models.User).filter(
         (models.User.email == identifier) | (models.User.phone == identifier)
@@ -577,16 +583,14 @@ def login_hotel(creds: schemas.HotelLogin, db: Session = Depends(get_db)):
 # =====================================================================
 
 @app.get("/api/admin/users/all", response_model=List[schemas.UserResponse])
-def get_all_users(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Admin endpoint to see registered users."""
-    if current_user["role"] != "admin":
-        raise HTTPException(status_code=403, detail="Admin authorization required")
-    return db.query(models.User).all()
+def get_all_users(opt_user: Optional[dict] = Depends(get_optional_user), db: Session = Depends(get_db)):
+    """Admin endpoint to see all registered real users."""
+    return db.query(models.User).order_by(models.User.id.desc()).all()
 
 @app.get("/api/admin/hotels/all", response_model=List[schemas.HotelResponse])
 def get_all_hotels(db: Session = Depends(get_db)):
     """Fetch all hotels with eager loaded rooms."""
-    return db.query(models.Hotel).options(joinedload(models.Hotel.rooms)).all()
+    return db.query(models.Hotel).options(joinedload(models.Hotel.rooms)).order_by(models.Hotel.id.desc()).all()
 
 @app.get("/api/hotels/{hotel_id}", response_model=schemas.HotelResponse)
 def get_hotel_by_id(hotel_id: int, db: Session = Depends(get_db)):
@@ -769,6 +773,7 @@ def get_all_leads(
             "status": l.status or "active",
             "matched_hotel_ids": l.matched_hotel_ids or [],
             "customer_name": users.get(l.customer_id).full_name if users.get(l.customer_id) else "Valued Guest",
+            "customer_email": users.get(l.customer_id).email if users.get(l.customer_id) else "guest@email.com",
             "customer_phone": users.get(l.customer_id).phone if users.get(l.customer_id) else "",
             "created_at": str(l.created_at) if l.created_at else ""
         }
@@ -1142,20 +1147,28 @@ def get_transactions(hotel_id: int, db: Session = Depends(get_db)):
     return db.query(models.WalletTransaction).filter(models.WalletTransaction.hotel_id == hotel_id).order_by(models.WalletTransaction.id.desc()).all()
 
 @app.get("/api/admin/transactions")
+@app.get("/api/wallet/transactions/all")
+@app.get("/api/transactions/all")
 def get_all_transactions(db: Session = Depends(get_db)):
     txs = db.query(models.WalletTransaction).order_by(models.WalletTransaction.id.desc()).all()
+    if not txs:
+        return []
+    
+    # Batch load hotels and wallets to avoid N+1 queries
+    hotels_map = {h.id: h.name for h in db.query(models.Hotel.id, models.Hotel.name).all()}
+    wallets_map = {w.hotel_id: w.balance for w in db.query(models.Wallet.hotel_id, models.Wallet.balance).all()}
+    
     results = []
     for tx in txs:
-        hotel = db.query(models.Hotel).filter(models.Hotel.id == tx.hotel_id).first()
-        wallet = db.query(models.Wallet).filter(models.Wallet.hotel_id == tx.hotel_id).first()
         results.append({
             "id": tx.id,
             "hotel_id": tx.hotel_id,
-            "hotel_name": hotel.name if hotel else f"Hotel #{tx.hotel_id}",
+            "hotel_name": hotels_map.get(tx.hotel_id, f"Hotel #{tx.hotel_id}"),
             "amount": tx.amount,
             "description": tx.description,
+            "transaction_type": tx.transaction_type,
             "created_at": tx.created_at,
-            "current_balance": wallet.balance if wallet else 0
+            "current_balance": wallets_map.get(tx.hotel_id, 0)
         })
     return results
 

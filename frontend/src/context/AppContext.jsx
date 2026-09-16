@@ -47,6 +47,19 @@ export function AppProvider({ children }) {
     return () => { isMounted = false; };
   }, [user?.id, user?.email]);
 
+  // Sync notifications in real-time across tabs/windows
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'hotellead_notifications' && e.newValue) {
+        try {
+          setNotifications(JSON.parse(e.newValue));
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   // Immediately wipe previous user state when user logs out or switches
   useEffect(() => {
     if (!user) {
@@ -222,6 +235,7 @@ export function AppProvider({ children }) {
           latitude: h.latitude || 20.5937,
           longitude: h.longitude || 78.9629,
           category: 'Premium',
+          status: h.status || 'APPROVED',
           amenities: h.amenities || ['WiFi', 'Parking', 'Room Service', 'Swimming Pool', 'Spa'],
           photos: h.photos && h.photos.length > 0 ? h.photos : ['https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80'],
           rooms: roomsList,
@@ -236,6 +250,31 @@ export function AppProvider({ children }) {
       
       setReviews(apiAllReviews);
       setHotels(mappedHotels);
+
+      // Auto-sync notifications for pending hotels so admin bell displays the red dot
+      apiHotels.forEach(h => {
+        if ((h.status || '').toUpperCase() === 'PENDING') {
+          const notifId = `pending-hotel-${h.id}`;
+          setNotifications(prev => {
+            if (prev.some(n => n.id === notifId)) return prev;
+            const newItem = {
+              id: notifId,
+              role: 'admin',
+              type: 'hotel_registration',
+              title: `🏨 New Hotel Registration: ${h.name}`,
+              message: `${h.name} (${h.location || 'India'}) registered and requires verification. Review and approve/reject.`,
+              hotelId: h.id,
+              hotelName: h.name,
+              createdAt: h.created_at || new Date().toISOString(),
+              link: '/admin/hotels',
+              read: false
+            };
+            const updated = [newItem, ...prev].slice(0, 50);
+            try { localStorage.setItem('hotellead_notifications', JSON.stringify(updated)); } catch(e){}
+            return updated;
+          });
+        }
+      });
       
       setLeads(apiLeads.map(l => ({
         ...l,
@@ -685,9 +724,14 @@ export function AppProvider({ children }) {
     });
   }, []);
 
-  const markNotificationsRead = useCallback((userId) => {
+  const markNotificationsRead = useCallback((userId, role) => {
     setNotifications(prev => {
-      const updated = prev.map(n => (!userId || n.userId?.toString() === userId?.toString()) ? { ...n, read: true } : n);
+      const updated = prev.map(n => {
+        if (role === 'admin' && n.role === 'admin') return { ...n, read: true };
+        if (role && n.role === role) return { ...n, read: true };
+        if (!userId || n.userId?.toString() === userId?.toString()) return { ...n, read: true };
+        return n;
+      });
       try {
         localStorage.setItem('hotellead_notifications', JSON.stringify(updated));
       } catch (e) {}
@@ -705,11 +749,15 @@ export function AppProvider({ children }) {
     });
   }, []);
 
-  const clearNotifications = useCallback((userId) => {
+  const clearNotifications = useCallback((userId, role) => {
     setNotifications(prev => {
-      const updated = userId 
-        ? prev.filter(n => n.userId?.toString() !== userId?.toString()) 
-        : [];
+      const updated = prev.filter(n => {
+        if (role === 'admin' && n.role === 'admin') return false;
+        if (role && n.role === role) return false;
+        if (userId && n.userId?.toString() === userId?.toString()) return false;
+        if (!userId && !role) return false;
+        return true;
+      });
       try {
         localStorage.setItem('hotellead_notifications', JSON.stringify(updated));
       } catch (e) {}

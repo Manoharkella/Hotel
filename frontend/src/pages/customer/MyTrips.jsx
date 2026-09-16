@@ -253,11 +253,11 @@ export default function MyTrips() {
                   <div>
                     {leadQuotes.length > 0 ? (
                       <span className="trip-status-badge offers">
-                        🎉 {leadQuotes.length} Special Offer{leadQuotes.length > 1 ? 's' : ''} Received
+                        {leadQuotes.length} Special Offer{leadQuotes.length > 1 ? 's' : ''} Received
                       </span>
                     ) : (
                       <span className="trip-status-badge waiting">
-                        ⏳ Waiting for Hotel Offers
+                        Waiting for Hotel Offers
                       </span>
                     )}
                   </div>
@@ -314,7 +314,7 @@ export default function MyTrips() {
                 {leadQuotes.length > 0 && (
                   <div className="trip-quotes-container">
                     <span style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#D97706' }}>
-                      ⚡ Special Discount Bids Received:
+                      Special Discount Bids Received:
                     </span>
                     {leadQuotes.map(q => {
                       const qHotel = hotels.find(item => item.id.toString() === q.hotelId?.toString());

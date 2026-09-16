@@ -17,7 +17,9 @@ export default function NotificationDropdown({ role = 'hotel', userId, isDark = 
 
   // Filter notifications for this role / user
   const userNotifications = notifications.filter(n => {
-    if (role === 'hotel') {
+    if (role === 'admin') {
+      return n.role === 'admin' || n.userId?.toString() === userId?.toString();
+    } else if (role === 'hotel') {
       return n.userId?.toString() === userId?.toString() || n.role === 'hotel';
     } else {
       return n.role === 'customer' || n.userId?.toString() === userId?.toString();
@@ -51,17 +53,22 @@ export default function NotificationDropdown({ role = 'hotel', userId, isDark = 
 
   const handleMarkAllRead = (e) => {
     e.stopPropagation();
-    markNotificationsRead(userId);
+    markNotificationsRead(userId, role);
   };
 
   const handleClearAll = (e) => {
     e.stopPropagation();
-    clearNotifications(userId);
+    clearNotifications(userId, role);
   };
 
   const handleItemClick = (n) => {
     if (markSingleNotificationRead) {
       markSingleNotificationRead(n.id);
+    }
+    if (n.link) {
+      navigate(n.link);
+      setIsOpen(false);
+      return;
     }
     if (n.leadId && n.hotelId && openChat) {
       openChat({ 
@@ -278,10 +285,14 @@ export default function NotificationDropdown({ role = 'hotel', userId, isDark = 
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '1.4rem'
+                    fontSize: '1.4rem',
+                    color: textMuted
                   }}
                 >
-                  ✨
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                    <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                  </svg>
                 </div>
                 <div style={{ fontWeight: 600, fontSize: '0.9rem', color: textColor, marginBottom: 4 }}>
                   No notifications yet
@@ -293,7 +304,9 @@ export default function NotificationDropdown({ role = 'hotel', userId, isDark = 
             ) : (
               userNotifications.map(n => {
                 const isMsg = n.type === 'message' || !!n.leadId;
+                const isHotelReg = n.type === 'hotel_registration';
                 const isUnread = !n.read;
+                const isClickable = Boolean(n.link || n.leadId);
 
                 return (
                   <div
@@ -303,7 +316,7 @@ export default function NotificationDropdown({ role = 'hotel', userId, isDark = 
                       padding: '13px 16px',
                       borderBottom: `1px solid ${borderCol}`,
                       background: isUnread ? itemUnreadBg : 'transparent',
-                      cursor: n.leadId ? 'pointer' : 'default',
+                      cursor: isClickable ? 'pointer' : 'default',
                       display: 'flex',
                       gap: 12,
                       alignItems: 'flex-start',
@@ -328,10 +341,14 @@ export default function NotificationDropdown({ role = 'hotel', userId, isDark = 
                         height: 36,
                         borderRadius: 10,
                         flexShrink: 0,
-                        background: isMsg 
+                        background: isHotelReg
+                          ? (isDark ? 'rgba(236, 72, 153, 0.2)' : '#FCE7F3')
+                          : isMsg 
                           ? (isDark ? 'rgba(59, 130, 246, 0.2)' : '#e0f2fe') 
                           : (isDark ? 'rgba(212, 175, 55, 0.2)' : '#fef3c7'),
-                        color: isMsg ? '#0284c7' : '#d97706',
+                        color: isHotelReg
+                          ? '#DB2777'
+                          : isMsg ? '#0284c7' : '#d97706',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -339,7 +356,7 @@ export default function NotificationDropdown({ role = 'hotel', userId, isDark = 
                         marginTop: 2
                       }}
                     >
-                      {isMsg ? '💬' : '🔔'}
+                      {isHotelReg ? '🏨' : isMsg ? '💬' : '🔔'}
                     </div>
 
                     {/* Content */}
@@ -356,7 +373,7 @@ export default function NotificationDropdown({ role = 'hotel', userId, isDark = 
                             maxWidth: 190
                           }}
                         >
-                          {n.title || (isMsg ? 'New Message' : 'Notification')}
+                          {n.title || (isHotelReg ? 'New Hotel Registration' : isMsg ? 'New Message' : 'Notification')}
                         </span>
                         <span style={{ fontSize: '0.72rem', color: textMuted, flexShrink: 0 }}>
                           {formatTime(n.createdAt)}
@@ -368,7 +385,7 @@ export default function NotificationDropdown({ role = 'hotel', userId, isDark = 
                           fontSize: '0.82rem',
                           color: isDark ? '#cbd5e1' : '#475569',
                           lineHeight: 1.45,
-                          marginBottom: n.leadId ? 6 : 0,
+                          marginBottom: (n.leadId || n.link) ? 6 : 0,
                           overflow: 'hidden',
                           display: '-webkit-box',
                           WebkitLineClamp: 2,
@@ -379,7 +396,24 @@ export default function NotificationDropdown({ role = 'hotel', userId, isDark = 
                         {n.message}
                       </div>
 
-                      {n.leadId && (
+                      {n.link && (
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 4,
+                            fontSize: '0.72rem',
+                            color: isDark ? '#f472b6' : '#db2777',
+                            fontWeight: 700,
+                            marginTop: 4
+                          }}
+                        >
+                          <span>Review & Approve</span>
+                          <span style={{ fontSize: '0.8rem' }}>→</span>
+                        </div>
+                      )}
+
+                      {n.leadId && !n.link && (
                         <div
                           style={{
                             display: 'inline-flex',
@@ -403,7 +437,7 @@ export default function NotificationDropdown({ role = 'hotel', userId, isDark = 
                           width: 8,
                           height: 8,
                           borderRadius: '50%',
-                          background: '#2563eb',
+                          background: isHotelReg ? '#ec4899' : '#2563eb',
                           marginTop: 6,
                           flexShrink: 0
                         }}

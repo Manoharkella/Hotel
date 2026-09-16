@@ -194,6 +194,7 @@ class LeadResponse(LeadCreate):
     status: str
     matched_hotel_ids: List[int]
     customer_name: Optional[str] = "Guest User"
+    customer_email: Optional[str] = "guest@email.com"
     customer_phone: Optional[str] = ""
     created_at: Optional[str] = ""
     class Config: from_attributes = True

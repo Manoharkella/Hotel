@@ -556,7 +556,11 @@ export default function AuthPage({ initialRole }) {
   };
 
   // Banner Content based on Role & Auth Mode
-  const bannerImage = authMode === 'login'
+  const bannerImage = role === 'hotel'
+    ? 'https://images.unsplash.com/photo-1566073771259-6a8506099945?q=80&w=1600&auto=format&fit=crop'
+    : role === 'admin'
+    ? 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?q=80&w=1400&auto=format&fit=crop'
+    : authMode === 'login'
     ? 'https://images.unsplash.com/photo-1590490360182-c33d57733427?q=80&w=1200&auto=format&fit=crop'
     : 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?q=80&w=1200&auto=format&fit=crop';
 
@@ -597,8 +601,26 @@ export default function AuthPage({ initialRole }) {
               )
             ) : role === 'hotel' ? (
               <>
-                <h2 className="auth-banner-heading">Hotel Partner<br />Portal</h2>
-                <p className="auth-banner-sub">Receive guest leads and optimize room occupancy</p>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  background: 'rgba(16, 185, 129, 0.22)',
+                  border: '1px solid rgba(16, 185, 129, 0.45)',
+                  color: '#34D399',
+                  padding: '5px 12px',
+                  borderRadius: 20,
+                  fontSize: '0.72rem',
+                  fontWeight: 800,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  marginBottom: 14,
+                  backdropFilter: 'blur(8px)'
+                }}>
+                  🏨 Verified Partner Network
+                </div>
+                <h2 className="auth-banner-heading">Direct Bookings.<br />Zero Commission.</h2>
+                <p className="auth-banner-sub">Connect directly with travelers seeking stays in your city and negotiate live rates.</p>
               </>
             ) : (
               <>
@@ -623,6 +645,35 @@ export default function AuthPage({ initialRole }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.86rem', color: 'rgba(255,255,255,0.95)' }}>
                   <CheckCircle2 size={18} color="#EA580C" />
                   <span>Zero spam, 100% verified properties</span>
+                </div>
+              </div>
+            ) : role === 'hotel' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.86rem', color: 'rgba(255,255,255,0.95)' }}>
+                  <CheckCircle2 size={18} color="#10B981" />
+                  <span><strong>Direct Guest Leads</strong> (0% commission cuts)</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.86rem', color: 'rgba(255,255,255,0.95)' }}>
+                  <Sparkles size={18} color="#10B981" />
+                  <span><strong>Dynamic Price Bidding</strong> with live travelers</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.86rem', color: 'rgba(255,255,255,0.95)' }}>
+                  <Building size={18} color="#10B981" />
+                  <span><strong>Room Calendar & Availability</strong> Sync</span>
+                </div>
+                <div style={{
+                  marginTop: 8,
+                  paddingTop: 10,
+                  borderTop: '1px solid rgba(255,255,255,0.15)',
+                  fontSize: '0.76rem',
+                  color: 'rgba(255,255,255,0.85)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8
+                }}>
+                  <span>⭐ 4.9/5 Partner Satisfaction</span>
+                  <span>•</span>
+                  <span>⚡ Instant Lead Alerts</span>
                 </div>
               </div>
             ) : (
@@ -683,7 +734,7 @@ export default function AuthPage({ initialRole }) {
               <>
                 <h1 className="auth-form-title">{authMode === 'login' ? 'Hotel Partner Sign In' : 'Register Your Hotel'}</h1>
                 <p className="auth-form-subtitle">
-                  {authMode === 'login' ? 'Access your guest leads and booking management' : 'List your hotel to start receiving direct traveler requests'}
+                  {authMode === 'login' ? 'Access your verified leads and room inventory dashboard' : 'List your hotel to start receiving direct traveler requests'}
                 </p>
               </>
             )}
@@ -695,6 +746,24 @@ export default function AuthPage({ initialRole }) {
               </>
             )}
           </div>
+
+          {/* Hotel Demo Auto-fill Helper */}
+          {role === 'hotel' && authMode === 'login' && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+              <button
+                type="button"
+                className="hotel-demo-chip"
+                onClick={() => {
+                  setLoginIdentifier('cognitbotz@hotel.com');
+                  setLoginPassword('password123');
+                  setError('');
+                }}
+              >
+                <span>⚡</span>
+                <span>Demo Fill: <strong>cognitbotz@hotel.com</strong></span>
+              </button>
+            </div>
+          )}
 
           {/* Error Message Alert */}
           {error && (
@@ -792,8 +861,25 @@ export default function AuthPage({ initialRole }) {
                 className="auth-submit-btn" 
                 disabled={isLoading}
               >
-                {isLoading ? 'Signing In...' : role === 'hotel' ? 'Sign In to Partner Portal' : role === 'admin' ? 'Sign In to Admin Command' : 'Sign In to Dashboard'}
+                {isLoading ? 'Signing In...' : role === 'hotel' ? 'Sign In to Partner Portal →' : role === 'admin' ? 'Sign In to Admin Command' : 'Sign In to Dashboard'}
               </button>
+
+              {/* Hotel Onboarding Promo Callout */}
+              {role === 'hotel' && (
+                <div className="hotel-onboard-promo">
+                  <div>
+                    <div className="hotel-onboard-promo-title">🏢 New Hotelier?</div>
+                    <div className="hotel-onboard-promo-sub">List your property & receive direct guest leads</div>
+                  </div>
+                  <button
+                    type="button"
+                    className="hotel-onboard-promo-btn"
+                    onClick={() => navigate('/hotel/onboarding')}
+                  >
+                    Register Hotel 🚀
+                  </button>
+                </div>
+              )}
             </form>
           )}
 

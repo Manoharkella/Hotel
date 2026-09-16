@@ -10,8 +10,8 @@ export default function HotelRoomCalendar() {
   const { addToast } = useToast();
   const navigate = useNavigate();
 
-  const hotelId = (user?.hotelId || user?.id) ? (user.hotelId || user.id).toString() : '11';
-  const hotelData = hotels.find(h => h.id === hotelId || h.id === '11');
+  const hotelId = (user?.hotelId || user?.id) ? (user.hotelId || user.id).toString() : null;
+  const hotelData = hotels.find(h => h.id?.toString() === hotelId);
 
   // --- CALENDAR DATE STATE ---
   const today = useMemo(() => new Date(), []);
@@ -44,15 +44,15 @@ export default function HotelRoomCalendar() {
   };
 
   // --- DYNAMIC ROOM UNITS GENERATOR ---
-  // Generates room units (Villa 101–105, Suite 201–205) strictly from the hotel's configured roomTypes
+  // Generates room units strictly from the hotel's configured roomTypes
   const hotelRooms = useMemo(() => {
     const categories = (hotelData?.roomTypes && hotelData.roomTypes.length > 0)
       ? hotelData.roomTypes
       : (hotelData?.rooms && hotelData.rooms.length > 0)
         ? hotelData.rooms
         : [
-            { type: 'Ultra Oceanfront Villa', price: 26000, quantity: 5 },
-            { type: 'Presidential Beach Suite', price: 39000, quantity: 5 }
+            { type: 'Deluxe Room', price: 3500, quantity: 5 },
+            { type: 'Executive Suite', price: 6500, quantity: 5 }
           ];
 
     const roomsList = [];

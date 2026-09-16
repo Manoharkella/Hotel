@@ -227,6 +227,16 @@ tr:hover td { background: rgba(0,0,0,0.015); }
 }
 .page-content { padding: 32px 36px; max-width: 1440px; margin: 0 auto; }
 
+/* Base Grid Utilities */
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+
+@media (max-width: 1024px) {
+  .grid-3 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .grid-4 { grid-template-columns: repeat(2, 1fr); }
+}
+
 /* Stat Cards */
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 28px; }
 .stat-card { 
@@ -818,6 +828,106 @@ tr:hover td { background: rgba(0,0,0,0.015); }
   display: flex;
   min-height: 560px;
   animation: modalPop 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Hotel Partner Specific Auth Theme */
+.auth-layout.hotel .auth-split-card {
+  max-width: 1020px;
+  border-radius: 24px;
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(16, 185, 129, 0.25);
+}
+
+.auth-layout.hotel .auth-submit-btn {
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  box-shadow: 0 4px 18px rgba(16, 185, 129, 0.35);
+}
+
+.auth-layout.hotel .auth-submit-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #34D399 0%, #10B981 100%);
+  box-shadow: 0 6px 24px rgba(16, 185, 129, 0.45);
+  transform: translateY(-1px);
+}
+
+.auth-layout.hotel .auth-input-field:focus {
+  border-color: #10B981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.16);
+}
+
+.auth-layout.hotel .auth-forgot-link {
+  color: #10B981;
+}
+
+.auth-layout.hotel .auth-forgot-link:hover {
+  color: #059669;
+}
+
+.auth-layout.hotel .auth-footer-switch-btn {
+  color: #10B981;
+}
+
+.auth-layout.hotel .auth-footer-switch-btn:hover {
+  color: #059669;
+}
+
+/* Hotel Auth Demo Quick Fill Badge */
+.hotel-demo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #059669;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 14px;
+}
+.hotel-demo-chip:hover {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: #10B981;
+  transform: translateY(-1px);
+}
+
+/* Hotel Onboarding Promo Box */
+.hotel-onboard-promo {
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.03) 0%, rgba(16, 185, 129, 0.06) 100%);
+  border: 1px dashed rgba(16, 185, 129, 0.35);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.hotel-onboard-promo-title {
+  font-weight: 800;
+  font-size: 0.84rem;
+  color: #0F172A;
+  margin-bottom: 2px;
+}
+.hotel-onboard-promo-sub {
+  font-size: 0.74rem;
+  color: #64748B;
+}
+.hotel-onboard-promo-btn {
+  background: #0F172A;
+  color: #FFFFFF;
+  border: none;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 7px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+.hotel-onboard-promo-btn:hover {
+  background: #10B981;
+  transform: translateY(-1px);
 }
 
 /* Left Photo Banner */
@@ -7204,6 +7314,18 @@ tr:hover td { background: rgba(0,0,0,0.015); }
   background: #FEE2E2;
   border-color: #FDA4AF;
 }
+
+@keyframes toastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 
 
 

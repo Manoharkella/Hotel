@@ -1,34 +1,33 @@
 import { useState, useEffect } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-
-const Icon = ({ d, size = 18 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d={d} />
-  </svg>
-);
-
-const icons = {
-  dashboard: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0v-6a1 1 0 011-1h2a1 1 0 011 1v6m-6 0h6',
-  calendar: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z',
-  map: 'M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7',
-  users: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 108 0 4 4 0 00-8 0M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75',
-  hotel: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
-  leads: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
-  credits: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z',
-  reports: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
-  settings: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.573-1.066z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
-  logout: 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1',
-  menu: 'M4 6h16M4 12h16M4 18h16',
-  close: 'M6 18L18 6M6 6l12 12'
-};
+import { useApp } from '../../context/AppContext';
+import NotificationDropdown from '../../components/NotificationDropdown';
+import {
+  LayoutDashboard,
+  Calendar,
+  MapPin,
+  Users,
+  Building2,
+  Mail,
+  CreditCard,
+  BarChart3,
+  Settings,
+  LogOut,
+  Menu,
+  X,
+  Search,
+  ChevronDown
+} from 'lucide-react';
 
 export default function AdminLayout() {
   const { user, logout } = useAuth();
+  const { hotels } = useApp();
   const location = useLocation();
   const navigate = useNavigate();
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState('');
 
   useEffect(() => {
     setSidebarOpen(false);
@@ -36,20 +35,22 @@ export default function AdminLayout() {
 
   const handleLogout = () => { logout(); navigate('/admin_login'); };
 
+  const pendingHotelsCount = (hotels || []).filter(h => (h.status || '').toUpperCase() === 'PENDING').length;
+
   const navItems = [
-    { path: '/admin', icon: icons.dashboard, label: 'Dashboard' },
-    { path: '/admin/calendar', icon: icons.calendar, label: 'Business Calendar' },
-    { path: '/admin/map', icon: icons.map, label: 'Map View' },
-    { path: '/admin/users', icon: icons.users, label: 'Customers' },
-    { path: '/admin/hotels', icon: icons.hotel, label: 'Hotels' },
-    { path: '/admin/leads', icon: icons.leads, label: 'Leads' },
-    { path: '/admin/credits', icon: icons.credits, label: 'Credit Log' },
-    { path: '/admin/reports', icon: icons.reports, label: 'Reports' },
-    { path: '/admin/settings', icon: icons.settings, label: 'Settings' },
+    { path: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
+    { path: '/admin/calendar', icon: Calendar, label: 'Business Calendar' },
+    { path: '/admin/map', icon: MapPin, label: 'Map View' },
+    { path: '/admin/users', icon: Users, label: 'Customers' },
+    { path: '/admin/hotels', icon: Building2, label: 'Hotels', badge: pendingHotelsCount },
+    { path: '/admin/leads', icon: Mail, label: 'Leads' },
+    { path: '/admin/credits', icon: CreditCard, label: 'Credit Log' },
+    { path: '/admin/reports', icon: BarChart3, label: 'Reports' },
+    { path: '/admin/settings', icon: Settings, label: 'Settings' },
   ];
 
   return (
-    <div className="layout fade-in">
+    <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden', background: '#F8FAFC', fontFamily: 'var(--font-sans)' }}>
       {/* Mobile Drawer Overlay Backdrop */}
       {sidebarOpen && (
         <div 
@@ -57,7 +58,7 @@ export default function AdminLayout() {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0, 0, 0, 0.65)',
+            background: 'rgba(15, 23, 42, 0.65)',
             backdropFilter: 'blur(4px)',
             zIndex: 99,
             transition: 'opacity 0.3s'
@@ -65,125 +66,265 @@ export default function AdminLayout() {
         />
       )}
 
-      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`} style={{
+      {/* Modern Dark Navy Sidebar */}
+      <aside style={{
+        width: 260,
+        minWidth: 260,
+        height: '100vh',
+        flexShrink: 0,
+        background: '#0B132B',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
         zIndex: 100,
-        transition: 'transform 0.3s ease'
+        borderRight: '1px solid rgba(255, 255, 255, 0.06)',
+        boxShadow: '4px 0 24px rgba(0, 0, 0, 0.12)',
+        overflowY: 'auto'
       }}>
-        {/* Clean brand header */}
-        <div className="sidebar-header" style={{ padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <Link to="/admin" style={{ textDecoration: 'none' }}>
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: '1.35rem', fontWeight: 800, color: 'white', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 6 }}>
-                🏨 Hotel<span style={{ color: '#3B82F6', fontStyle: 'italic', fontFamily: "'Playfair Display', serif" }}>IQ</span>
-              </span>
+        <div>
+          {/* Brand Header */}
+          <div style={{
+            padding: '24px 20px 20px',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}>
+            <Link to="/admin" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 10 }}>
+              {/* Pink Hotel Icon */}
+              <div style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: 'linear-gradient(135deg, #EC4899, #F43F5E)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 12px rgba(236, 72, 153, 0.35)',
+                color: 'white',
+                fontSize: '1.2rem'
+              }}>
+                🏨
+              </div>
+              <div>
+                <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#FFFFFF', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center' }}>
+                  Hotel <span style={{ color: '#38BDF8', fontStyle: 'italic', marginLeft: 4, fontFamily: "'Playfair Display', serif" }}>IQ</span>
+                </div>
+                <div style={{ fontSize: '0.68rem', color: '#94A3B8', fontWeight: 600, letterSpacing: '0.04em', marginTop: 1 }}>
+                  Admin Control Center
+                </div>
+              </div>
             </Link>
-            <div style={{ fontSize: '0.65rem', color: '#60A5FA', textTransform: 'uppercase', letterSpacing: '0.12em', marginTop: 2, fontWeight: 700 }}>
-              Admin Control Center
-            </div>
+
+            <button
+              onClick={() => setSidebarOpen(false)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#94A3B8',
+                cursor: 'pointer',
+                padding: 4,
+                display: 'none'
+              }}
+            >
+              <X size={20} />
+            </button>
           </div>
 
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="mobile-close-btn"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#94a3b8',
-              cursor: 'pointer',
-              padding: 4,
-              display: 'none'
-            }}
-          >
-            <Icon d={icons.close} size={22} />
-          </button>
+          {/* Nav Items */}
+          <nav style={{ padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {navItems.map(item => {
+              const isActive = location.pathname === item.path || (item.path === '/admin' && location.pathname === '/admin/');
+              const IconComp = item.icon;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '11px 16px',
+                    borderRadius: 10,
+                    textDecoration: 'none',
+                    fontWeight: isActive ? 700 : 500,
+                    fontSize: '0.88rem',
+                    transition: 'all 0.2s ease',
+                    background: isActive 
+                      ? 'linear-gradient(135deg, #2563EB, #1D4ED8)' 
+                      : 'transparent',
+                    color: isActive ? '#FFFFFF' : '#94A3B8',
+                    boxShadow: isActive ? '0 4px 14px rgba(37, 99, 235, 0.35)' : 'none'
+                  }}
+                  onMouseEnter={e => {
+                    if (!isActive) {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                      e.currentTarget.style.color = '#F8FAFC';
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    if (!isActive) {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#94A3B8';
+                    }
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <IconComp size={18} style={{ opacity: isActive ? 1 : 0.8 }} />
+                    <span>{item.label}</span>
+                  </div>
+                  {item.badge > 0 && (
+                    <span style={{
+                      background: '#EF4444',
+                      color: '#FFFFFF',
+                      fontSize: '0.7rem',
+                      fontWeight: 800,
+                      padding: '2px 7px',
+                      borderRadius: 12,
+                      lineHeight: 1.2
+                    }}>
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
         </div>
 
-        {/* Clean nav */}
-        <nav className="sidebar-nav">
-          {navItems.map(item => {
-            const isActive = location.pathname === item.path;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`sidebar-link ${isActive ? 'active' : ''}`}
-                style={{ display: 'flex', alignItems: 'center', gap: 12 }}
-              >
-                <span style={{ opacity: isActive ? 1 : 0.5, display: 'flex' }}>
-                  <Icon d={item.icon} size={18} />
-                </span>
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Clean footer */}
-        <div className="sidebar-footer">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        {/* Sidebar Footer (User Profile & Sign Out) */}
+        <div style={{ padding: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
             <div style={{
-              width: 32, height: 32, borderRadius: 8,
-              background: 'rgba(255,255,255,0.1)', color: 'white',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '0.8rem', fontWeight: 600,
+              width: 38,
+              height: 38,
+              borderRadius: 10,
+              background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)',
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '0.9rem',
+              fontWeight: 800
             }}>
-              {(user?.name || 'A')[0]}
+              {(user?.name || 'S')[0]}
             </div>
-            <div>
-              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0' }}>{user?.name || 'Admin'}</div>
-              <div style={{ fontSize: '0.68rem', color: '#64748b' }}>Administrator</div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#F8FAFC', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {user?.name || 'System Admin'}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#64748B' }}>
+                Administrator
+              </div>
             </div>
           </div>
+
           <button
             onClick={handleLogout}
             style={{
-              width: '100%', padding: '8px', borderRadius: 8,
-              border: '1px solid rgba(255,255,255,0.08)',
-              background: 'transparent', color: '#94a3b8',
-              fontSize: '0.78rem', fontWeight: 500, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              transition: 'all 0.15s',
+              width: '100%',
+              padding: '9px',
+              borderRadius: 8,
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              background: 'rgba(255, 255, 255, 0.03)',
+              color: '#94A3B8',
+              fontSize: '0.82rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              transition: 'all 0.15s'
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = '#fca5a5'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#94a3b8'; }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
+              e.currentTarget.style.color = '#FCA5A5';
+              e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.03)';
+              e.currentTarget.style.color = '#94A3B8';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+            }}
           >
-            <Icon d={icons.logout} size={15} />
+            <LogOut size={15} />
             Sign Out
           </button>
         </div>
       </aside>
 
-      <main className="main-content">
-        <header className="topbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="mobile-hamburger-btn"
+      {/* Main Content Area */}
+      <div style={{ flex: 1, height: '100vh', display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+        {/* Top Navigation Bar (Fixed) */}
+        <header style={{
+          height: 70,
+          minHeight: 70,
+          flexShrink: 0,
+          background: '#FFFFFF',
+          borderBottom: '1px solid #E2E8F0',
+          padding: '0 28px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          zIndex: 50
+        }}>
+          {/* Search Box on Topbar */}
+          <div style={{ position: 'relative', width: 340 }}>
+            <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
+            <input
+              type="text"
+              placeholder="Search hotels, managers, locations..."
+              value={globalSearch}
+              onChange={e => setGlobalSearch(e.target.value)}
               style={{
-                background: 'transparent',
-                border: '1px solid var(--border)',
-                borderRadius: 8,
-                padding: '6px 8px',
-                cursor: 'pointer',
-                color: 'var(--text)',
-                display: 'none',
-                alignItems: 'center',
-                justifyContent: 'center'
+                width: '100%',
+                padding: '9px 14px 9px 38px',
+                borderRadius: 22,
+                border: '1px solid #E2E8F0',
+                background: '#F8FAFC',
+                fontSize: '0.84rem',
+                color: '#1E293B',
+                outline: 'none',
+                boxSizing: 'border-box'
               }}
-              title="Toggle navigation"
-            >
-              <Icon d={icons.menu} size={20} />
-            </button>
-            <h2 style={{ fontSize: '1.15rem', margin: 0, fontWeight: 600, color: 'var(--text)' }}>
-              {navItems.find(i => i.path === location.pathname)?.label || 'Dashboard'}
-            </h2>
+            />
+          </div>
+
+          {/* Right Profile & Notifications */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+            <NotificationDropdown role="admin" userId={user?.id || 999999} isDark={false} />
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+              <div style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                background: '#0F172A',
+                color: '#FFFFFF',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '0.85rem',
+                fontWeight: 800
+              }}>
+                {(user?.name || 'S')[0]}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#0F172A' }}>
+                  {user?.name || 'System Admin'}
+                </span>
+                <ChevronDown size={14} style={{ color: '#64748B' }} />
+              </div>
+            </div>
           </div>
         </header>
 
-        <div className="page-content">
+        {/* Page Content Body (Independently scrollable) */}
+        <main style={{ padding: '24px 28px', flex: 1, overflowY: 'auto' }}>
           <Outlet />
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

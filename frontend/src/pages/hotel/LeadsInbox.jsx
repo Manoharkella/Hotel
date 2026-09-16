@@ -248,10 +248,10 @@ export default function LeadsInbox() {
                   {unlocked && !existingQuote && (
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button className="btn btn-outline btn-sm" style={{ padding: '5px 12px', fontSize: '0.8rem' }} onClick={() => setChatLead(lead)}>
-                        💬 Chat with Guest
+                        Chat with Guest
                       </button>
                       <button className="btn btn-primary btn-sm" style={{ padding: '5px 14px', fontSize: '0.8rem' }} onClick={() => setSelectedLead(lead)}>
-                        ⚡ Send Custom Quote
+                        Send Custom Quote
                       </button>
                     </div>
                   )}
@@ -273,7 +273,7 @@ export default function LeadsInbox() {
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: '0 0 16px' }}>Spend <strong>10 credits</strong> to view traveler contact details and submit quotes.</p>
             
             <div style={{ background: 'var(--bg)', border: '1px solid var(--border-light)', padding: '12px 16px', borderRadius: 10, marginBottom: 16, fontSize: '0.85rem' }}>
-              📍 <strong>{selectedLead.destination}</strong> • 👥 {selectedLead.guests} Guests • 💰 Budget: <strong>₹{Number(selectedLead.budget || 0).toLocaleString()}</strong>
+              <strong>{selectedLead.destination}</strong> • {selectedLead.guests} Guests • Budget: <strong>₹{Number(selectedLead.budget || 0).toLocaleString()}</strong>
             </div>
             
             <div className="flex-between" style={{ borderTop: '1px solid var(--border-light)', paddingTop: 14, marginBottom: 20 }}>
@@ -291,7 +291,7 @@ export default function LeadsInbox() {
                   style={{ background: 'var(--accent)', color: 'white', fontWeight: 600, padding: '8px 16px' }} 
                   onClick={() => handleUnlock(selectedLead)}
                 >
-                  ⚡ Unlock via 10% Commission
+                  Unlock via 10% Commission
                 </button>
               )}
             </div>
@@ -336,8 +336,8 @@ export default function LeadsInbox() {
 
             {/* Quick Trip Details Chip Bar */}
             <div style={{ background: 'var(--bg)', padding: '8px 12px', borderRadius: 8, fontSize: '0.8rem', display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center', border: '1px solid var(--border-light)' }}>
-              <span>📅 {selectedLead.checkIn ? new Date(selectedLead.checkIn).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : ''} – {selectedLead.checkOut ? new Date(selectedLead.checkOut).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : ''}</span>
-              <span>🛏️ {selectedLead.roomType || 'Standard'}</span>
+              <span>{selectedLead.checkIn ? new Date(selectedLead.checkIn).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : ''} – {selectedLead.checkOut ? new Date(selectedLead.checkOut).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : ''}</span>
+              <span>{selectedLead.roomType || 'Standard'}</span>
               <span>Target: <strong style={{ color: 'var(--primary)' }}>₹{Number(selectedLead.budget || 0).toLocaleString()}</strong></span>
             </div>
 
@@ -357,11 +357,11 @@ export default function LeadsInbox() {
                       price: suggestedRate.toString(),
                       message: `Greetings from ${hotelName}! We are pleased to offer you this special rate of ₹${suggestedRate.toLocaleString()} including ${perks}. Looking forward to welcoming you!`
                     });
-                    addToast('AI Smart Quote applied!', 'success');
+                    addToast('Auto-Fill Offer applied!', 'success');
                   }}
                   style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: 20, padding: '3px 10px', fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
                 >
-                  ✨ Auto-Fill AI Offer
+                  Auto-Fill Suggested Offer
                 </button>
               </div>
               <div style={{ position: 'relative' }}>

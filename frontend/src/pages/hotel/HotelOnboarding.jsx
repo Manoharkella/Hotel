@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useApp } from '../../context/AppContext';
 import { useToast } from '../../context/ToastContext';
 import { api } from '../../services/api';
 import HotelLogo from '../../components/HotelLogo';
@@ -106,16 +107,18 @@ export default function HotelOnboarding() {
   const location = useLocation();
   const { user, login } = useAuth();
   const { addToast } = useToast();
+  const { addNotification } = useApp();
 
   // Retrieve draft or partner signup data from session/localStorage
   const getInitialPartnerData = () => {
+    let savedDraft = {};
     try {
-      const savedDraft = localStorage.getItem('hotel_onboarding_draft');
-      if (savedDraft) return JSON.parse(savedDraft);
+      const raw = localStorage.getItem('hotel_onboarding_draft');
+      if (raw) savedDraft = JSON.parse(raw) || {};
     } catch (e) {}
 
     const sessionUser = user || JSON.parse(sessionStorage.getItem('hotel_partner_signup') || '{}');
-    return {
+    const defaults = {
       manager_name: sessionUser.name || sessionUser.full_name || '',
       manager_phone: sessionUser.phone || '',
       email: sessionUser.email || '',
@@ -192,6 +195,16 @@ export default function HotelOnboarding() {
         { id: 'doc_3', type: 'Owner / Authorized ID', name: 'manager_aadhaar_pan.pdf', status: 'Uploaded', required: true, uploadedAt: '2026-09-16' },
         { id: 'doc_4', type: 'GST Certificate (Optional)', name: '', status: 'Pending', required: false, uploadedAt: '' }
       ]
+    };
+
+    return {
+      ...defaults,
+      ...savedDraft,
+      rooms: (Array.isArray(savedDraft.rooms) && savedDraft.rooms.length > 0) ? savedDraft.rooms : defaults.rooms,
+      photos: (Array.isArray(savedDraft.photos) && savedDraft.photos.length > 0) ? savedDraft.photos : defaults.photos,
+      amenities: (Array.isArray(savedDraft.amenities) && savedDraft.amenities.length > 0) ? savedDraft.amenities : defaults.amenities,
+      policies: { ...defaults.policies, ...(savedDraft.policies || {}) },
+      documents: (Array.isArray(savedDraft.documents) && savedDraft.documents.length > 0) ? savedDraft.documents : defaults.documents
     };
   };
 
@@ -329,9 +342,12 @@ export default function HotelOnboarding() {
   };
 
   const handleSaveRoomModal = (e) => {
-    e.preventDefault();
-    if (!roomFormData.room_type.trim()) {
-      addToast('Please enter a room name/type.', 'warning');
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!roomFormData.room_type || !roomFormData.room_type.trim()) {
+      addToast('Please enter a room category name.', 'warning');
       return;
     }
     if (!roomFormData.price_per_night || Number(roomFormData.price_per_night) <= 0) {
@@ -339,15 +355,28 @@ export default function HotelOnboarding() {
       return;
     }
 
-    const currentRooms = [...formData.rooms];
-    if (editingRoomIndex !== null) {
-      currentRooms[editingRoomIndex] = { ...roomFormData, id: currentRooms[editingRoomIndex].id || Date.now() };
+    const currentRooms = Array.isArray(formData.rooms) ? [...formData.rooms] : [];
+    if (editingRoomIndex !== null && currentRooms[editingRoomIndex]) {
+      currentRooms[editingRoomIndex] = { 
+        ...roomFormData, 
+        id: currentRooms[editingRoomIndex].id || Date.now(),
+        room_type: roomFormData.room_type.trim(),
+        price_per_night: Number(roomFormData.price_per_night),
+        quantity: Number(roomFormData.quantity) || 1
+      };
       addToast('Room updated successfully!', 'success');
     } else {
-      currentRooms.push({ ...roomFormData, id: Date.now() });
+      currentRooms.push({ 
+        ...roomFormData, 
+        id: Date.now(),
+        room_type: roomFormData.room_type.trim(),
+        price_per_night: Number(roomFormData.price_per_night),
+        quantity: Number(roomFormData.quantity) || 1
+      });
       addToast('New room category added!', 'success');
     }
     updateField('rooms', currentRooms);
+    setEditingRoomIndex(null);
     setRoomModalOpen(false);
   };
 
@@ -549,6 +578,20 @@ export default function HotelOnboarding() {
         hotelId: response.id.toString(),
         status: 'PENDING'
       });
+
+      // Dispatch admin notification
+      if (addNotification) {
+        addNotification({
+          role: 'admin',
+          type: 'hotel_registration',
+          title: '🏨 New Hotel Registration Pending Approval',
+          message: `${formData.name || 'New Property'} (${formData.city || 'India'}) has submitted onboarding with ${formData.rooms?.length || 0} room categories and documents. Review and verify now.`,
+          hotelId: response.id,
+          hotelName: response.name,
+          createdAt: new Date().toISOString(),
+          link: '/admin/hotels'
+        });
+      }
 
       addToast('Hotel submitted for approval successfully!', 'success');
       setShowSubmitModal(false);
@@ -2178,6 +2221,7 @@ export default function HotelOnboarding() {
                 </button>
                 <button
                   type="submit"
+                  onClick={handleSaveRoomModal}
                   style={{ flex: 2, padding: '10px', background: '#EA580C', color: '#FFF', border: 'none', borderRadius: 8, fontWeight: 700, cursor: 'pointer' }}
                 >
                   {editingRoomIndex !== null ? 'Update Room Category' : 'Save Room Category'}

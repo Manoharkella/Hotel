@@ -460,9 +460,9 @@ export default function HotelDetail() {
               </div>
 
               <div className="hotel-booking-inline-guarantees">
-                <span>✓ Free cancellation</span>
-                <span>💳 Pay at hotel</span>
-                <span>⚡ Instant confirmation</span>
+                <span>Free cancellation</span>
+                <span>• Pay at hotel</span>
+                <span>• Instant confirmation</span>
               </div>
             </div>
 

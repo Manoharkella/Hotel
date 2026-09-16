@@ -21,14 +21,12 @@ const localizer = dateFnsLocalizer({
 export default function HotelBookings() {
   const { bookings, checkins, checkOutBooking } = useApp();
   const { user } = useAuth();
-  const hotelId = (user?.hotelId || user?.id || '11').toString();
+  const hotelId = (user?.hotelId || user?.id)?.toString();
   const [tab, setTab] = useState('all');
   const [viewMode, setViewMode] = useState('list');
 
-  const hotelBookings = bookings.filter(b => 
-    b.hotelId?.toString() === hotelId ||
-    (hotelId === '11' && (b.hotelName?.toLowerCase().includes('radisson') || b.hotelId?.toString() === '11'))
-  ).filter(b => b.customerName !== 'Arjun Verma' && b.customerName !== 'Priya Sharma');
+  // STRICT HOTEL ISOLATION: Show ONLY bookings for this hotel account
+  const hotelBookings = hotelId ? bookings.filter(b => b.hotelId?.toString() === hotelId) : [];
   const filtered = tab === 'all' ? hotelBookings : hotelBookings.filter(b => b.status === tab);
 
   const sc = { 

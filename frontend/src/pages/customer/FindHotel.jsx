@@ -262,10 +262,10 @@ export default function FindHotel() {
 
   // Badge assigner based on index
   const getBadgeInfo = (index) => {
-    if (index % 4 === 0) return { label: '🔥 Bestseller', className: '' };
-    if (index % 4 === 1) return { label: '🏷️ Great Deal', className: 'deal' };
-    if (index % 4 === 2) return { label: '💎 Luxury', className: 'luxury' };
-    return { label: '👨‍👩‍👧 Family Friendly', className: 'family' };
+    if (index % 4 === 0) return { label: 'Bestseller', className: '' };
+    if (index % 4 === 1) return { label: 'Special Offer', className: 'deal' };
+    if (index % 4 === 2) return { label: 'Luxury Stay', className: 'luxury' };
+    return { label: 'Family Friendly', className: 'family' };
   };
 
   return (
@@ -571,7 +571,7 @@ export default function FindHotel() {
           <div className="find-list-header">
             <div className="find-list-title-wrap">
               <h2 className="find-list-title">
-                {isPlaceSearched ? `🏢 Hotels in ${destination}` : '⭐ Top 5 Rated Hotels'}
+                {isPlaceSearched ? `Hotels in ${destination}` : 'Top Rated Hotels'}
               </h2>
               <span className="find-list-count">
                 {isPlaceSearched ? `${displayedHotels.length} Results` : `Top 5 of ${filteredHotels.length}`}

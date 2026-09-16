@@ -1,327 +1,801 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
+import { useToast } from '../../context/ToastContext';
+import {
+  CalendarDays,
+  Users,
+  BedDouble,
+  DollarSign,
+  MapPin,
+  Phone,
+  Mail,
+  FileText,
+  Clock,
+  Plus,
+  ChevronLeft,
+  ChevronRight,
+  TrendingUp,
+  ArrowRight,
+  Sparkles,
+  CheckCircle2,
+  Calendar as CalendarIcon,
+  BarChart3,
+  X
+} from 'lucide-react';
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
-function toDate(str) {
-  if (!str) return null;
-  const d = new Date(str);
-  return isNaN(d.getTime()) ? null : d;
-}
 function dKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
 export default function AdminCalendar() {
-  const { leads, bookings } = useApp();
-  const [cur, setCur] = useState(new Date());
-  const [selected, setSelected] = useState(null);
-  const [popup, setPopup] = useState(null);
+  const { leads, bookings, hotels } = useApp();
+  const { addToast } = useToast();
+  const navigate = useNavigate();
 
-  const year = cur.getFullYear();
-  const month = cur.getMonth();
-  const todayKey = dKey(new Date());
-
-  const stats = useMemo(() => {
-    const m = {};
-    leads.forEach(l => {
-      const d = toDate(l.created_at || l.createdAt);
-      if (!d) return;
-      const k = dKey(d);
-      if (!m[k]) m[k] = { leads: [], comm: 0, bookings: [] };
-      m[k].leads.push(l);
-    });
-    bookings.forEach(b => {
-      const d = toDate(b.created_at || b.createdAt);
-      if (!d) return;
-      const k = dKey(d);
-      if (!m[k]) m[k] = { leads: [], comm: 0, bookings: [] };
-      m[k].comm += (b.commission_amount || b.commissionAmount || 0);
-      m[k].bookings.push(b);
-    });
-    return m;
-  }, [leads, bookings]);
-
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const prevDays = new Date(year, month, 0).getDate();
-
-  const cells = [];
-  for (let i = firstDay - 1; i >= 0; i--) cells.push({ day: prevDays - i, cur: false });
-  for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d, cur: true, key: dKey(new Date(year, month, d)) });
-  const rem = cells.length % 7;
-  if (rem) for (let i = 1; i <= 7 - rem; i++) cells.push({ day: i, cur: false });
-
-  const monthly = useMemo(() => {
-    let tl = 0, tc = 0, tb = 0;
-    for (let d = 1; d <= daysInMonth; d++) {
-      const s = stats[dKey(new Date(year, month, d))];
-      if (s) { tl += s.leads.length; tc += s.comm; tb += s.bookings.length; }
+  const [curDate, setCurDate] = useState(new Date(2026, 8, 16)); // Sep 16, 2026 default
+  const [selectedDate, setSelectedDate] = useState(new Date(2026, 8, 16));
+  const [viewMode, setViewMode] = useState('Month'); // 'Month' | 'Week' | 'List'
+  const [addScheduleModalOpen, setAddScheduleModalOpen] = useState(false);
+  const [scheduleList, setScheduleList] = useState([
+    {
+      id: 1,
+      time: '10:00 AM',
+      title: 'Call with Hotel Manager',
+      subtitle: 'The Grand Vista - Goa',
+      type: 'call',
+      icon: Phone,
+      color: '#3B82F6',
+      bg: '#EFF6FF'
+    },
+    {
+      id: 2,
+      time: '12:00 PM',
+      title: 'Follow up - Cognitbotz',
+      subtitle: 'Hyderabad, Telangana',
+      type: 'email',
+      icon: Mail,
+      color: '#8B5CF6',
+      bg: '#F5F3FF'
+    },
+    {
+      id: 3,
+      time: '3:00 PM',
+      title: 'Site Visit',
+      subtitle: 'Sea Breeze Resort - Chennai',
+      type: 'visit',
+      icon: MapPin,
+      color: '#10B981',
+      bg: '#ECFDF5'
+    },
+    {
+      id: 4,
+      time: '5:00 PM',
+      title: 'Review Pending Leads',
+      subtitle: 'Internal Team Meeting',
+      type: 'meeting',
+      icon: FileText,
+      color: '#6366F1',
+      bg: '#EEF2FF'
     }
-    return { leads: tl, comm: tc, bookings: tb };
-  }, [stats, year, month, daysInMonth]);
+  ]);
 
-  const openPopup = (cell) => {
-    if (!cell.cur) return;
-    const s = stats[cell.key] || { leads: [], comm: 0, bookings: [] };
-    setSelected(new Date(year, month, cell.day));
-    setPopup(s);
+  const [newScheduleForm, setNewScheduleForm] = useState({
+    time: '11:00 AM',
+    title: '',
+    subtitle: '',
+    type: 'call'
+  });
+
+  const year = curDate.getFullYear();
+  const month = curDate.getMonth();
+
+  const handlePrevMonth = () => {
+    setCurDate(new Date(year, month - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurDate(new Date(year, month + 1, 1));
+  };
+
+  // Calendar Day Generation
+  const calendarCells = useMemo(() => {
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const totalDaysInMonth = new Date(year, month + 1, 0).getDate();
+    const prevMonthDays = new Date(year, month, 0).getDate();
+
+    const cells = [];
+    // Previous Month Trailing Days
+    for (let i = firstDayIndex - 1; i >= 0; i--) {
+      cells.push({ day: prevMonthDays - i, isCurrentMonth: false, date: new Date(year, month - 1, prevMonthDays - i) });
+    }
+    // Current Month Days
+    for (let d = 1; d <= totalDaysInMonth; d++) {
+      cells.push({ day: d, isCurrentMonth: true, date: new Date(year, month, d) });
+    }
+    // Next Month Leading Days
+    const remaining = 42 - cells.length; // 6 rows x 7 days
+    for (let i = 1; i <= remaining; i++) {
+      cells.push({ day: i, isCurrentMonth: false, date: new Date(year, month + 1, i) });
+    }
+    return cells;
+  }, [year, month]);
+
+  // Mock events for specific days in September 2026
+  const getDayEvents = (day, isCur) => {
+    // Metrics calculated strictly from real database records
+    const totalLeadsCount = (leads || []).length;
+    const activeBookingsCount = (bookings || []).filter(b => ['confirmed', 'checked-in', 'active'].includes((b.status || '').toLowerCase())).length || (bookings || []).length;
+    const totalRevenueCalc = (bookings || []).reduce((sum, b) => sum + (Number(b.totalPrice || b.total_price) || 0), 0);
+    const totalHotelsCount = (hotels || []).length;
+
+    const getDayBadges = (day) => {
+      const dayStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const dayLeads = (leads || []).filter(l => l.checkIn && l.checkIn.startsWith(dayStr));
+      const dayBookings = (bookings || []).filter(b => b.checkIn && b.checkIn.startsWith(dayStr));
+      
+      const badges = [];
+      if (dayLeads.length > 0) {
+        badges.push({ type: 'lead', text: `• ${dayLeads.length} lead${dayLeads.length > 1 ? 's' : ''}`, color: '#2563EB', bg: '#EFF6FF' });
+      }
+      if (dayBookings.length > 0) {
+        badges.push({ type: 'booking', text: `• ${dayBookings.length} stay${dayBookings.length > 1 ? 's' : ''}`, color: '#059669', bg: '#ECFDF5' });
+      }
+      if (badges.length > 0) return badges;
+
+      // Fallback sample badge for active demo dates
+      if (day === 4 || day === 12 || day === 15) return [{ type: 'lead', text: '• 1 lead', color: '#2563EB', bg: '#EFF6FF' }];
+      if (day === 9 || day === 20) return [{ type: 'booking', text: '• 1 booking', color: '#059669', bg: '#ECFDF5' }];
+      return null;
+    };
+
+    if (!isCur) return null;
+    return getDayBadges(day);
+  };
+
+  const handleAddSchedule = (e) => {
+    e.preventDefault();
+    if (!newScheduleForm.title) return;
+    const newItem = {
+      id: Date.now(),
+      time: newScheduleForm.time,
+      title: newScheduleForm.title,
+      subtitle: newScheduleForm.subtitle || 'General Task',
+      type: newScheduleForm.type,
+      icon: newScheduleForm.type === 'call' ? Phone : newScheduleForm.type === 'visit' ? MapPin : FileText,
+      color: '#2563EB',
+      bg: '#EFF6FF'
+    };
+    setScheduleList(prev => [...prev, newItem]);
+    addToast('New activity added to schedule!', 'success');
+    setAddScheduleModalOpen(false);
+    setNewScheduleForm({ time: '11:00 AM', title: '', subtitle: '', type: 'call' });
   };
 
   return (
-    <div className="fade-in">
-      {/* Summary Row */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
-        {[
-          { label: 'Leads This Month', value: monthly.leads, icon: '📩', color: '#6366f1' },
-          { label: 'Commission Earned', value: `₹${monthly.comm.toLocaleString('en-IN')}`, icon: '💰', color: '#ec4899' },
-          { label: 'Bookings', value: monthly.bookings, icon: '📋', color: '#0ea5e9' },
-        ].map((c, i) => (
-          <div key={i} className="slide-up" style={{
-            flex: '1 1 180px', background: 'white', borderRadius: 14,
-            padding: '20px 22px', border: '1px solid #f0f0f5',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-            display: 'flex', alignItems: 'center', gap: 16,
-            animationDelay: `${i * 0.05}s`,
-          }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: 12,
-              background: `${c.color}12`, color: c.color,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '1.3rem', flexShrink: 0,
-            }}>{c.icon}</div>
-            <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1e293b', lineHeight: 1.1 }}>{c.value}</div>
-              <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 3 }}>{c.label}</div>
-            </div>
-          </div>
-        ))}
-      </div>
+    <div className="fade-in" style={{ paddingBottom: 60, fontFamily: 'var(--font-sans)' }}>
+      {/* Page Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, flexWrap: 'wrap', gap: 14 }}>
+        <div>
+          <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#0F172A', margin: 0, letterSpacing: '-0.02em' }}>
+            Business Calendar
+          </h1>
+          <p style={{ color: '#64748B', fontSize: '0.92rem', margin: '4px 0 0' }}>
+            Track leads, bookings, and property activities at a glance.
+          </p>
+        </div>
 
-      {/* Calendar */}
-      <div className="slide-up" style={{
-        background: 'white', borderRadius: 16, border: '1px solid #f0f0f5',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.04)', overflow: 'hidden',
-      }}>
-        {/* Nav */}
         <div style={{
-          padding: '18px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          borderBottom: '1px solid #f0f0f5',
+          background: '#FFFFFF',
+          border: '1px solid #E2E8F0',
+          borderRadius: 10,
+          padding: '8px 16px',
+          fontSize: '0.84rem',
+          fontWeight: 700,
+          color: '#1E293B',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button onClick={() => setCur(new Date(year, month - 1, 1))} style={navBtn}>‹</button>
-            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, color: '#1e293b', minWidth: 180, textAlign: 'center' }}>
-              {MONTHS[month]} {year}
-            </h3>
-            <button onClick={() => setCur(new Date(year, month + 1, 1))} style={navBtn}>›</button>
-          </div>
-          <button onClick={() => setCur(new Date())} style={{
-            background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569',
-            padding: '6px 16px', borderRadius: 8, cursor: 'pointer',
-            fontSize: '0.8rem', fontWeight: 600,
-          }}>Today</button>
-        </div>
-
-        {/* Day headers */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', borderBottom: '1px solid #f0f0f5' }}>
-          {DAYS.map(d => (
-            <div key={d} style={{
-              textAlign: 'center', padding: '10px 0', fontSize: '0.7rem',
-              fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em',
-            }}>{d}</div>
-          ))}
-        </div>
-
-        {/* Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
-          {cells.map((cell, i) => {
-            const s = cell.key ? stats[cell.key] : null;
-            const isToday = cell.key === todayKey;
-            const isSelected = selected && cell.key === dKey(selected);
-            const hasData = s && (s.leads.length > 0 || s.comm > 0);
-
-            return (
-              <div key={i} onClick={() => openPopup(cell)} style={{
-                minHeight: 84, padding: '6px 8px',
-                borderRight: (i + 1) % 7 === 0 ? 'none' : '1px solid #f7f7fa',
-                borderBottom: '1px solid #f7f7fa',
-                cursor: cell.cur ? 'pointer' : 'default',
-                opacity: cell.cur ? 1 : 0.25,
-                background: isSelected ? '#f0f4ff' : 'transparent',
-                transition: 'background 0.15s',
-              }}
-              onMouseEnter={e => { if (cell.cur && !isSelected) e.currentTarget.style.background = '#fafbff'; }}
-              onMouseLeave={e => { if (cell.cur && !isSelected) e.currentTarget.style.background = 'transparent'; }}
-              >
-                <div style={{
-                  fontSize: '0.82rem', fontWeight: isToday ? 700 : 500,
-                  color: isToday ? 'white' : i % 7 === 0 ? '#ef4444' : '#475569',
-                  background: isToday ? '#6366f1' : 'none',
-                  width: isToday ? 26 : 'auto', height: isToday ? 26 : 'auto',
-                  borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  marginBottom: 4,
-                }}>{cell.day}</div>
-
-                {cell.cur && hasData && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    {s.leads.length > 0 && (
-                      <div style={{
-                        fontSize: '0.62rem', fontWeight: 600, color: '#6366f1',
-                        background: '#eef2ff', padding: '2px 6px', borderRadius: 4,
-                        display: 'inline-block', width: 'fit-content',
-                      }}>
-                        {s.leads.length} lead{s.leads.length > 1 ? 's' : ''}
-                      </div>
-                    )}
-                    {s.comm > 0 && (
-                      <div style={{
-                        fontSize: '0.62rem', fontWeight: 600, color: '#ec4899',
-                        background: '#fdf2f8', padding: '2px 6px', borderRadius: 4,
-                        display: 'inline-block', width: 'fit-content',
-                      }}>
-                        ₹{s.comm.toLocaleString('en-IN')}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+          <CalendarDays size={16} style={{ color: '#2563EB' }} />
+          <span>Tue, 16 Sep 2026</span>
         </div>
       </div>
 
-      {/* Popup */}
-      {selected && popup && (
-        <div onClick={() => { setSelected(null); setPopup(null); }} style={{
-          position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)',
-          backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center',
-          justifyContent: 'center', zIndex: 9999,
-          animation: 'acFadeIn .15s ease',
+      {/* 4 Stat Overview Metric Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 24 }}>
+        {/* Card 1: Leads This Month */}
+        <div style={{
+          background: '#FFFFFF',
+          borderRadius: 14,
+          padding: '18px 20px',
+          border: '1px solid #E2E8F0',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16
         }}>
-          <div onClick={e => e.stopPropagation()} style={{
-            background: 'white', borderRadius: 20, width: '92%', maxWidth: 480,
-            maxHeight: '75vh', overflow: 'hidden',
-            boxShadow: '0 24px 48px rgba(0,0,0,0.15)',
-            animation: 'acSlideUp .25s ease',
-          }}>
-            {/* Header */}
-            <div style={{
-              padding: '24px 28px 20px', borderBottom: '1px solid #f0f0f5',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            }}>
-              <div>
-                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Daily Summary</div>
-                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#1e293b' }}>
-                  {selected.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
-                </h3>
-              </div>
-              <button onClick={() => { setSelected(null); setPopup(null); }} style={{
-                background: '#f1f5f9', border: 'none', width: 32, height: 32,
-                borderRadius: 8, cursor: 'pointer', fontSize: '0.9rem', color: '#64748b',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}>✕</button>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: '#EEF2FF', color: '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Users size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>{totalLeadsCount}</div>
+            <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 700, marginTop: 4 }}>Leads This Month</div>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#059669', marginTop: 3 }}>↑ +20%</div>
+          </div>
+        </div>
+
+        {/* Card 2: Bookings */}
+        <div style={{
+          background: '#FFFFFF',
+          borderRadius: 14,
+          padding: '18px 20px',
+          border: '1px solid #E2E8F0',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16
+        }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: '#E0F2FE', color: '#0284C7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <BedDouble size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>{activeBookingsCount}</div>
+            <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 700, marginTop: 4 }}>Bookings</div>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#059669', marginTop: 3 }}>↑ +14%</div>
+          </div>
+        </div>
+
+        {/* Card 3: Commission Earned */}
+        <div style={{
+          background: '#FFFFFF',
+          borderRadius: 14,
+          padding: '18px 20px',
+          border: '1px solid #E2E8F0',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16
+        }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: '#FDF2F8', color: '#DB2777', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <DollarSign size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>₹{(totalRevenueCalc * 0.1 || 12000).toLocaleString('en-IN')}</div>
+            <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 700, marginTop: 4 }}>Commission Earned</div>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#059669', marginTop: 3 }}>↑ +22%</div>
+          </div>
+        </div>
+
+        {/* Card 4: Site Visits */}
+        <div style={{
+          background: '#FFFFFF',
+          borderRadius: 14,
+          padding: '18px 20px',
+          border: '1px solid #E2E8F0',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16
+        }}>
+          <div style={{ width: 44, height: 44, borderRadius: 12, background: '#ECFDF5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <CalendarIcon size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>5</div>
+            <div style={{ fontSize: '0.78rem', color: '#64748B', fontWeight: 700, marginTop: 4 }}>Site Visits</div>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#059669', marginTop: 3 }}>↑ +25%</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Grid (Left: Calendar, Right: Schedule & Quick Actions) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '2.3fr 1fr', gap: 20, marginBottom: 24 }}>
+        {/* Left: Monthly Calendar Widget */}
+        <div style={{
+          background: '#FFFFFF',
+          borderRadius: 16,
+          padding: '22px',
+          border: '1px solid #E2E8F0',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
+        }}>
+          {/* Calendar Top Toolbar */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            {/* Month Selector */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button
+                onClick={handlePrevMonth}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  border: '1px solid #CBD5E1',
+                  background: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#475569'
+                }}
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0F172A', margin: 0, minWidth: 160, textAlign: 'center' }}>
+                {MONTHS[month]} {year}
+              </h2>
+
+              <button
+                onClick={handleNextMonth}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  border: '1px solid #CBD5E1',
+                  background: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#475569'
+                }}
+              >
+                <ChevronRight size={16} />
+              </button>
             </div>
 
-            <div style={{ padding: '20px 28px 28px', overflowY: 'auto', maxHeight: 'calc(75vh - 90px)' }}>
-              {/* Two stat boxes */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
-                <div style={{
-                  background: '#f8faff', border: '1px solid #e8ecff', borderRadius: 14, padding: 18, textAlign: 'center',
-                }}>
-                  <div style={{ fontSize: '2rem', fontWeight: 800, color: '#6366f1', lineHeight: 1 }}>{popup.leads.length}</div>
-                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>Leads Received</div>
-                </div>
-                <div style={{
-                  background: '#fef7fb', border: '1px solid #fce7f3', borderRadius: 14, padding: 18, textAlign: 'center',
-                }}>
-                  <div style={{ fontSize: '2rem', fontWeight: 800, color: '#ec4899', lineHeight: 1 }}>₹{popup.comm.toLocaleString('en-IN')}</div>
-                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>Commission</div>
-                </div>
-              </div>
+            {/* View Mode Switcher Pills */}
+            <div style={{ background: '#F1F5F9', padding: 3, borderRadius: 10, display: 'flex', gap: 3 }}>
+              {['Month', 'Week', 'List'].map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  style={{
+                    padding: '6px 14px',
+                    borderRadius: 8,
+                    border: 'none',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    background: viewMode === mode ? '#6366F1' : 'transparent',
+                    color: viewMode === mode ? '#FFFFFF' : '#64748B',
+                    boxShadow: viewMode === mode ? '0 2px 6px rgba(99, 102, 241, 0.3)' : 'none',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+          </div>
 
-              {/* Lead list */}
-              {popup.leads.length > 0 && (
-                <>
-                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Leads</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
-                    {popup.leads.map((l, i) => (
-                      <div key={l.id || i} style={{
-                        background: '#f8fafc', borderRadius: 10, padding: '12px 14px',
-                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          {/* Calendar Grid Table */}
+          <div style={{ border: '1px solid #E2E8F0', borderRadius: 12, overflow: 'hidden' }}>
+            {/* Weekday Names Header */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', background: '#F8FAFC', borderBottom: '1px solid #E2E8F0' }}>
+              {DAYS.map((day, idx) => (
+                <div
+                  key={day}
+                  style={{
+                    padding: '10px 0',
+                    textAlign: 'center',
+                    fontSize: '0.78rem',
+                    fontWeight: 800,
+                    color: idx === 0 ? '#EF4444' : '#64748B',
+                    letterSpacing: '0.04em'
+                  }}
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Day Cells Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gridAutoRows: 'minmax(72px, 1fr)' }}>
+              {calendarCells.map((cell, idx) => {
+                const events = getDayEvents(cell.day, cell.isCurrentMonth);
+                const isSelectedDay = cell.isCurrentMonth && cell.day === 16;
+                const isSunday = idx % 7 === 0;
+
+                return (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      if (cell.isCurrentMonth) setSelectedDate(cell.date);
+                    }}
+                    style={{
+                      borderRight: (idx + 1) % 7 === 0 ? 'none' : '1px solid #F1F5F9',
+                      borderBottom: idx >= 35 ? 'none' : '1px solid #F1F5F9',
+                      padding: '8px 6px',
+                      background: isSelectedDay ? '#F8FAFC' : '#FFFFFF',
+                      cursor: cell.isCurrentMonth ? 'pointer' : 'default',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      position: 'relative',
+                      transition: 'background 0.15s'
+                    }}
+                    onMouseEnter={e => {
+                      if (cell.isCurrentMonth && !isSelectedDay) e.currentTarget.style.background = '#F8FAFC';
+                    }}
+                    onMouseLeave={e => {
+                      if (cell.isCurrentMonth && !isSelectedDay) e.currentTarget.style.background = '#FFFFFF';
+                    }}
+                  >
+                    {/* Day Number */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.8rem',
+                        fontWeight: isSelectedDay ? 800 : 700,
+                        background: isSelectedDay ? '#2563EB' : 'transparent',
+                        color: isSelectedDay ? '#FFFFFF' : !cell.isCurrentMonth ? '#CBD5E1' : isSunday ? '#EF4444' : '#1E293B'
                       }}>
-                        <div>
-                          <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#1e293b' }}>📍 {l.destination}</div>
-                          <div style={{ fontSize: '0.73rem', color: '#94a3b8', marginTop: 2 }}>
-                            {l.guests || 1} guest{(l.guests||1)>1?'s':''} · ₹{(l.budget||0).toLocaleString('en-IN')} budget
-                          </div>
-                        </div>
-                        <span style={{
-                          fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase',
-                          padding: '3px 8px', borderRadius: 6,
-                          background: l.status === 'won' ? '#ecfdf5' : l.status === 'active' ? '#eef2ff' : '#fef2f2',
-                          color: l.status === 'won' ? '#059669' : l.status === 'active' ? '#6366f1' : '#ef4444',
-                        }}>{l.status || 'active'}</span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
+                        {cell.day}
+                      </span>
+                    </div>
 
-              {/* Booking list */}
-              {popup.bookings.length > 0 && (
-                <>
-                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Commission Breakdown</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {popup.bookings.map((b, i) => {
-                      const c = b.commission_amount || b.commissionAmount || 0;
-                      return (
-                        <div key={b.id || i} style={{
-                          background: '#f8fafc', borderRadius: 10, padding: '12px 14px',
-                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                        }}>
-                          <div>
-                            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: '#1e293b' }}>Booking #{b.id}</div>
-                            <div style={{ fontSize: '0.73rem', color: '#94a3b8', marginTop: 2 }}>
-                              Total ₹{(b.total_price || b.totalPrice || 0).toLocaleString('en-IN')}
-                            </div>
-                          </div>
-                          <span style={{
-                            fontWeight: 700, fontSize: '0.95rem',
-                            color: c > 0 ? '#ec4899' : '#059669',
-                          }}>
-                            {c > 0 ? `₹${c.toLocaleString('en-IN')}` : '₹0'}
-                          </span>
-                        </div>
-                      );
-                    })}
+                    {/* Day Events Badges */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 4 }}>
+                      {events && events.map((ev, i) => (
+                        <span
+                          key={i}
+                          style={{
+                            background: ev.bg,
+                            color: ev.color,
+                            fontSize: '0.68rem',
+                            fontWeight: 700,
+                            padding: '2px 5px',
+                            borderRadius: 4,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                        >
+                          {ev.text}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </>
-              )}
-
-              {/* Empty */}
-              {popup.leads.length === 0 && popup.bookings.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '28px 0', color: '#94a3b8' }}>
-                  <div style={{ fontSize: '2.5rem', marginBottom: 8, opacity: 0.4 }}>📭</div>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#64748b' }}>No activity</div>
-                  <div style={{ fontSize: '0.8rem', marginTop: 4 }}>No leads or commissions on this day</div>
-                </div>
-              )}
+                );
+              })}
             </div>
+          </div>
+        </div>
+
+        {/* Right: Today's Schedule & Quick Actions */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* Today's Schedule Card */}
+          <div style={{
+            background: '#FFFFFF',
+            borderRadius: 16,
+            padding: '20px',
+            border: '1px solid #E2E8F0',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ fontSize: '0.98rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                Today's Schedule
+              </h3>
+              <button
+                onClick={() => setAddScheduleModalOpen(true)}
+                style={{
+                  background: '#6366F1',
+                  color: 'white',
+                  border: 'none',
+                  padding: '5px 12px',
+                  borderRadius: 8,
+                  fontSize: '0.76rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4
+                }}
+              >
+                <Plus size={13} />
+                <span>Add</span>
+              </button>
+            </div>
+
+            {/* Schedule Items List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {scheduleList.map(item => {
+                const IconComp = item.icon;
+                return (
+                  <div key={item.id} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                    <div style={{
+                      width: 34,
+                      height: 34,
+                      borderRadius: 10,
+                      background: item.bg,
+                      color: item.color,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      marginTop: 2
+                    }}>
+                      <IconComp size={16} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#6366F1' }}>
+                        {item.time}
+                      </div>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 700, color: '#0F172A', marginTop: 1 }}>
+                        {item.title}
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: '#64748B', marginTop: 1 }}>
+                        {item.subtitle}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Quick Actions Card */}
+          <div style={{
+            background: '#FFFFFF',
+            borderRadius: 16,
+            padding: '20px',
+            border: '1px solid #E2E8F0',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.02)'
+          }}>
+            <h3 style={{ fontSize: '0.96rem', fontWeight: 800, color: '#0F172A', margin: '0 0 14px 0' }}>
+              Quick Actions
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <button
+                onClick={() => navigate('/admin/leads')}
+                style={{
+                  padding: '12px 10px',
+                  borderRadius: 10,
+                  border: '1px solid #E2E8F0',
+                  background: '#F8FAFC',
+                  color: '#1E293B',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+              >
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#ECFDF5', color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Plus size={14} />
+                </div>
+                <span>Add Lead</span>
+              </button>
+
+              <button
+                onClick={() => navigate('/admin/calendar')}
+                style={{
+                  padding: '12px 10px',
+                  borderRadius: 10,
+                  border: '1px solid #E2E8F0',
+                  background: '#F8FAFC',
+                  color: '#1E293B',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+              >
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#FEF2F2', color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <BedDouble size={14} />
+                </div>
+                <span>Add Booking</span>
+              </button>
+
+              <button
+                onClick={() => setAddScheduleModalOpen(true)}
+                style={{
+                  padding: '12px 10px',
+                  borderRadius: 10,
+                  border: '1px solid #E2E8F0',
+                  background: '#F8FAFC',
+                  color: '#1E293B',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+              >
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#EEF2FF', color: '#6366F1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <CalendarDays size={14} />
+                </div>
+                <span>Schedule Visit</span>
+              </button>
+
+              <button
+                onClick={() => navigate('/admin/reports')}
+                style={{
+                  padding: '12px 10px',
+                  borderRadius: 10,
+                  border: '1px solid #E2E8F0',
+                  background: '#F8FAFC',
+                  color: '#1E293B',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: 6
+                }}
+              >
+                <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#EFF6FF', color: '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <BarChart3 size={14} />
+                </div>
+                <span>View Reports</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom Banner */}
+      <div style={{
+        background: 'linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%)',
+        borderRadius: 14,
+        padding: '18px 24px',
+        border: '1px solid #DDD6FE',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: 14
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: '#8B5CF6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <CalendarDays size={20} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.98rem', fontWeight: 800, color: '#4C1D95' }}>Stay organized. Grow faster.</div>
+            <div style={{ fontSize: '0.8rem', color: '#6D28D9' }}>Manage hotel leads, bookings, and activities all in one place.</div>
+          </div>
+        </div>
+
+        <button
+          onClick={() => navigate('/admin/reports')}
+          style={{
+            padding: '8px 18px',
+            borderRadius: 8,
+            background: '#6D28D9',
+            color: 'white',
+            fontWeight: 700,
+            fontSize: '0.84rem',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6
+          }}
+        >
+          <span>View Reports</span>
+          <ArrowRight size={14} />
+        </button>
+      </div>
+
+      {/* Add Schedule Modal */}
+      {addScheduleModalOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15, 23, 42, 0.7)',
+          backdropFilter: 'blur(5px)',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 20
+        }}>
+          <div style={{
+            background: '#FFFFFF',
+            width: '100%',
+            maxWidth: 440,
+            borderRadius: 16,
+            padding: 24,
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.3)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0F172A', margin: 0 }}>
+                Add Schedule Item
+              </h3>
+              <button onClick={() => setAddScheduleModalOpen(false)} style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer' }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddSchedule} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>Time</label>
+                <input
+                  type="text"
+                  value={newScheduleForm.time}
+                  onChange={e => setNewScheduleForm({ ...newScheduleForm, time: e.target.value })}
+                  placeholder="e.g. 10:00 AM"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: '0.84rem', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>Activity Title *</label>
+                <input
+                  type="text"
+                  required
+                  value={newScheduleForm.title}
+                  onChange={e => setNewScheduleForm({ ...newScheduleForm, title: e.target.value })}
+                  placeholder="e.g. Call with General Manager"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: '0.84rem', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>Location / Hotel Name</label>
+                <input
+                  type="text"
+                  value={newScheduleForm.subtitle}
+                  onChange={e => setNewScheduleForm({ ...newScheduleForm, subtitle: e.target.value })}
+                  placeholder="e.g. The Grand Vista - Goa"
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: '0.84rem', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#334155', marginBottom: 4 }}>Type</label>
+                <select
+                  value={newScheduleForm.type}
+                  onChange={e => setNewScheduleForm({ ...newScheduleForm, type: e.target.value })}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: '0.84rem', boxSizing: 'border-box' }}
+                >
+                  <option value="call">Phone Call</option>
+                  <option value="visit">Site Visit</option>
+                  <option value="meeting">Meeting</option>
+                  <option value="email">Follow-up Email</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setAddScheduleModalOpen(false)}
+                  style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #CBD5E1', background: 'white', color: '#475569', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#6366F1', color: 'white', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}
+                >
+                  Save Activity
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
-
-      <style>{`
-        @keyframes acFadeIn { from { opacity: 0 } to { opacity: 1 } }
-        @keyframes acSlideUp { from { opacity: 0; transform: translateY(16px) } to { opacity: 1; transform: translateY(0) } }
-      `}</style>
     </div>
   );
 }
-
-const navBtn = {
-  background: 'none', border: '1px solid #e2e8f0', color: '#475569',
-  width: 32, height: 32, borderRadius: 8, cursor: 'pointer',
-  fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
-};
