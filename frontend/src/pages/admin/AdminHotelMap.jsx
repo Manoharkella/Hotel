@@ -129,7 +129,15 @@ export default function AdminHotelMap() {
     }).catch(console.error).finally(() => setLoading(false));
   }, []);
 
-  const locationsList = ['All', 'Mumbai', 'Hyderabad', 'Bengaluru', 'Chennai', 'Goa', 'Delhi', 'Vizag', 'Jaipur'];
+  const locationsList = useMemo(() => {
+    const set = new Set();
+    hotelsList.forEach(h => {
+      if (h.city) set.add(h.city.trim());
+      if (h.state) set.add(h.state.trim());
+      if (h.location) set.add(h.location.trim());
+    });
+    return ['All', ...Array.from(set).sort()];
+  }, [hotelsList]);
 
   // Filtered & Sorted hotels
   const filteredHotels = useMemo(() => {

@@ -9,7 +9,7 @@ import { Compass, Search, Briefcase, Heart, Gift, User as UserIcon, Globe, Menu,
 
 export default function CustomerLayout() {
   const { user, logout } = useAuth();
-  const { quotes, wishlist = [] } = useApp();
+  const { quotes, wishlist = [], notifications = [] } = useApp();
   const { t, lang, setLang, LANG_NAMES } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
@@ -22,7 +22,8 @@ export default function CustomerLayout() {
     setMenuOpen(false);
   }, [location.pathname]);
 
-  const unreadQuotesCount = quotes ? quotes.length : 0;
+  const unreadMessagesCount = (notifications || []).filter(n => !n.read && (n.type === 'message' || n.type === 'quote')).length;
+  const totalTripsBadge = unreadMessagesCount > 0 ? unreadMessagesCount : (quotes ? quotes.length : 0);
   const customerId = user?.id || 1;
   const isHomePage = location.pathname === '/customer' || location.pathname === '/customer/' || location.pathname === '/';
 
@@ -43,7 +44,7 @@ export default function CustomerLayout() {
   const bottomNavItems = [
     { path: '/customer', label: 'Home', icon: Compass, exact: true },
     { path: '/customer/find', label: 'Find a Stay', icon: Search },
-    { path: '/customer/trips', label: 'My Trips', icon: Briefcase, badge: unreadQuotesCount },
+    { path: '/customer/trips', label: 'My Trips', icon: Briefcase, badge: totalTripsBadge },
     { path: '/customer/wishlist', label: 'Wishlist', icon: Heart, badge: wishlist.length },
     { path: '/customer/profile', label: 'Profile', icon: UserIcon }
   ];
@@ -89,12 +90,9 @@ export default function CustomerLayout() {
               <>
                 <Link to="/customer/trips" className={`nav-link-item ${location.pathname.includes('trips') ? 'active' : ''}`} style={{ position: 'relative' }}>
                   Trips
-                  {unreadQuotesCount > 0 && (
-                    <span style={{ 
-                      position: 'absolute', top: -4, right: -12, background: '#EA580C', color: 'white', 
-                      borderRadius: '50%', padding: '1px 5px', fontSize: '0.62rem', fontWeight: 800 
-                    }}>
-                      {unreadQuotesCount}
+                  {totalTripsBadge > 0 && (
+                    <span className="nav-pulsing-badge">
+                      {totalTripsBadge}
                     </span>
                   )}
                 </Link>

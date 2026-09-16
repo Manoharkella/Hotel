@@ -170,6 +170,10 @@ export default function NotificationListener() {
                 read: false
               });
 
+              if (addToast) {
+                addToast(`💬 ${senderLabel}: "${msg.text}"`, 'info', 6000);
+              }
+
               if ('Notification' in window && Notification.permission === 'granted') {
                 try {
                   const n = new Notification(`New message from ${senderLabel}`, {

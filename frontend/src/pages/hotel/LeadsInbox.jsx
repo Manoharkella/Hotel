@@ -35,7 +35,7 @@ export default function LeadsInbox() {
     }
   });
 
-  const hotelLeads = leads.filter(l => l.matchedHotelIds?.includes(hotelId) && !hiddenLeads.includes(l.id));
+  const hotelLeads = leads.filter(l => (l.matchedHotelIds || []).some(id => id?.toString() === hotelId?.toString()) && !hiddenLeads.includes(l.id));
   const filtered = filter === 'all' ? hotelLeads : filter === 'locked' ? hotelLeads.filter(l => !isLeadUnlocked(l.id, hotelId)) : hotelLeads.filter(l => isLeadUnlocked(l.id, hotelId));
 
   const handleHideLead = (leadId) => {

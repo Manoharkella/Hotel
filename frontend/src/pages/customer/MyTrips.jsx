@@ -30,7 +30,7 @@ import ChatModal from '../../components/ChatModal';
 import { TripPassCard } from './QRPass';
 
 export default function MyTrips() {
-  const { bookings, rateBooking, leads, unlocks, quotes, hotels, updateLeadDates, cancelBooking } = useApp();
+  const { bookings, rateBooking, leads, unlocks, quotes, hotels, updateLeadDates, cancelBooking, hasUnreadMessagesForLead, notifications = [], markSingleNotificationRead } = useApp();
   const { user } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
@@ -85,8 +85,14 @@ export default function MyTrips() {
   const userLeads = useMemo(() => {
     if (!user) return [];
     return leads.filter(l => {
-      const isCustomerMatch = l.customerId?.toString() === user?.id?.toString();
-      const isActive = l.status === 'active' || !l.status;
+      const isCustomerMatch = 
+        !l.customerId || 
+        l.customerId?.toString() === user?.id?.toString() || 
+        (l.customerEmail && user.email && l.customerEmail.toLowerCase() === user.email.toLowerCase()) ||
+        (l.customerPhone && user.phone && l.customerPhone === user.phone) ||
+        user.role === 'customer';
+      const statusLower = (l.status || 'active').toLowerCase();
+      const isActive = statusLower === 'active' || statusLower === 'pending' || statusLower === 'open' || !l.status;
       return isCustomerMatch && isActive;
     });
   }, [leads, user]);
@@ -361,7 +367,13 @@ export default function MyTrips() {
                   <button 
                     type="button" 
                     className="trip-btn-action"
+                    style={{ position: 'relative' }}
                     onClick={() => {
+                      if (notifications && markSingleNotificationRead) {
+                        notifications
+                          .filter(n => n.leadId?.toString() === lead.id.toString())
+                          .forEach(n => markSingleNotificationRead(n.id));
+                      }
                       setChatInfo({
                         hotelId: matchedHotel?.id || 1,
                         hotelName: hotelTitle,
@@ -374,6 +386,9 @@ export default function MyTrips() {
                   >
                     <MessageCircle size={13} />
                     <span>Chat</span>
+                    {hasUnreadMessagesForLead && hasUnreadMessagesForLead(lead.id) && (
+                      <span className="pulsing-red-dot" title="New message from hotel manager!" />
+                    )}
                   </button>
 
                   <button 

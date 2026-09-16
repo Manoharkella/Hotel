@@ -15,15 +15,18 @@ export const setAuthToken = (token) => {
   }
 };
 
-export const getAuthToken = () => activeAuthToken;
+export const getAuthToken = () => {
+  return activeAuthToken || localStorage.getItem('hostiq_access_token') || sessionStorage.getItem('hostiq_access_token') || null;
+};
 
 const getHeaders = (extra = {}) => {
   const headers = {
     'Content-Type': 'application/json',
     ...extra
   };
-  if (activeAuthToken) {
-    headers['Authorization'] = `Bearer ${activeAuthToken}`;
+  const token = getAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
   }
   return headers;
 };

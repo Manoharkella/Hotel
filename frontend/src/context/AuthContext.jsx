@@ -8,8 +8,7 @@ function getCurrentPathRole() {
   const path = window.location.pathname;
   if (path.startsWith('/hotel')) return 'hotel';
   if (path.startsWith('/admin')) return 'admin';
-  if (path.startsWith('/customer')) return 'customer';
-  return null;
+  return 'customer';
 }
 
 export function AuthProvider({ children }) {
@@ -20,9 +19,15 @@ export function AuthProvider({ children }) {
       if (roleSaved) {
         try { return JSON.parse(roleSaved); } catch(e) {}
       }
-      const tabSaved = sessionStorage.getItem('hotel_user');
-      if (tabSaved) {
-        try { return JSON.parse(tabSaved); } catch(e) {}
+    }
+    const tabSaved = sessionStorage.getItem('hotel_user');
+    if (tabSaved) {
+      try { return JSON.parse(tabSaved); } catch(e) {}
+    }
+    for (const r of ['customer', 'hotel', 'admin']) {
+      const saved = localStorage.getItem(`hotel_user_${r}`);
+      if (saved) {
+        try { return JSON.parse(saved); } catch(e) {}
       }
     }
     return null;
@@ -33,31 +38,28 @@ export function AuthProvider({ children }) {
     const savedToken = localStorage.getItem('hostiq_access_token') || sessionStorage.getItem('hostiq_access_token');
     if (savedToken) {
       setAuthToken(savedToken);
-      // Fetch fresh authenticated profile if user is a customer
-      if (user?.role === 'customer') {
-        api.getUserProfile()
-          .then(profile => {
-            if (profile && profile.id) {
-              const updated = {
-                id: profile.id,
-                name: profile.full_name || profile.name,
-                full_name: profile.full_name,
-                email: profile.email,
-                role: profile.role || 'customer',
-                phone: profile.phone || '',
-                city: profile.city || '',
-                preferences: profile.preferences || {},
-                loyalty_points: profile.loyalty_points || 0
-              };
-              setUser(updated);
-              sessionStorage.setItem('hotel_user', JSON.stringify(updated));
-              localStorage.setItem(`hotel_user_${updated.role}`, JSON.stringify(updated));
-            }
-          })
-          .catch(() => {
-            // Token might be expired or invalid
-          });
-      }
+      api.getUserProfile()
+        .then(profile => {
+          if (profile && profile.id) {
+            const updated = {
+              id: profile.id,
+              name: profile.full_name || profile.name,
+              full_name: profile.full_name,
+              email: profile.email,
+              role: profile.role || 'customer',
+              phone: profile.phone || '',
+              city: profile.city || '',
+              preferences: profile.preferences || {},
+              loyalty_points: profile.loyalty_points || 0
+            };
+            setUser(updated);
+            sessionStorage.setItem('hotel_user', JSON.stringify(updated));
+            localStorage.setItem(`hotel_user_${updated.role}`, JSON.stringify(updated));
+          }
+        })
+        .catch(() => {
+          // Token might be expired or invalid
+        });
     }
   }, []);
 

@@ -102,15 +102,17 @@ export function AppProvider({ children }) {
     try {
       let leadsPromise, quotesPromise, bookingsPromise;
 
-      if (user?.role === 'customer') {
+      const currentRole = user?.role || (localStorage.getItem('hotel_user_hotel') ? 'hotel' : localStorage.getItem('hotel_user_admin') ? 'admin' : (localStorage.getItem('hotel_user_customer') || localStorage.getItem('hostiq_access_token')) ? 'customer' : null);
+
+      if (currentRole === 'customer') {
         leadsPromise = api.getCustomerLeads().catch(() => []);
         quotesPromise = api.getMyQuotes().catch(() => []);
         bookingsPromise = api.getCustomerBookings().catch(() => []);
-      } else if (user?.role === 'hotel') {
+      } else if (currentRole === 'hotel') {
         leadsPromise = api.getAllLeads().catch(() => []);
         quotesPromise = api.getMyQuotes().catch(() => []);
         bookingsPromise = api.getAllBookings().catch(() => []);
-      } else if (user?.role === 'admin') {
+      } else if (currentRole === 'admin') {
         leadsPromise = api.getAllLeads().catch(() => []);
         quotesPromise = api.getAllQuotes().catch(() => []);
         bookingsPromise = api.getAllBookings().catch(() => []);
@@ -230,21 +232,27 @@ export function AppProvider({ children }) {
         return {
           id: h.id.toString(),
           name: h.name,
-          location: h.location,
+          location: h.location || (h.city && h.state ? `${h.city}, ${h.state}` : h.city || h.state || 'India'),
+          city: h.city || '',
+          state: h.state || '',
           address: h.address || 'Address not provided',
-          latitude: h.latitude || 20.5937,
-          longitude: h.longitude || 78.9629,
-          category: 'Premium',
+          latitude: typeof h.latitude === 'number' ? h.latitude : 20.5937,
+          longitude: typeof h.longitude === 'number' ? h.longitude : 78.9629,
+          category: h.property_type || 'Resort',
+          property_type: h.property_type || 'Resort',
+          star_rating: h.star_rating || '5 Stars',
           status: h.status || 'APPROVED',
           amenities: h.amenities || ['WiFi', 'Parking', 'Room Service', 'Swimming Pool', 'Spa'],
           photos: h.photos && h.photos.length > 0 ? h.photos : ['https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&q=80'],
           rooms: roomsList,
           roomTypes: roomsList,
           minPrice: minPrice,
-          rating: avg,
-          reviewCount: hotelRevs.length,
+          rating: h.star_rating ? (parseFloat(h.star_rating) || avg) : avg,
+          reviewCount: hotelRevs.length || 120,
           description: h.description || 'A luxurious property ready to serve you.',
-          email: h.email
+          email: h.email,
+          contact_number: h.contact_number || '',
+          website: h.website || ''
         };
       });
       
@@ -279,13 +287,17 @@ export function AppProvider({ children }) {
       setLeads(apiLeads.map(l => ({
         ...l,
         id: l.id.toString(),
-        customerId: l.customer_id?.toString() || '',
-        checkIn: l.check_in,
-        checkOut: l.check_out,
-        roomType: l.room_type,
-        matchedHotelIds: (l.matched_hotel_ids || []).map(id => id.toString()),
-        customerName: l.customer_name || 'Guest User',
-        customerPhone: l.customer_phone || '',
+        customerId: (l.customer_id || l.customerId)?.toString() || '',
+        customerEmail: l.customer_email || l.customerEmail || '',
+        customerName: l.customer_name || l.customerName || 'Valued Guest',
+        customerPhone: l.customer_phone || l.customerPhone || '',
+        checkIn: l.check_in || l.checkIn,
+        checkOut: l.check_out || l.checkOut,
+        roomType: l.room_type || l.roomType,
+        destination: l.destination,
+        budget: l.budget,
+        status: l.status || 'active',
+        matchedHotelIds: (l.matched_hotel_ids || l.matchedHotelIds || []).map(id => id.toString()),
         created_at: l.created_at
       })));
 
@@ -357,13 +369,17 @@ export function AppProvider({ children }) {
       setLeads(apiLeads.map(l => ({
         ...l,
         id: l.id.toString(),
-        customerId: l.customer_id?.toString() || '',
-        checkIn: l.check_in,
-        checkOut: l.check_out,
-        roomType: l.room_type,
-        matchedHotelIds: (l.matched_hotel_ids || []).map(id => id.toString()),
-        customerName: l.customer_name || 'Guest User',
-        customerPhone: l.customer_phone || ''
+        customerId: (l.customer_id || l.customerId)?.toString() || '',
+        customerEmail: l.customer_email || l.customerEmail || '',
+        customerName: l.customer_name || l.customerName || 'Valued Guest',
+        customerPhone: l.customer_phone || l.customerPhone || '',
+        checkIn: l.check_in || l.checkIn,
+        checkOut: l.check_out || l.checkOut,
+        roomType: l.room_type || l.roomType,
+        destination: l.destination,
+        budget: l.budget,
+        status: l.status || 'active',
+        matchedHotelIds: (l.matched_hotel_ids || l.matchedHotelIds || []).map(id => id.toString())
       })));
 
       setQuotes(apiQuotes.map(q => ({
@@ -765,6 +781,15 @@ export function AppProvider({ children }) {
     });
   }, []);
 
+  const hasUnreadMessagesForLead = useCallback((leadId) => {
+    if (!leadId) return false;
+    return notifications.some(n => 
+      !n.read && 
+      (n.type === 'message' || n.type === 'quote') && 
+      n.leadId?.toString() === leadId.toString()
+    );
+  }, [notifications]);
+
   const addMockHotel = () => {};
 
   return (
@@ -773,7 +798,7 @@ export function AppProvider({ children }) {
       wishlist, toggleWishlist, isWishlisted,
       submitRequirement, updateLeadDates, unlockLead, isLeadUnlocked, sendQuote, acceptQuote, counterQuote,
       completeCheckIn, scanQrCheckIn, checkOutBooking, cancelBooking, updateHotelProperty, createHotelRoom, updateHotelRoom, deleteHotelRoom, rateBooking, purchaseCredits, getWalletBalance,
-      addNotification, markNotificationsRead, markSingleNotificationRead, clearNotifications, globalChat, openChat, closeChat,
+      addNotification, markNotificationsRead, markSingleNotificationRead, clearNotifications, hasUnreadMessagesForLead, globalChat, openChat, closeChat,
       addMockHotel, loadWallet, loadUnlocks, refreshData
     }}>
       {children}

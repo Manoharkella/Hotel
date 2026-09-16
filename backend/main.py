@@ -658,11 +658,16 @@ def create_lead(
         effective_customer_id = opt_user["id"] if (opt_user and opt_user.get("id")) else lead.customer_id
         
         if lead.specific_hotel_id:
-            matched_ids = [lead.specific_hotel_id]
+            try:
+                matched_ids = [int(lead.specific_hotel_id)]
+            except (ValueError, TypeError):
+                matched_ids = [lead.specific_hotel_id]
         else:
             dest_term = lead.destination.split(',')[0].strip() if ',' in lead.destination else lead.destination.strip()
             hotels_in_dest = db.query(models.Hotel).options(joinedload(models.Hotel.rooms)).filter(
-                models.Hotel.location.ilike(f"%{dest_term}%"),
+                (models.Hotel.location.ilike(f"%{dest_term}%")) | 
+                (models.Hotel.city.ilike(f"%{dest_term}%")) |
+                (models.Hotel.state.ilike(f"%{dest_term}%")),
                 models.Hotel.status == "APPROVED"
             ).all()
             matched_ids = []
@@ -708,11 +713,12 @@ def create_lead(
 @app.get("/api/leads/my", response_model=List[schemas.LeadResponse])
 def get_customer_leads(current_user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
     """STRICT PRIVACY: Return ONLY the leads/trips created by the authenticated user."""
+    user_id = int(current_user["id"]) if str(current_user["id"]).isdigit() else current_user["id"]
     leads = db.query(models.Lead).filter(
-        models.Lead.customer_id == current_user["id"]
+        models.Lead.customer_id == user_id
     ).order_by(models.Lead.id.desc()).all()
     
-    user = db.query(models.User).filter(models.User.id == current_user["id"]).first()
+    user = db.query(models.User).filter(models.User.id == user_id).first()
     return [
         {
             "id": l.id,
@@ -728,6 +734,7 @@ def get_customer_leads(current_user: dict = Depends(get_current_user), db: Sessi
             "status": l.status or "active",
             "matched_hotel_ids": l.matched_hotel_ids or [],
             "customer_name": user.full_name if user else "Valued Guest",
+            "customer_email": user.email if user else "guest@email.com",
             "customer_phone": user.phone if user else "",
             "created_at": str(l.created_at) if l.created_at else ""
         }
@@ -749,9 +756,9 @@ def get_all_leads(
         if opt_user.get("role") == "customer":
             leads = db.query(models.Lead).filter(models.Lead.customer_id == opt_user["id"]).order_by(models.Lead.id.desc()).all()
         elif opt_user.get("role") == "hotel":
-            hotel_id = int(opt_user["id"])
-            leads = db.query(models.Lead).order_by(models.Lead.id.desc()).all()
-            leads = [l for l in leads if hotel_id in (l.matched_hotel_ids or [])]
+            hotel_id_str = str(opt_user["id"])
+            all_db_leads = db.query(models.Lead).order_by(models.Lead.id.desc()).all()
+            leads = [l for l in all_db_leads if any(str(h) == hotel_id_str for h in (l.matched_hotel_ids or []))]
         else:
             leads = db.query(models.Lead).order_by(models.Lead.id.desc()).all()
     else:
@@ -1423,6 +1430,21 @@ def get_hotel_reviews(hotel_id: int, db: Session = Depends(get_db)):
 @app.get("/api/reviews/all", response_model=List[schemas.ReviewResponse])
 def get_all_reviews(db: Session = Depends(get_db)):
     return db.query(models.Review).all()
+
+# =====================================================================
+# GOOGLE PLACES SOUTH INDIAN HOTELS SYNC ENDPOINT
+# =====================================================================
+
+@app.post("/api/admin/sync-places-hotels")
+def trigger_south_indian_hotels_sync():
+    from fetch_south_indian_hotels import sync_south_indian_hotels
+    stats = sync_south_indian_hotels()
+    return {
+        "status": "success",
+        "message": "Google Places South Indian Hotels and Resorts synchronized successfully",
+        "stats": stats
+    }
+
 
 if __name__ == "__main__":
     import uvicorn

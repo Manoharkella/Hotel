@@ -37,7 +37,7 @@ export default function CustomerHome() {
 
   useEffect(() => {
     api.searchApprovedHotels().then(data => {
-      setMatchedHotels(data.slice(0, 6));
+      setMatchedHotels(data.slice(0, 12));
     }).catch(console.error);
   }, []);
 
@@ -343,6 +343,78 @@ export default function CustomerHome() {
                 </div>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0F172A', marginBottom: 10 }}>{step.title}</h3>
                 <p style={{ color: '#64748B', fontSize: '0.92rem', lineHeight: 1.6 }}>{step.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Top South Indian Destinations */}
+      <section className="section" style={{ background: '#FFFFFF', padding: '80px 0 30px' }}>
+        <div className="container">
+          <div style={{ textAlign: 'center', marginBottom: 40 }}>
+            <span style={{ 
+              fontFamily: 'var(--font-sans)', 
+              fontSize: '0.82rem', 
+              textTransform: 'uppercase', 
+              letterSpacing: '0.2em', 
+              color: '#EA580C', 
+              fontWeight: 800,
+              display: 'block', 
+              marginBottom: 8 
+            }}>
+              TOP REGIONS & STATES
+            </span>
+            <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: '2.4rem', fontWeight: 600, color: '#0F172A', margin: 0 }}>
+              Explore South India Stays
+            </h2>
+            <p style={{ color: '#64748B', fontSize: '0.95rem', marginTop: 8 }}>
+              Direct bookings, verified beach resorts, palace hotels & hill retreats
+            </p>
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+            gap: 16
+          }}>
+            {[
+              { name: 'Goa', tag: 'Beach Resorts & Villas', img: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=500&q=80', count: '5 Verified Stays' },
+              { name: 'Kerala', tag: 'Backwaters & Tea Hills', img: 'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=500&q=80', count: '5 Verified Stays' },
+              { name: 'Karnataka', tag: 'Palaces & Coffee Estates', img: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500&q=80', count: '5 Verified Stays' },
+              { name: 'Tamil Nadu', tag: 'Heritage & Hill Stations', img: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=500&q=80', count: '5 Verified Stays' },
+              { name: 'Telangana', tag: 'Royal Nizam Luxury', img: 'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=500&q=80', count: '6 Verified Stays' },
+              { name: 'Andhra Pradesh', tag: 'Coastal & Hill Valleys', img: 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?w=500&q=80', count: '5 Verified Stays' }
+            ].map(item => (
+              <div
+                key={item.name}
+                onClick={() => navigate(`/customer/find?location=${encodeURIComponent(item.name)}`)}
+                style={{
+                  position: 'relative',
+                  borderRadius: 16,
+                  overflow: 'hidden',
+                  height: 180,
+                  cursor: 'pointer',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.06)',
+                  transition: 'all 0.25s ease'
+                }}
+                className="destination-card-hover"
+              >
+                <img src={item.img} alt={item.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                <div style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(15,23,42,0.85) 100%)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'flex-end',
+                  padding: '16px 14px',
+                  color: '#FFFFFF'
+                }}>
+                  <div style={{ fontWeight: 800, fontSize: '1.1rem', letterSpacing: '-0.01em' }}>{item.name}</div>
+                  <div style={{ fontSize: '0.74rem', color: 'rgba(255,255,255,0.8)', marginTop: 2 }}>{item.tag}</div>
+                  <div style={{ fontSize: '0.72rem', color: '#FBBF24', fontWeight: 700, marginTop: 4 }}>{item.count}</div>
+                </div>
               </div>
             ))}
           </div>
