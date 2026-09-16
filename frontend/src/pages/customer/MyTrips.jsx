@@ -98,9 +98,7 @@ export default function MyTrips() {
   }, [leads, user]);
 
   const tabParam = searchParams.get('tab');
-  const initialTab = tabParam || (userLeads.length > 0 ? 'requests' : upcomingBookings.length > 0 ? 'upcoming' : 'requests');
-  const [activeTab, setActiveTab] = useState(initialTab);
-
+  const [activeTab, setActiveTab] = useState(() => tabParam || 'requests');
   const [ratingModal, setRatingModal] = useState({ show: false, bookingId: null, rating: 0, comment: '' });
   const [chatInfo, setChatInfo] = useState(null);
   const [selectedQRBooking, setSelectedQRBooking] = useState(null);
@@ -108,8 +106,12 @@ export default function MyTrips() {
   useEffect(() => {
     if (tabParam) {
       setActiveTab(tabParam);
+    } else if (userLeads.length > 0 && upcomingBookings.length === 0) {
+      setActiveTab('requests');
+    } else if (upcomingBookings.length > 0 && userLeads.length === 0) {
+      setActiveTab('upcoming');
     }
-  }, [tabParam]);
+  }, [tabParam, userLeads.length, upcomingBookings.length]);
 
   const handleTabChange = (newTab) => {
     setActiveTab(newTab);
