@@ -4,6 +4,7 @@ import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { api } from '../../services/api';
+import NearbyAttractions from '../../components/NearbyAttractions';
 import { 
   Heart, 
   Share2, 
@@ -35,7 +36,8 @@ import {
   ArrowRight,
   Lock,
   Maximize2,
-  Info
+  Info,
+  Compass
 } from 'lucide-react';
 
 export default function HotelDetail() {
@@ -415,6 +417,7 @@ export default function HotelDetail() {
               {[
                 { id: 'overview', label: 'Overview' },
                 { id: 'rooms', label: 'Rooms' },
+                { id: 'nearby', label: 'Explore Nearby', icon: Compass },
                 { id: 'amenities', label: 'Amenities' },
                 { id: 'reviews', label: 'Reviews' },
                 { id: 'location', label: 'Location' },
@@ -427,8 +430,10 @@ export default function HotelDetail() {
                     setActiveTab(tab.id);
                     if (tab.id === 'rooms') scrollToRooms();
                   }}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 >
-                  {tab.label}
+                  {tab.icon && <tab.icon size={14} />}
+                  <span>{tab.label}</span>
                 </button>
               ))}
             </div>
@@ -640,33 +645,16 @@ export default function HotelDetail() {
               </div>
             </div>
 
-            {/* Exclusive Quotes for this Hotel if User is Logged in */}
-            {user && quotes && quotes.filter(q => q.hotelId?.toString() === hotel.id?.toString()).length > 0 && (
-              <div style={{ background: '#0F172A', color: 'white', borderRadius: 16, padding: 24, marginBottom: 36 }}>
-                <h3 style={{ fontSize: '1.2rem', margin: '0 0 16px', color: '#FBBF24' }}>★ Your Exclusive Received Quotes</h3>
-                {quotes.filter(q => q.hotelId?.toString() === hotel.id?.toString()).map(q => (
-                  <div key={q.id} style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: 18, marginBottom: 12 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#10B981' }}>{q.status === 'accepted' ? '✓ Accepted' : '★ Custom Offer'}</span>
-                      <strong style={{ fontSize: '1.3rem', color: '#FFFFFF' }}>₹{q.price?.toLocaleString()}</strong>
-                    </div>
-                    <p style={{ fontSize: '0.85rem', color: '#CBD5E1', margin: '0 0 12px' }}>"{q.message}"</p>
-                    {q.status === 'sent' && (
-                      <button 
-                        className="btn btn-accent" 
-                        style={{ padding: '8px 20px', fontSize: '0.85rem', background: '#EA580C' }}
-                        onClick={() => {
-                          addToast(`Accepted quote for ₹${q.price?.toLocaleString()}`, 'success');
-                          navigate('/customer/trips');
-                        }}
-                      >
-                        Accept & Book Now
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* Nearby Attractions / Tourist Spots Section */}
+            <div id="hotel-nearby-attractions-section" style={{ marginTop: 28, marginBottom: 36 }}>
+              <NearbyAttractions
+                hotelId={hotel.id}
+                hotelName={hotel.name}
+                hotelLatitude={hotel.latitude}
+                hotelLongitude={hotel.longitude}
+                hotelCity={hotel.city || hotel.location}
+              />
+            </div>
 
           </div>
 

@@ -600,5 +600,115 @@ export const api = {
     });
     if (!response.ok) throw new Error('Failed to delete room');
     return response.json();
+  },
+
+  // --- Tourist Spots & Attractions Module ---
+  getNearbyTouristSpots: async ({ hotelId, lat, lng, city, maxDistance, category, rating, openNow, search, limit = 30 } = {}) => {
+    const params = new URLSearchParams();
+    if (hotelId) params.append('hotel_id', hotelId);
+    if (lat) params.append('lat', lat);
+    if (lng) params.append('lng', lng);
+    if (city) params.append('city', city);
+    if (maxDistance && maxDistance !== 'All') params.append('max_distance', maxDistance);
+    if (category && category !== 'All') params.append('category', category);
+    if (rating && rating !== 'All') params.append('rating', rating);
+    if (openNow) params.append('open_now', 'true');
+    if (search && search.trim()) params.append('search', search.trim());
+    if (limit) params.append('limit', limit);
+
+    const response = await fetch(`${API_BASE_URL}/tourist-spots/nearby?${params.toString()}`, {
+      headers: getHeaders()
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to fetch nearby tourist spots');
+    }
+    return response.json();
+  },
+
+  getTouristSpotById: async (spotId) => {
+    const response = await fetch(`${API_BASE_URL}/tourist-spots/${spotId}`, {
+      headers: getHeaders()
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to fetch tourist spot details');
+    }
+    return response.json();
+  },
+
+  getTouristSpotCategories: async () => {
+    const response = await fetch(`${API_BASE_URL}/tourist-spots/categories`, {
+      headers: getHeaders()
+    });
+    if (!response.ok) return [];
+    return response.json();
+  },
+
+  getAdminTouristSpots: async (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.search) params.append('search', filters.search);
+    if (filters.category && filters.category !== 'All') params.append('category', filters.category);
+    if (filters.city && filters.city !== 'All') params.append('city', filters.city);
+    if (filters.status && filters.status !== 'All') params.append('status', filters.status);
+
+    const response = await fetch(`${API_BASE_URL}/admin/tourist-spots?${params.toString()}`, {
+      headers: getHeaders()
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to fetch tourist spots');
+    }
+    return response.json();
+  },
+
+  createTouristSpot: async (spotData) => {
+    const response = await fetch(`${API_BASE_URL}/admin/tourist-spots`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(spotData)
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to create tourist spot');
+    }
+    return response.json();
+  },
+
+  updateTouristSpot: async (spotId, spotData) => {
+    const response = await fetch(`${API_BASE_URL}/admin/tourist-spots/${spotId}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(spotData)
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to update tourist spot');
+    }
+    return response.json();
+  },
+
+  toggleTouristSpotStatus: async (spotId) => {
+    const response = await fetch(`${API_BASE_URL}/admin/tourist-spots/${spotId}/toggle-status`, {
+      method: 'PATCH',
+      headers: getHeaders()
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to toggle tourist spot status');
+    }
+    return response.json();
+  },
+
+  deleteTouristSpot: async (spotId) => {
+    const response = await fetch(`${API_BASE_URL}/admin/tourist-spots/${spotId}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail || 'Failed to delete tourist spot');
+    }
+    return response.json();
   }
 };

@@ -68,6 +68,9 @@ export default function CustomerLayout() {
             <Link to="/customer/find" className={`nav-link-item ${location.pathname.includes('/customer/find') ? 'active' : ''}`}>
               Find a Stay
             </Link>
+            <Link to="/customer/explore-nearby" className={`nav-link-item ${location.pathname.includes('nearby') ? 'active' : ''}`}>
+              Explore Nearby
+            </Link>
             <a href="#how-it-works" onClick={(e) => {
               if (location.pathname !== '/customer') {
                 e.preventDefault();
@@ -333,6 +336,18 @@ export default function CustomerLayout() {
                   <div className="mobile-drawer-nav-left">
                     <span className="mobile-drawer-nav-icon"><Search size={18} /></span>
                     <span>Find a Stay</span>
+                  </div>
+                  <ChevronRight size={16} className="mobile-drawer-chevron" />
+                </Link>
+
+                <Link 
+                  to="/customer/explore-nearby" 
+                  onClick={() => setMenuOpen(false)}
+                  className={`mobile-drawer-nav-item ${location.pathname.includes('nearby') ? 'active' : ''}`}
+                >
+                  <div className="mobile-drawer-nav-left">
+                    <span className="mobile-drawer-nav-icon"><Compass size={18} color="#EA580C" /></span>
+                    <span>Explore Nearby</span>
                   </div>
                   <ChevronRight size={16} className="mobile-drawer-chevron" />
                 </Link>

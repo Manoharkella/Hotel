@@ -19,6 +19,7 @@ import CustomerProfile from './pages/customer/CustomerProfile';
 import Wishlist from './pages/customer/Wishlist';
 import RewardsStore from './pages/customer/RewardsStore';
 import NotificationsPage from './pages/customer/NotificationsPage';
+import ExploreNearbyPage from './pages/customer/ExploreNearbyPage';
 
 // Hotel Manager
 import HotelLayout from './pages/hotel/HotelLayout';
@@ -38,6 +39,7 @@ import HotelStatus from './pages/hotel/HotelStatus';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminHotelMap from './pages/admin/AdminHotelMap';
+import AdminTouristSpots from './pages/admin/AdminTouristSpots';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminHotels from './pages/admin/AdminHotels';
 import AdminLeads from './pages/admin/AdminLeads';
@@ -80,6 +82,8 @@ function AppRoutes() {
         <Route path="find" element={<FindHotel />} />
         <Route path="hotel/:id" element={<HotelDetail />} />
         <Route path="trips" element={<ProtectedRoute allowedRole="customer"><MyTrips /></ProtectedRoute>} />
+        <Route path="explore-nearby" element={<ExploreNearbyPage />} />
+        <Route path="nearby" element={<Navigate to="/customer/explore-nearby" replace />} />
         <Route path="wishlist" element={<ProtectedRoute allowedRole="customer"><Wishlist /></ProtectedRoute>} />
         <Route path="rewards" element={<ProtectedRoute allowedRole="customer"><RewardsStore /></ProtectedRoute>} />
         <Route path="checkin/:id" element={<ProtectedRoute allowedRole="customer"><OnlineCheckIn /></ProtectedRoute>} />
@@ -104,6 +108,8 @@ function AppRoutes() {
         <Route index element={<AdminDashboard />} />
         <Route path="calendar" element={<AdminCalendar />} />
         <Route path="map" element={<AdminHotelMap />} />
+        <Route path="tourist-spots" element={<AdminTouristSpots />} />
+        <Route path="spots" element={<Navigate to="/admin/tourist-spots" replace />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="hotels" element={<AdminHotels />} />
         <Route path="leads" element={<AdminLeads />} />

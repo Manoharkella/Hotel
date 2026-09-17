@@ -1348,9 +1348,437 @@ server.on('upgrade', (request, socket, head) => {
   }
 });
 
+// =====================================================================
+// 12. NEARBY TOURIST SPOTS & ATTRACTIONS MODULE
+// =====================================================================
+
+// Helper: Haversine distance in KM
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+  const R = 6371; // Earth radius in km
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return Math.round(R * c * 10) / 10;
+};
+
+// Helper: Estimate travel time based on distance
+const calculateTravelTime = (distanceKm) => {
+  if (distanceKm === null || distanceKm === undefined) return '10 mins drive';
+  if (distanceKm <= 0.8) return `${Math.max(3, Math.round(distanceKm * 12))} mins walk`;
+  const minutes = Math.max(5, Math.round((distanceKm / 24) * 60 + 2));
+  if (minutes < 60) return `${minutes} mins drive`;
+  const hrs = Math.floor(minutes / 60);
+  const remMins = minutes % 60;
+  return remMins > 0 ? `${hrs}h ${remMins}m drive` : `${hrs}h drive`;
+};
+
+// Helper: Parse AM/PM time into minutes from midnight
+const parseTimeToMinutes = (timeStr) => {
+  if (!timeStr) return null;
+  const lower = timeStr.toLowerCase().trim();
+  if (lower.includes('24') || lower.includes('always')) return '24hr';
+  const match = lower.match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/i);
+  if (!match) return null;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const isPM = match[3].toLowerCase() === 'pm';
+  if (isPM && hours !== 12) hours += 12;
+  if (!isPM && hours === 12) hours = 0;
+  return hours * 60 + minutes;
+};
+
+const checkIfOpenNow = (openStr, closeStr) => {
+  const openM = parseTimeToMinutes(openStr);
+  const closeM = parseTimeToMinutes(closeStr);
+  if (openM === '24hr' || closeM === '24hr') return true;
+  if (openM === null || closeM === null) return true; // Default open if unparseable
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  if (closeM > openM) {
+    return currentMinutes >= openM && currentMinutes <= closeM;
+  } else {
+    // Overnight hours (e.g. 8 PM to 2 AM)
+    return currentMinutes >= openM || currentMinutes <= closeM;
+  }
+};
+
+// Customer / Public: Get Nearby Tourist Spots with distance, sorting & filters
+app.get('/api/tourist-spots/nearby', async (req, res) => {
+  try {
+    const {
+      hotel_id,
+      lat,
+      lng,
+      city,
+      max_distance,
+      category,
+      rating,
+      open_now,
+      search,
+      limit = 30
+    } = req.query;
+
+    let targetLat = lat ? parseFloat(lat) : null;
+    let targetLng = lng ? parseFloat(lng) : null;
+    let targetCity = city || '';
+
+    // If hotel_id is supplied, look up hotel's coordinates & city
+    if (hotel_id) {
+      const hotelRes = await query('SELECT latitude, longitude, city, location FROM hotels WHERE id = $1', [parseInt(hotel_id, 10)]);
+      if (hotelRes.rows.length > 0) {
+        const h = hotelRes.rows[0];
+        if (h.latitude && h.longitude) {
+          targetLat = h.latitude;
+          targetLng = h.longitude;
+        }
+        if (!targetCity) targetCity = h.city || h.location || '';
+      }
+    }
+
+    // Default coordinates fallback if neither hotel nor lat/lng is resolved
+    if (!targetLat || !targetLng) {
+      if (targetCity.toLowerCase().includes('hyderabad')) {
+        targetLat = 17.3850; targetLng = 78.4867;
+      } else if (targetCity.toLowerCase().includes('vizag') || targetCity.toLowerCase().includes('visakhapatnam')) {
+        targetLat = 17.6868; targetLng = 83.2185;
+      } else if (targetCity.toLowerCase().includes('mumbai')) {
+        targetLat = 18.9220; targetLng = 72.8347;
+      } else if (targetCity.toLowerCase().includes('chennai')) {
+        targetLat = 13.0827; targetLng = 80.2707;
+      } else if (targetCity.toLowerCase().includes('bangalore') || targetCity.toLowerCase().includes('bengaluru')) {
+        targetLat = 12.9716; targetLng = 77.5946;
+      } else if (targetCity.toLowerCase().includes('goa')) {
+        targetLat = 15.4920; targetLng = 73.7737;
+      } else {
+        targetLat = 17.3850; targetLng = 78.4867; // Hyderabad default
+      }
+    }
+
+    // Fetch active tourist spots from database
+    const spotsRes = await query('SELECT * FROM tourist_spots WHERE is_active = true ORDER BY rating DESC');
+    let spots = spotsRes.rows;
+
+    // Enrich each spot with real calculated distance, estimated travel time and open status
+    spots = spots.map(spot => {
+      const distance = calculateDistance(targetLat, targetLng, spot.latitude, spot.longitude);
+      const travelTime = calculateTravelTime(distance);
+      const isOpen = checkIfOpenNow(spot.opening_hours, spot.closing_hours);
+      return {
+        ...spot,
+        distance,
+        estimated_travel_time: travelTime,
+        is_open_now: isOpen,
+        google_maps_url: `https://www.google.com/maps/dir/?api=1&origin=${targetLat},${targetLng}&destination=${spot.latitude},${spot.longitude}`
+      };
+    });
+
+    // 1. Filter by Search Query
+    if (search && search.trim()) {
+      const queryLower = search.toLowerCase().trim();
+      spots = spots.filter(s =>
+        s.name.toLowerCase().includes(queryLower) ||
+        (s.description && s.description.toLowerCase().includes(queryLower)) ||
+        (s.category && s.category.toLowerCase().includes(queryLower)) ||
+        (s.address && s.address.toLowerCase().includes(queryLower)) ||
+        (s.city && s.city.toLowerCase().includes(queryLower))
+      );
+    }
+
+    // 2. Filter by Category
+    if (category && category !== 'All' && category !== 'all') {
+      const catLower = category.toLowerCase().trim();
+      spots = spots.filter(s => s.category && s.category.toLowerCase() === catLower);
+    }
+
+    // 3. Filter by Minimum Rating
+    if (rating && parseFloat(rating) > 0) {
+      const minRate = parseFloat(rating);
+      spots = spots.filter(s => (s.rating || 0) >= minRate);
+    }
+
+    // 4. Filter by Open Now
+    if (open_now === 'true' || open_now === true) {
+      spots = spots.filter(s => s.is_open_now);
+    }
+
+    // 5. Filter by Max Distance (Radius in km)
+    if (max_distance && parseFloat(max_distance) > 0) {
+      const maxDist = parseFloat(max_distance);
+      spots = spots.filter(s => s.distance !== null && s.distance <= maxDist);
+    }
+
+    // Sort by Distance Ascending (closest first)
+    spots.sort((a, b) => {
+      if (a.distance === null) return 1;
+      if (b.distance === null) return -1;
+      return a.distance - b.distance;
+    });
+
+    // Top Recommended (best rated within reasonable distance)
+    const topRecommended = [...spots]
+      .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+      .slice(0, 4);
+
+    return res.json({
+      target_location: {
+        latitude: targetLat,
+        longitude: targetLng,
+        city: targetCity
+      },
+      total: spots.length,
+      top_recommended: topRecommended,
+      spots: spots.slice(0, parseInt(limit, 10))
+    });
+  } catch (err) {
+    console.error('get nearby tourist spots error:', err);
+    return res.status(500).json({ detail: 'Failed to fetch nearby tourist spots' });
+  }
+});
+
+// Customer / Public: Get Tourist Spot Categories
+app.get('/api/tourist-spots/categories', async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT category, COUNT(*) as count 
+      FROM tourist_spots 
+      WHERE is_active = true 
+      GROUP BY category 
+      ORDER BY count DESC
+    `);
+    return res.json(result.rows);
+  } catch (err) {
+    console.error('get tourist categories error:', err);
+    return res.status(500).json({ detail: 'Failed to fetch categories' });
+  }
+});
+
+// Customer / Public: Get Single Tourist Spot Details
+app.get('/api/tourist-spots/:id', async (req, res) => {
+  try {
+    const spotId = parseInt(req.params.id, 10);
+    const result = await query('SELECT * FROM tourist_spots WHERE id = $1', [spotId]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ detail: 'Tourist spot not found' });
+    }
+    const spot = result.rows[0];
+    spot.is_open_now = checkIfOpenNow(spot.opening_hours, spot.closing_hours);
+    return res.json(spot);
+  } catch (err) {
+    console.error('get spot error:', err);
+    return res.status(500).json({ detail: 'Failed to fetch tourist spot' });
+  }
+});
+
+// Admin: Get All Tourist Spots (with full admin filters & stats)
+app.get('/api/admin/tourist-spots', authenticateUser, requireRole('admin'), async (req, res) => {
+  try {
+    const { search, category, city, status } = req.query;
+    let queryStr = 'SELECT * FROM tourist_spots WHERE 1=1';
+    const params = [];
+
+    if (search && search.trim()) {
+      params.push(`%${search.trim().toLowerCase()}%`);
+      queryStr += ` AND (LOWER(name) LIKE $${params.length} OR LOWER(description) LIKE $${params.length} OR LOWER(address) LIKE $${params.length} OR LOWER(city) LIKE $${params.length})`;
+    }
+
+    if (category && category !== 'All') {
+      params.push(category);
+      queryStr += ` AND category = $${params.length}`;
+    }
+
+    if (city && city !== 'All') {
+      params.push(`%${city.toLowerCase()}%`);
+      queryStr += ` AND LOWER(city) LIKE $${params.length}`;
+    }
+
+    if (status === 'active') {
+      queryStr += ' AND is_active = true';
+    } else if (status === 'inactive') {
+      queryStr += ' AND is_active = false';
+    }
+
+    queryStr += ' ORDER BY id DESC';
+
+    const result = await query(queryStr, params);
+    
+    // Calculate overview statistics
+    const statsRes = await query(`
+      SELECT 
+        COUNT(*) as total_spots,
+        COUNT(DISTINCT category) as total_categories,
+        COUNT(CASE WHEN is_active = true THEN 1 END) as active_spots,
+        COUNT(CASE WHEN rating >= 4.7 THEN 1 END) as top_rated_spots
+      FROM tourist_spots
+    `);
+
+    return res.json({
+      stats: statsRes.rows[0] || {},
+      spots: result.rows
+    });
+  } catch (err) {
+    console.error('admin get tourist spots error:', err);
+    return res.status(500).json({ detail: 'Failed to fetch admin tourist spots' });
+  }
+});
+
+// Admin: Create Tourist Spot
+app.post('/api/admin/tourist-spots', authenticateUser, requireRole('admin'), async (req, res) => {
+  try {
+    const {
+      name,
+      description = '',
+      category = 'Historical',
+      latitude,
+      longitude,
+      address = '',
+      city = '',
+      image_url = '',
+      rating = 4.5,
+      review_count = 100,
+      opening_hours = '09:00 AM',
+      closing_hours = '06:00 PM',
+      entry_fee = 'Free Entry',
+      best_time_to_visit = 'Morning / Evening',
+      estimated_duration = '1-2 hours',
+      is_active = true
+    } = req.body;
+
+    if (!name || latitude === undefined || longitude === undefined) {
+      return res.status(400).json({ detail: 'Name, latitude, and longitude are required' });
+    }
+
+    const result = await query(
+      `INSERT INTO tourist_spots (
+        name, description, category, latitude, longitude, address, city,
+        image_url, rating, review_count, opening_hours, closing_hours,
+        entry_fee, best_time_to_visit, estimated_duration, is_active, source
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 'admin')
+      RETURNING *`,
+      [
+        name.trim(), description, category, parseFloat(latitude), parseFloat(longitude),
+        address, city, image_url, parseFloat(rating || 4.5), parseInt(review_count || 100, 10),
+        opening_hours, closing_hours, entry_fee, best_time_to_visit, estimated_duration,
+        is_active !== false
+      ]
+    );
+
+    return res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('admin create spot error:', err);
+    return res.status(500).json({ detail: 'Failed to create tourist spot' });
+  }
+});
+
+// Admin: Update Tourist Spot
+app.put('/api/admin/tourist-spots/:id', authenticateUser, requireRole('admin'), async (req, res) => {
+  try {
+    const spotId = parseInt(req.params.id, 10);
+    const {
+      name,
+      description,
+      category,
+      latitude,
+      longitude,
+      address,
+      city,
+      image_url,
+      rating,
+      review_count,
+      opening_hours,
+      closing_hours,
+      entry_fee,
+      best_time_to_visit,
+      estimated_duration,
+      is_active
+    } = req.body;
+
+    const currentRes = await query('SELECT * FROM tourist_spots WHERE id = $1', [spotId]);
+    if (currentRes.rows.length === 0) {
+      return res.status(404).json({ detail: 'Tourist spot not found' });
+    }
+    const c = currentRes.rows[0];
+
+    const result = await query(
+      `UPDATE tourist_spots 
+       SET name = $1, description = $2, category = $3, latitude = $4, longitude = $5,
+           address = $6, city = $7, image_url = $8, rating = $9, review_count = $10,
+           opening_hours = $11, closing_hours = $12, entry_fee = $13, best_time_to_visit = $14,
+           estimated_duration = $15, is_active = $16, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $17
+       RETURNING *`,
+      [
+        name !== undefined ? name : c.name,
+        description !== undefined ? description : c.description,
+        category !== undefined ? category : c.category,
+        latitude !== undefined ? parseFloat(latitude) : c.latitude,
+        longitude !== undefined ? parseFloat(longitude) : c.longitude,
+        address !== undefined ? address : c.address,
+        city !== undefined ? city : c.city,
+        image_url !== undefined ? image_url : c.image_url,
+        rating !== undefined ? parseFloat(rating) : c.rating,
+        review_count !== undefined ? parseInt(review_count, 10) : c.review_count,
+        opening_hours !== undefined ? opening_hours : c.opening_hours,
+        closing_hours !== undefined ? closing_hours : c.closing_hours,
+        entry_fee !== undefined ? entry_fee : c.entry_fee,
+        best_time_to_visit !== undefined ? best_time_to_visit : c.best_time_to_visit,
+        estimated_duration !== undefined ? estimated_duration : c.estimated_duration,
+        is_active !== undefined ? is_active : c.is_active,
+        spotId
+      ]
+    );
+
+    return res.json(result.rows[0]);
+  } catch (err) {
+    console.error('admin update spot error:', err);
+    return res.status(500).json({ detail: 'Failed to update tourist spot' });
+  }
+});
+
+// Admin: Toggle Spot Active Status
+app.patch('/api/admin/tourist-spots/:id/toggle-status', authenticateUser, requireRole('admin'), async (req, res) => {
+  try {
+    const spotId = parseInt(req.params.id, 10);
+    const result = await query(
+      `UPDATE tourist_spots 
+       SET is_active = NOT is_active, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $1 
+       RETURNING id, name, is_active`,
+      [spotId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ detail: 'Tourist spot not found' });
+    }
+    return res.json({ success: true, spot: result.rows[0] });
+  } catch (err) {
+    console.error('admin toggle spot status error:', err);
+    return res.status(500).json({ detail: 'Failed to toggle status' });
+  }
+});
+
+// Admin: Delete Tourist Spot
+app.delete('/api/admin/tourist-spots/:id', authenticateUser, requireRole('admin'), async (req, res) => {
+  try {
+    const spotId = parseInt(req.params.id, 10);
+    const result = await query('DELETE FROM tourist_spots WHERE id = $1 RETURNING id, name', [spotId]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ detail: 'Tourist spot not found' });
+    }
+    return res.json({ success: true, message: `Deleted tourist spot: ${result.rows[0].name}` });
+  } catch (err) {
+    console.error('admin delete spot error:', err);
+    return res.status(500).json({ detail: 'Failed to delete tourist spot' });
+  }
+});
+
 // Start Server
 server.listen(PORT, () => {
   console.log(`\n🚀 HostIQ Node.js + Express Server running on http://localhost:${PORT}`);
   console.log(`🔒 Data Isolation & Privacy: Strict User Filtering Active`);
-  console.log(`💬 Real-Time WebSockets: Active on /api/ws/chat/:leadId/:hotelId\n`);
+  console.log(`💬 Real-Time WebSockets: Active on /api/ws/chat/:leadId/:hotelId`);
+  console.log(`📍 Nearby Tourist Spots: Module Active on /api/tourist-spots/nearby\n`);
 });

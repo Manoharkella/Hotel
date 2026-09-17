@@ -17,7 +17,8 @@ import {
   Menu,
   X,
   Search,
-  ChevronDown
+  ChevronDown,
+  Compass
 } from 'lucide-react';
 
 export default function AdminLayout() {
@@ -41,6 +42,7 @@ export default function AdminLayout() {
     { path: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/admin/calendar', icon: Calendar, label: 'Business Calendar' },
     { path: '/admin/map', icon: MapPin, label: 'Map View' },
+    { path: '/admin/tourist-spots', icon: Compass, label: 'Tourist Spots' },
     { path: '/admin/users', icon: Users, label: 'Customers' },
     { path: '/admin/hotels', icon: Building2, label: 'Hotels', badge: pendingHotelsCount },
     { path: '/admin/leads', icon: Mail, label: 'Leads' },

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, JSON, Float, DateTime, func, CheckConstraint, UniqueConstraint
+from sqlalchemy import Column, Integer, String, ForeignKey, JSON, Float, Boolean, DateTime, func, CheckConstraint, UniqueConstraint
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -200,5 +200,28 @@ class Wishlist(Base):
 
     user = relationship("User", back_populates="wishlist_items")
     hotel = relationship("Hotel")
+
+class TouristSpot(Base):
+    __tablename__ = "tourist_spots"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False, index=True)
+    description = Column(String, default="")
+    category = Column(String, default="Historical", index=True)
+    latitude = Column(Float, nullable=False)
+    longitude = Column(Float, nullable=False)
+    address = Column(String, default="")
+    city = Column(String, default="", index=True)
+    image_url = Column(String, default="")
+    rating = Column(Float, default=4.5)
+    review_count = Column(Integer, default=120)
+    opening_hours = Column(String, default="09:00 AM")
+    closing_hours = Column(String, default="06:00 PM")
+    entry_fee = Column(String, default="Free Entry")
+    best_time_to_visit = Column(String, default="Morning / Evening")
+    estimated_duration = Column(String, default="1-2 hours")
+    is_active = Column(Boolean, default=True)
+    source = Column(String, default="system")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 

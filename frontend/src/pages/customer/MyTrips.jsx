@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useApp } from '../../context/AppContext';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import NearbyAttractions from '../../components/NearbyAttractions';
 import { 
   Calendar, 
   MapPin, 
@@ -43,6 +44,7 @@ export default function MyTrips() {
   const [newCheckIn, setNewCheckIn] = useState('');
   const [newCheckOut, setNewCheckOut] = useState('');
   const [activeMenuId, setActiveMenuId] = useState(null);
+  const [selectedNearbyBooking, setSelectedNearbyBooking] = useState(null);
 
   useEffect(() => {
     if (editingDatesLead) {
@@ -552,6 +554,16 @@ export default function MyTrips() {
                   <button 
                     type="button" 
                     className="trip-btn-action"
+                    style={{ background: '#FFF7ED', color: '#EA580C', borderColor: '#FFEDD5', fontWeight: 700 }}
+                    onClick={() => setSelectedNearbyBooking({ booking, hotel, hotelTitle, hotelLoc })}
+                  >
+                    <Compass size={13} color="#EA580C" />
+                    <span>Explore Nearby</span>
+                  </button>
+
+                  <button 
+                    type="button" 
+                    className="trip-btn-action"
                     onClick={() => {
                       if (hotel?.id) navigate(`/customer/hotel/${hotel.id}`);
                       else navigate('/customer/find');
@@ -667,6 +679,16 @@ export default function MyTrips() {
                 <div className="trip-actions-row">
                   <button 
                     type="button" 
+                    className="trip-btn-action"
+                    style={{ background: '#FFF7ED', color: '#EA580C', borderColor: '#FFEDD5', fontWeight: 700 }}
+                    onClick={() => setSelectedNearbyBooking({ booking, hotel, hotelTitle, hotelLoc })}
+                  >
+                    <Compass size={13} color="#EA580C" />
+                    <span>Nearby Sights</span>
+                  </button>
+
+                  <button 
+                    type="button" 
                     className="trip-btn-action primary"
                     onClick={() => {
                       if (hotel?.id) navigate(`/customer/hotel/${hotel.id}`);
@@ -703,6 +725,43 @@ export default function MyTrips() {
             );
           })}
 
+        </div>
+      )}
+
+      {/* Explore Nearby Attractions Modal */}
+      {selectedNearbyBooking && (
+        <div className="chat-modal-overlay" onClick={() => setSelectedNearbyBooking(null)}>
+          <div 
+            className="trip-pass-modal-sheet" 
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: 880, width: '95%', maxHeight: '90vh', overflowY: 'auto', padding: 24, borderRadius: 20, background: '#FFFFFF' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, borderBottom: '1px solid #F1F5F9', paddingBottom: 12 }}>
+              <div>
+                <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#EA580C', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Booking #{selectedNearbyBooking.booking.id} • Destination Guide
+                </span>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0F172A', margin: '2px 0 0' }}>
+                  {selectedNearbyBooking.hotelTitle}
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedNearbyBooking(null)}
+                style={{ background: '#F1F5F9', border: 'none', borderRadius: '50%', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#64748B' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <NearbyAttractions
+              hotelId={selectedNearbyBooking.hotel?.id || selectedNearbyBooking.booking.hotelId}
+              hotelName={selectedNearbyBooking.hotelTitle}
+              hotelLatitude={selectedNearbyBooking.hotel?.latitude}
+              hotelLongitude={selectedNearbyBooking.hotel?.longitude}
+              hotelCity={selectedNearbyBooking.hotel?.city || selectedNearbyBooking.hotel?.location || selectedNearbyBooking.hotelLoc}
+            />
+          </div>
         </div>
       )}
 

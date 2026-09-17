@@ -269,3 +269,63 @@ class ReviewResponse(ReviewCreate):
     id: int
     created_at: str
     class Config: from_attributes = True
+
+class TouristSpotCreate(BaseModel):
+    name: str
+    description: Optional[str] = ""
+    category: Optional[str] = "Historical"
+    latitude: float
+    longitude: float
+    address: Optional[str] = ""
+    city: Optional[str] = ""
+    image_url: Optional[str] = ""
+    rating: Optional[float] = 4.5
+    review_count: Optional[int] = 100
+    opening_hours: Optional[str] = "09:00 AM"
+    closing_hours: Optional[str] = "06:00 PM"
+    entry_fee: Optional[str] = "Free Entry"
+    best_time_to_visit: Optional[str] = "Morning / Evening"
+    estimated_duration: Optional[str] = "1-2 hours"
+    is_active: Optional[bool] = True
+
+class TouristSpotUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    image_url: Optional[str] = None
+    rating: Optional[float] = None
+    review_count: Optional[int] = None
+    opening_hours: Optional[str] = None
+    closing_hours: Optional[str] = None
+    entry_fee: Optional[str] = None
+    best_time_to_visit: Optional[str] = None
+    estimated_duration: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class TouristSpotResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = ""
+    category: str
+    latitude: float
+    longitude: float
+    address: Optional[str] = ""
+    city: Optional[str] = ""
+    image_url: Optional[str] = ""
+    rating: float
+    review_count: int
+    opening_hours: Optional[str] = "09:00 AM"
+    closing_hours: Optional[str] = "06:00 PM"
+    entry_fee: Optional[str] = "Free Entry"
+    best_time_to_visit: Optional[str] = "Morning / Evening"
+    estimated_duration: Optional[str] = "1-2 hours"
+    is_active: Optional[bool] = True
+    distance: Optional[float] = None
+    estimated_travel_time: Optional[str] = None
+    is_open_now: Optional[bool] = True
+    google_maps_url: Optional[str] = None
+    class Config: from_attributes = True
