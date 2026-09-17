@@ -653,6 +653,7 @@ export default function HotelDetail() {
                 hotelLatitude={hotel.latitude}
                 hotelLongitude={hotel.longitude}
                 hotelCity={hotel.city || hotel.location}
+                showCitySelector={false}
               />
             </div>
 

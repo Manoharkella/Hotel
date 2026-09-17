@@ -23,7 +23,8 @@ import {
   Utensils,
   Map as MapIcon,
   LayoutGrid,
-  Columns3
+  Columns3,
+  Compass
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -474,6 +475,29 @@ const isPlaceSearched = Boolean(destination && destination.trim() && destination
             <span style={{ fontSize: '0.8rem', background: '#FEE2E2', color: '#DC2626', padding: '2px 8px', borderRadius: 9999, fontWeight: 700 }}>
               {destination}
             </span>
+          )}
+          {destination && (
+            <button
+              type="button"
+              onClick={() => navigate(`/customer/discover?city=${encodeURIComponent(destination)}`)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+                fontSize: '0.78rem',
+                background: '#FFF7ED',
+                color: '#EA580C',
+                border: '1px solid #FDBA74',
+                padding: '3px 10px',
+                borderRadius: 9999,
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              <Compass size={13} color="#EA580C" />
+              <span>Discover Tourist Spots in {destination}</span>
+            </button>
           )}
         </div>
 

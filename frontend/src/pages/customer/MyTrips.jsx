@@ -554,11 +554,11 @@ export default function MyTrips() {
                   <button 
                     type="button" 
                     className="trip-btn-action"
-                    style={{ background: '#FFF7ED', color: '#EA580C', borderColor: '#FFEDD5', fontWeight: 700 }}
-                    onClick={() => setSelectedNearbyBooking({ booking, hotel, hotelTitle, hotelLoc })}
+                    style={{ background: '#FFF7ED', color: '#C2410C', borderColor: '#FED7AA', fontWeight: 800 }}
+                    onClick={() => setSelectedNearbyBooking({ booking, hotel, hotelTitle, hotelLoc, defaultView: 'map' })}
                   >
                     <Compass size={13} color="#EA580C" />
-                    <span>Explore Nearby</span>
+                    <span>Visit Nearby & Route</span>
                   </button>
 
                   <button 
@@ -734,12 +734,12 @@ export default function MyTrips() {
           <div 
             className="trip-pass-modal-sheet" 
             onClick={e => e.stopPropagation()}
-            style={{ maxWidth: 880, width: '95%', maxHeight: '90vh', overflowY: 'auto', padding: 24, borderRadius: 20, background: '#FFFFFF' }}
+            style={{ maxWidth: 960, width: '95%', maxHeight: '92vh', overflowY: 'auto', padding: 24, borderRadius: 20, background: '#FFFFFF' }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, borderBottom: '1px solid #F1F5F9', paddingBottom: 12 }}>
               <div>
                 <span style={{ fontSize: '0.74rem', fontWeight: 800, color: '#EA580C', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Booking #{selectedNearbyBooking.booking.id} • Destination Guide
+                  Booking #{selectedNearbyBooking.booking.id} • Sightseeing & Route Guide
                 </span>
                 <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#0F172A', margin: '2px 0 0' }}>
                   {selectedNearbyBooking.hotelTitle}
@@ -760,6 +760,8 @@ export default function MyTrips() {
               hotelLatitude={selectedNearbyBooking.hotel?.latitude}
               hotelLongitude={selectedNearbyBooking.hotel?.longitude}
               hotelCity={selectedNearbyBooking.hotel?.city || selectedNearbyBooking.hotel?.location || selectedNearbyBooking.hotelLoc}
+              defaultViewMode={selectedNearbyBooking.defaultView || 'map'}
+              showCitySelector={false}
             />
           </div>
         </div>

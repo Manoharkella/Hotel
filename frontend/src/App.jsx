@@ -83,7 +83,9 @@ function AppRoutes() {
         <Route path="hotel/:id" element={<HotelDetail />} />
         <Route path="trips" element={<ProtectedRoute allowedRole="customer"><MyTrips /></ProtectedRoute>} />
         <Route path="explore-nearby" element={<ExploreNearbyPage />} />
-        <Route path="nearby" element={<Navigate to="/customer/explore-nearby" replace />} />
+        <Route path="discover" element={<ExploreNearbyPage />} />
+        <Route path="explore" element={<ExploreNearbyPage />} />
+        <Route path="nearby" element={<Navigate to="/customer/discover" replace />} />
         <Route path="wishlist" element={<ProtectedRoute allowedRole="customer"><Wishlist /></ProtectedRoute>} />
         <Route path="rewards" element={<ProtectedRoute allowedRole="customer"><RewardsStore /></ProtectedRoute>} />
         <Route path="checkin/:id" element={<ProtectedRoute allowedRole="customer"><OnlineCheckIn /></ProtectedRoute>} />

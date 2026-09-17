@@ -68,8 +68,8 @@ export default function CustomerLayout() {
             <Link to="/customer/find" className={`nav-link-item ${location.pathname.includes('/customer/find') ? 'active' : ''}`}>
               Find a Stay
             </Link>
-            <Link to="/customer/explore-nearby" className={`nav-link-item ${location.pathname.includes('nearby') ? 'active' : ''}`}>
-              Explore Nearby
+            <Link to="/customer/explore" className={`nav-link-item ${location.pathname.includes('discover') || location.pathname.includes('explore') || location.pathname.includes('nearby') ? 'active' : ''}`}>
+              Explore
             </Link>
             <a href="#how-it-works" onClick={(e) => {
               if (location.pathname !== '/customer') {
@@ -341,13 +341,13 @@ export default function CustomerLayout() {
                 </Link>
 
                 <Link 
-                  to="/customer/explore-nearby" 
+                  to="/customer/explore" 
                   onClick={() => setMenuOpen(false)}
-                  className={`mobile-drawer-nav-item ${location.pathname.includes('nearby') ? 'active' : ''}`}
+                  className={`mobile-drawer-nav-item ${location.pathname.includes('discover') || location.pathname.includes('explore') || location.pathname.includes('nearby') ? 'active' : ''}`}
                 >
                   <div className="mobile-drawer-nav-left">
                     <span className="mobile-drawer-nav-icon"><Compass size={18} color="#EA580C" /></span>
-                    <span>Explore Nearby</span>
+                    <span>Explore</span>
                   </div>
                   <ChevronRight size={16} className="mobile-drawer-chevron" />
                 </Link>

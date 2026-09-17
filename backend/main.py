@@ -1934,32 +1934,217 @@ def seed_tourist_spots_if_needed():
                     "entry_fee": "Free Entry",
                     "best_time_to_visit": "Morning (9:30 AM - 12:00 PM)",
                     "estimated_duration": "1 hour"
+                },
+
+                # Agra
+                {
+                    "name": "Taj Mahal",
+                    "description": "An immense mausoleum of white marble, built in Agra by Mughal emperor Shah Jahan in memory of his favourite wife, Mumtaz Mahal. A UNESCO World Heritage Site and Wonder of the World.",
+                    "category": "Historical",
+                    "latitude": 27.1751,
+                    "longitude": 78.0421,
+                    "address": "Dharmapuri, Forest Colony, Tajganj, Agra",
+                    "city": "Agra",
+                    "image_url": "https://images.unsplash.com/photo-1564507592333-c60657eea523?w=800&auto=format&fit=crop&q=80",
+                    "rating": 4.9,
+                    "review_count": 52000,
+                    "opening_hours": "06:00 AM",
+                    "closing_hours": "06:30 PM",
+                    "entry_fee": "₹50 / Indian, ₹1,100 / Foreigner",
+                    "best_time_to_visit": "Sunrise (6:00 AM - 8:30 AM)",
+                    "estimated_duration": "2 - 3 hours"
+                },
+                {
+                    "name": "Agra Fort",
+                    "description": "Historical red sandstone fortress that was the main residence of the Mughal emperors until 1638, overlooking the Yamuna river.",
+                    "category": "Historical",
+                    "latitude": 27.1795,
+                    "longitude": 78.0211,
+                    "address": "Agra Fort, Rakabganj, Agra",
+                    "city": "Agra",
+                    "image_url": "https://images.unsplash.com/photo-1599661046289-e31897846e41?w=800&auto=format&fit=crop&q=80",
+                    "rating": 4.7,
+                    "review_count": 28000,
+                    "opening_hours": "06:00 AM",
+                    "closing_hours": "06:00 PM",
+                    "entry_fee": "₹50 / Indian, ₹650 / Foreigner",
+                    "best_time_to_visit": "Morning / Late Afternoon",
+                    "estimated_duration": "2 hours"
+                },
+
+                # Jaipur
+                {
+                    "name": "Amer Fort & Palace",
+                    "description": "Majestic hilltop fort featuring Rajput-Mughal architecture, the shimmering Sheesh Mahal (Mirror Palace), elephant rides, and Maota Lake views.",
+                    "category": "Historical",
+                    "latitude": 26.9855,
+                    "longitude": 75.8513,
+                    "address": "Devisinghpura, Amer, Jaipur",
+                    "city": "Jaipur",
+                    "image_url": "https://images.unsplash.com/photo-1599661046827-dacff0c0f09a?w=800&auto=format&fit=crop&q=80",
+                    "rating": 4.8,
+                    "review_count": 34000,
+                    "opening_hours": "08:00 AM",
+                    "closing_hours": "06:00 PM",
+                    "entry_fee": "₹100 / Indian, ₹500 / Foreigner",
+                    "best_time_to_visit": "Morning (8:30 AM - 11:30 AM)",
+                    "estimated_duration": "3 hours"
+                },
+                {
+                    "name": "Hawa Mahal (Palace of Winds)",
+                    "description": "Iconic pink sandstone palace with 953 honeycomb windows crafted for royal women to observe street festivals undisturbed.",
+                    "category": "Historical",
+                    "latitude": 26.9239,
+                    "longitude": 75.8267,
+                    "address": "Hawa Mahal Rd, Badi Choupad, Jaipur",
+                    "city": "Jaipur",
+                    "image_url": "https://images.unsplash.com/photo-1603258849045-8c01d4a0498b?w=800&auto=format&fit=crop&q=80",
+                    "rating": 4.7,
+                    "review_count": 29000,
+                    "opening_hours": "09:00 AM",
+                    "closing_hours": "05:00 PM",
+                    "entry_fee": "₹50 / Indian, ₹200 / Foreigner",
+                    "best_time_to_visit": "Early Morning (9:00 AM - 10:30 AM)",
+                    "estimated_duration": "1 - 1.5 hours"
+                },
+
+                # Manali
+                {
+                    "name": "Solang Valley Adventure Hub",
+                    "description": "Stunning snow valley renowned for paragliding, zorbing, snow skiing, quad biking, and breathtaking Himalayan mountain vistas.",
+                    "category": "Adventure",
+                    "latitude": 32.3166,
+                    "longitude": 77.1575,
+                    "address": "Solang Valley, Vashisht, Manali",
+                    "city": "Manali",
+                    "image_url": "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80",
+                    "rating": 4.8,
+                    "review_count": 21000,
+                    "opening_hours": "08:30 AM",
+                    "closing_hours": "06:00 PM",
+                    "entry_fee": "Free Entry (Activities extra)",
+                    "best_time_to_visit": "Morning (9:00 AM - 2:00 PM)",
+                    "estimated_duration": "4 - 5 hours"
+                },
+                {
+                    "name": "Hadimba Devi Temple",
+                    "description": "Ancient 16th-century wooden pagoda temple tucked in the serene cedar forest of Dhungri, dedicated to Hadimba Devi.",
+                    "category": "Religious",
+                    "latitude": 32.2483,
+                    "longitude": 77.1812,
+                    "address": "Hadimba Temple Rd, Old Manali",
+                    "city": "Manali",
+                    "image_url": "https://images.unsplash.com/photo-1605649487212-47bdab064df7?w=800&auto=format&fit=crop&q=80",
+                    "rating": 4.6,
+                    "review_count": 16500,
+                    "opening_hours": "08:00 AM",
+                    "closing_hours": "06:00 PM",
+                    "entry_fee": "Free Entry",
+                    "best_time_to_visit": "Morning (9:00 AM - 12:00 PM)",
+                    "estimated_duration": "1 hour"
+                },
+
+                # Alleppey / Kerala
+                {
+                    "name": "Alleppey Backwaters & Houseboat Cruise",
+                    "description": "Mesmerizing labyrinth of palm-fringed canals, serene lagoons, and scenic village waterways experienced on traditional luxury kettuvallam houseboats.",
+                    "category": "Nature",
+                    "latitude": 9.4981,
+                    "longitude": 76.3388,
+                    "address": "Punnamada, Finishing Point, Alappuzha",
+                    "city": "Alleppey",
+                    "image_url": "https://images.unsplash.com/photo-1602216056096-3b40cc0c9944?w=800&auto=format&fit=crop&q=80",
+                    "rating": 4.9,
+                    "review_count": 31000,
+                    "opening_hours": "06:00 AM",
+                    "closing_hours": "06:00 PM",
+                    "entry_fee": "Free Entry (Cruises ₹800 - ₹5,000)",
+                    "best_time_to_visit": "Morning & Sunset",
+                    "estimated_duration": "4 - 6 hours"
+                },
+                {
+                    "name": "Marari Beach",
+                    "description": "Pristine white sand beach lined with swaying coconut palms, offering peaceful coastal walks, ayurvedic wellness, and sunset views.",
+                    "category": "Beach",
+                    "latitude": 9.6000,
+                    "longitude": 76.2974,
+                    "address": "Mararikulam, Alappuzha, Kerala",
+                    "city": "Alleppey",
+                    "image_url": "https://images.unsplash.com/photo-1512343879784-a960bf40e7f2?w=800&auto=format&fit=crop&q=80",
+                    "rating": 4.7,
+                    "review_count": 14200,
+                    "opening_hours": "24 Hours Open",
+                    "closing_hours": "24 Hours Open",
+                    "entry_fee": "Free Entry",
+                    "best_time_to_visit": "Evening Sunset (4:30 PM - 6:30 PM)",
+                    "estimated_duration": "2 - 3 hours"
+                },
+
+                # Ooty
+                {
+                    "name": "Ooty Lake & Boating",
+                    "description": "Picturesque 65-acre artificial lake framed by eucalyptus trees, offering pedal boats, row boats, mini train rides, and horse riding.",
+                    "category": "Nature",
+                    "latitude": 11.4064,
+                    "longitude": 76.6853,
+                    "address": "North Lake Road, Ooty",
+                    "city": "Ooty",
+                    "image_url": "https://images.unsplash.com/photo-1544644181-1484b3fdfc62?w=800&auto=format&fit=crop&q=80",
+                    "rating": 4.6,
+                    "review_count": 18900,
+                    "opening_hours": "09:00 AM",
+                    "closing_hours": "06:00 PM",
+                    "entry_fee": "₹15 / person (Boating extra)",
+                    "best_time_to_visit": "Morning & Afternoon",
+                    "estimated_duration": "2 hours"
+                },
+                {
+                    "name": "Government Botanical Garden Ooty",
+                    "description": "Sprawling 55-acre terraced garden established in 1848, featuring thousands of exotic floral species, Italian gardens, and a 20-million-year-old fossil tree trunk.",
+                    "category": "Nature",
+                    "latitude": 11.4172,
+                    "longitude": 76.7118,
+                    "address": "Vannarapettai, Ooty, Tamil Nadu",
+                    "city": "Ooty",
+                    "image_url": "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=800&auto=format&fit=crop&q=80",
+                    "rating": 4.7,
+                    "review_count": 22500,
+                    "opening_hours": "07:00 AM",
+                    "closing_hours": "06:30 PM",
+                    "entry_fee": "₹40 / adult, ₹20 / child",
+                    "best_time_to_visit": "Morning (8:30 AM - 12:00 PM)",
+                    "estimated_duration": "2 - 3 hours"
                 }
             ]
 
+            existing_spots = {s.name.lower(): s for s in db.query(models.TouristSpot).all()}
+            added_count = 0
             for s in seed_data:
-                spot_obj = models.TouristSpot(
-                    name=s["name"],
-                    description=s.get("description", ""),
-                    category=s.get("category", "Historical"),
-                    latitude=s["latitude"],
-                    longitude=s["longitude"],
-                    address=s.get("address", ""),
-                    city=s.get("city", ""),
-                    image_url=s.get("image_url", ""),
-                    rating=s.get("rating", 4.5),
-                    review_count=s.get("review_count", 100),
-                    opening_hours=s.get("opening_hours", "09:00 AM"),
-                    closing_hours=s.get("closing_hours", "06:00 PM"),
-                    entry_fee=s.get("entry_fee", "Free Entry"),
-                    best_time_to_visit=s.get("best_time_to_visit", "Morning / Evening"),
-                    estimated_duration=s.get("estimated_duration", "1-2 hours"),
-                    is_active=True,
-                    source="system"
-                )
-                db.add(spot_obj)
-            db.commit()
-            print(f"Successfully seeded {len(seed_data)} tourist spots into database.")
+                if s["name"].lower() not in existing_spots:
+                    spot_obj = models.TouristSpot(
+                        name=s["name"],
+                        description=s.get("description", ""),
+                        category=s.get("category", "Historical"),
+                        latitude=s["latitude"],
+                        longitude=s["longitude"],
+                        address=s.get("address", ""),
+                        city=s.get("city", ""),
+                        image_url=s.get("image_url", ""),
+                        rating=s.get("rating", 4.5),
+                        review_count=s.get("review_count", 100),
+                        opening_hours=s.get("opening_hours", "09:00 AM"),
+                        closing_hours=s.get("closing_hours", "06:00 PM"),
+                        entry_fee=s.get("entry_fee", "Free Entry"),
+                        best_time_to_visit=s.get("best_time_to_visit", "Morning / Evening"),
+                        estimated_duration=s.get("estimated_duration", "1-2 hours"),
+                        is_active=True,
+                        source="system"
+                    )
+                    db.add(spot_obj)
+                    added_count += 1
+            if added_count > 0:
+                db.commit()
+                print(f"Successfully seeded {added_count} new tourist spots into database.")
         db.close()
     except Exception as e:
         print("Error seeding tourist spots:", e)
@@ -1978,7 +2163,7 @@ def get_nearby_tourist_spots(
     rating: Optional[str] = None,
     open_now: Optional[str] = None,
     search: Optional[str] = None,
-    limit: Optional[int] = 30,
+    limit: Optional[int] = 35,
     db: Session = Depends(get_db)
 ):
     target_lat = lat
@@ -1995,8 +2180,18 @@ def get_nearby_tourist_spots(
                 target_city = hotel.city or hotel.location or ""
 
     if target_lat is None or target_lng is None:
-        city_lower = (target_city or "").lower()
-        if "hyderabad" in city_lower:
+        city_lower = f"{target_city or ''} {search or ''}".lower()
+        if "agra" in city_lower:
+            target_lat, target_lng = 27.1751, 78.0421
+        elif "jaipur" in city_lower:
+            target_lat, target_lng = 26.9124, 75.7873
+        elif "manali" in city_lower:
+            target_lat, target_lng = 32.2396, 77.1887
+        elif "alleppey" in city_lower or "alappuzha" in city_lower or "kerala" in city_lower:
+            target_lat, target_lng = 9.4981, 76.3388
+        elif "ooty" in city_lower:
+            target_lat, target_lng = 11.4102, 76.6950
+        elif "hyderabad" in city_lower:
             target_lat, target_lng = 17.3850, 78.4867
         elif "vizag" in city_lower or "visakhapatnam" in city_lower:
             target_lat, target_lng = 17.6868, 83.2185
@@ -2010,6 +2205,21 @@ def get_nearby_tourist_spots(
             target_lat, target_lng = 15.4920, 73.7737
         else:
             target_lat, target_lng = 17.3850, 78.4867 # Default
+
+    has_specific_location = bool(hotel_id or (lat is not None and lng is not None) or (target_city and target_city.lower() != "all" and target_city.strip()) or (search and search.strip()))
+
+    if not has_specific_location:
+        return {
+            "target_location": {
+                "latitude": 20.5937,
+                "longitude": 78.9629,
+                "city": ""
+            },
+            "total": 0,
+            "top_recommended": [],
+            "spots": [],
+            "no_location": True
+        }
 
     all_spots = db.query(models.TouristSpot).filter(models.TouristSpot.is_active == True).all()
 
@@ -2043,6 +2253,14 @@ def get_nearby_tourist_spots(
             "google_maps_url": maps_url
         }
         enriched_spots.append(spot_dict)
+
+    # Filter to current location region (within 60km or matching city name)
+    if target_city and target_city.lower() != "all" and target_city.strip():
+        tc = target_city.lower().strip()
+        enriched_spots = [
+            s for s in enriched_spots
+            if (s["city"] and tc in s["city"].lower()) or (s["distance"] is not None and s["distance"] <= 60.0)
+        ]
 
     # 1. Search Query Filter
     if search and search.strip():
